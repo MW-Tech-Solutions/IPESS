@@ -59,7 +59,7 @@
 
         <div class="content-area">
             <header class="topbar">
-                <link rel="icon" type="image/jpeg" href="/JOSTUM/ADMIN/images/logo.jpeg">
+                <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
 <div class="topbar-left">
                     <button class="icon-btn topbar-menu" id="mobile-sidebar-toggle" type="button" aria-label="Open navigation">
                         <i class="fas fa-bars"></i>

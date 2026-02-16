@@ -174,7 +174,7 @@ if ($is_ajax) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" type="image/jpeg" href="/JOSTUM/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
 <meta charset="UTF-8">
     <title>Document Upload Status</title>
     <style>

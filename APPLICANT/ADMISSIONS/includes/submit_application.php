@@ -2,7 +2,7 @@
 session_start();
 
 // 1. Database Configuration (Ideally move this to a separate config.php)
-$host    = 'localhost';
+$host    = '127.0.0.1';
 $db      = 'jostum_pg';
 $user    = 'root';
 $pass    = '';

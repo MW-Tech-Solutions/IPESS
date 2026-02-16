@@ -71,7 +71,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/JOSTUM/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
     <title>Joseph Sarwuan Tarka University, Makurdi</title>
     <style>
         @import url("https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+3:wght@400;500;600;700&display=swap");

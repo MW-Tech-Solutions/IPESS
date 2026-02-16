@@ -139,7 +139,7 @@ function render_admission_letter_html(array $applicant, array $options = []): st
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" type="image/jpeg" href="/JOSTUM/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
 <meta charset="UTF-8">
     <title>Admission Letter for {$title}</title>
     <style>

@@ -2,7 +2,7 @@
 
 <nav class="sidebar nav-jostum" id="sidebar">
     <div class="logo">
-        <img src="/JOSTUM/ADMIN/images/logo.jpeg" alt="School Logo" class="sidebar-logo-img">
+        <img src="/ADMIN/images/logo.jpeg" alt="School Logo" class="sidebar-logo-img">
         <span>JOSTUM PG</span>
     </div>
 

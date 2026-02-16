@@ -108,7 +108,7 @@ try {
                     if (preg_match('#^https?://#i', $docPath) || strpos($docPath, '/') === 0) {
                         $studentUser['avatar'] = $docPath;
                     } else {
-                        $studentUser['avatar'] = '/JOSTUM/' . ltrim(str_replace('\\', '/', $docPath), '/');
+                        $studentUser['avatar'] = '/' . ltrim(str_replace('\\', '/', $docPath), '/');
                     }
                 }
         }
@@ -204,7 +204,7 @@ $studentCanAccessAcademics = !empty($_SESSION['student_can_access_academics']);
 ?>
 
 <header class="topbar" id="topbar">
-    <link rel="icon" type="image/jpeg" href="/JOSTUM/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
 <?php if ($studentCanAccessAcademics): ?>
     <button class="sidebar-toggler" type="button" id="sidebarToggler" aria-label="Toggle sidebar">
             <i class="bi bi-list"></i>
@@ -214,7 +214,7 @@ $studentCanAccessAcademics = !empty($_SESSION['student_can_access_academics']);
     <?php if ($studentCanAccessAcademics): ?>
         <div class="ms-2 d-none d-md-flex align-items-center">
             <div class="btn-group btn-group-sm" role="group" aria-label="Dashboard switcher">
-                <a class="btn btn-outline-secondary" href="/JOSTUM/dashboard.php">Admission</a>
+                <a class="btn btn-outline-secondary" href="/dashboard.php">Admission</a>
                 <a class="btn btn-primary" href="index.php#dashboard" aria-current="page">Academics</a>
             </div>
         </div>
@@ -397,7 +397,7 @@ $studentCanAccessAcademics = !empty($_SESSION['student_can_access_academics']);
                     <button type="button" class="btn btn-outline-secondary" onclick="openHelpModalFromAccount()">
                         <i class="bi bi-question-circle me-2"></i>Help & Support
                     </button>
-                    <a class="btn btn-danger" href="/JOSTUM/APPLICANT/ADMISSIONS/logout.php">
+                    <a class="btn btn-danger" href="/APPLICANT/ADMISSIONS/logout.php">
                         <i class="bi bi-box-arrow-right me-2"></i>Logout
                     </a>
                 </div>

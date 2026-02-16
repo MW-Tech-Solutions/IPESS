@@ -231,7 +231,7 @@ $resetStmt->execute([$insertedUserId, $email, $tokenHash, $expires]);
 $settings = $pdo->query("SELECT * FROM system_settings LIMIT 1")->fetch(PDO::FETCH_ASSOC);
 $issuer = trim($settings['institution_name'] ?? 'JOSTUM PG');
 $baseUrl = getenv('APP_BASE_URL')
-    ?: ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/JOSTUM');
+    ?: ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '13.60.198.99'));
 $resetLink = rtrim($baseUrl, '/') . '/ADMIN/reset-password.php?token=' . urlencode($token);
 $loginLink = rtrim($baseUrl, '/') . '/ADMIN/login.php';
 

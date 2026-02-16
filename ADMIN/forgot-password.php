@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([(int) $user['user_id'], $email, $tokenHash, $expiresAt]);
 
                 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-                $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $host = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
                 $basePath = rtrim(dirname($_SERVER['REQUEST_URI'] ?? '/'), '/');
                 $resetLink = $protocol . '://' . $host . $basePath . '/reset-password.php?token=' . urlencode($token);
 
@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/JOSTUM/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
     <title>Forgot Password - JOSTUM PG SCHOOL</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">

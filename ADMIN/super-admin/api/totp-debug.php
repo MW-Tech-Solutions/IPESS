@@ -5,7 +5,7 @@ function is_debug_allowed(): bool {
     $env = getenv('APP_ENV') ?: '';
     $debug = getenv('APP_DEBUG') ?: '';
     $host = $_SERVER['HTTP_HOST'] ?? '';
-    return $env === 'local' || $debug === '1' || in_array($host, ['localhost', '127.0.0.1'], true);
+    return $env === 'local' || $debug === '1' || in_array($host, ['127.0.0.1', '127.0.0.1'], true);
 }
 
 if (!is_debug_allowed()) {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/JOSTUM/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
 <title>Admissions | Joseph Sarwuan Tarka University, Makurdi</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -279,7 +279,7 @@
 
     <nav class="navbar navbar-expand-lg bg-white border-bottom">
         <div class="container">
-            <a class="navbar-brand" href="/JOSTUM/">
+            <a class="navbar-brand" href="/">
                 <img src="images/jostum.jpeg" alt="JOSTUM Logo">
                 <div>
                     <div>JOSTUM Admissions</div>
@@ -299,7 +299,7 @@
                 </ul>
                 <div class="ms-lg-3 d-flex gap-2">
                     <a class="btn btn-apply" href="register.php">Apply Now</a>
-                    <a class="btn btn-outline" href="/JOSTUM/">Main Site</a>
+                    <a class="btn btn-outline" href="/">Main Site</a>
                 </div>
             </div>
         </div>
@@ -572,7 +572,7 @@
                 <div class="col-md-4">
                     <div class="footer-title">Quick Links</div>
                     <p><a href="register.php">Admission Application</a></p>
-                    <p><a href="/JOSTUM/">Main University Website</a></p>
+                    <p><a href="/">Main University Website</a></p>
                 </div>
             </div>
             <div class="footer-bottom">

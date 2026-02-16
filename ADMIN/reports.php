@@ -5,7 +5,7 @@ require_once 'includes/sidebar.php';
 require_once 'includes/topbar.php';
 require_once 'includes/db.php';
 // Assume $pdo is your PDO database connection from header.php
-// If not, add: $pdo = new PDO("mysql:host=localhost;dbname=pg", $user, $pass);
+// If not, add: $pdo = new PDO("mysql:host=127.0.0.1;dbname=pg", $user, $pass);
 
 // Helper: Format date for human-readable
 function formatDate($date) {

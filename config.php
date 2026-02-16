@@ -5,7 +5,7 @@ if (!isset($_SESSION['student_id'])) {
     $_SESSION['student_id'] = 1; 
 }
 
-$host = 'localhost';
+$host = '127.0.0.1';
 $db   = 'pg';
 $user = 'root';
 $pass = '997667'; 

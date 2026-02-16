@@ -36,7 +36,7 @@ function app_base_url(): string
 
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
     $scheme = $https ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $host = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
 
     return $scheme . '://' . $host;
 }

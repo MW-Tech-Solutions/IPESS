@@ -1,6 +1,6 @@
 <?php
 // Database connection
-$host = 'localhost';
+$host = '127.0.0.1';
 $dbname = 'jostum';
 $username = 'root';
 $password = '';

@@ -48,7 +48,7 @@ try {
     $stmt->execute([(int) $user['user_id'], $email, $tokenHash, $expiresAt]);
 
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $host = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
     $basePath = rtrim(dirname($_SERVER['REQUEST_URI'] ?? '/'), '/');
     $resetLink = $protocol . '://' . $host . $basePath . '/reset_password.php?token=' . urlencode($token);
 

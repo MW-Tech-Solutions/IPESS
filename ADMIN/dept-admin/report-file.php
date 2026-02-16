@@ -48,7 +48,7 @@ if ($extension === 'pdf' && $mode === 'view' && !isset($_GET['raw'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/JOSTUM/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
     <title><?php echo $title; ?></title>
     <style>
         html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #fff; }

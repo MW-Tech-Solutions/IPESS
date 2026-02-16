@@ -1,6 +1,6 @@
 <?php
 // Database configuration
-$host = 'localhost';
+$host = '127.0.0.1';
 $db   = 'jpg';
 $user = 'root';
 $pass = '997667';

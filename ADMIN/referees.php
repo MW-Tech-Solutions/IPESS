@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $applicantName = $data['first_name'] . ' ' . $data['surname'];
                 $request = create_referee_request($pdo, $refId, (int) $data['application_id'], $_SESSION['user_id'] ?? null);
                 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-                $vLink = $protocol . $_SERVER['HTTP_HOST'] . "/JOSTUM/referee_verify.php?token=" . urlencode($request['token']);
+                $vLink = $protocol . $_SERVER['HTTP_HOST'] . "/referee_verify.php?token=" . urlencode($request['token']);
 
                 $sent = send_referee_request_email($pdo, $refId, $vLink);
                 $_SESSION['message'] = $sent ? "Notification sent successfully." : "Mail Error: unable to send.";
