@@ -1,0 +1,365 @@
+:root {
+  --jostum-primary: #3498db;
+  --jostum-primary-600: #258cd1;
+  --jostum-secondary: #27ae60;
+  --jostum-secondary-600: #229955;
+  --jostum-bg: #f2f2f2;
+  --jostum-surface: #ffffff;
+  --jostum-text: #494949;
+  --jostum-text-strong: #292929;
+  --jostum-text-muted: #3c3c3c;
+  --jostum-border: #d9d9d9;
+  --jostum-danger: #e74c3c;
+  --jostum-warning: #f39c12;
+  --jostum-info: #3498db;
+  --jostum-link: #494949;
+  --jostum-link-hover: #3498db;
+  --jostum-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --jostum-shadow-strong: 0 2px 5px rgba(0, 0, 0, 0.15);
+  --jostum-radius: 4px;
+}
+
+body {
+  font-family: "Poppins", sans-serif;
+  font-weight: 400;
+  color: var(--jostum-text);
+  background-color: var(--jostum-bg);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+@media (max-width: 599.98px) {
+  body {
+    font-size: 12px;
+  }
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  font-family: "Poppins", sans-serif;
+  font-weight: 400;
+  color: var(--jostum-text-strong);
+}
+
+a {
+  color: var(--jostum-link);
+  text-decoration: none;
+}
+
+a:hover,
+a:focus {
+  color: var(--jostum-link-hover);
+}
+
+.btn-jostum {
+  background-color: var(--jostum-primary);
+  border: 1px solid var(--jostum-primary);
+  color: #fff;
+  border-radius: var(--jostum-radius);
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+}
+
+.btn-jostum:hover,
+.btn-jostum:focus {
+  background-color: var(--jostum-primary-600);
+  border-color: var(--jostum-primary-600);
+  color: #fff;
+}
+
+.btn-jostum:focus {
+  box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+.card-jostum {
+  background-color: var(--jostum-surface);
+  border: 1px solid var(--jostum-border);
+  border-radius: var(--jostum-radius);
+  box-shadow: var(--jostum-shadow);
+}
+
+.badge-jostum {
+  background-color: var(--jostum-secondary);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-weight: 600;
+}
+
+.badge-jostum-primary {
+  background-color: var(--jostum-primary);
+}
+
+.badge-jostum-warning {
+  background-color: var(--jostum-warning);
+}
+
+.badge-jostum-danger {
+  background-color: var(--jostum-danger);
+}
+
+.text-primary {
+  color: var(--jostum-primary) !important;
+}
+
+.nav-jostum .nav-link {
+  color: #fff;
+  border-radius: var(--jostum-radius);
+  padding: 0.7rem 1rem;
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+}
+
+.nav-jostum .nav-link:hover,
+.nav-jostum .nav-link.active {
+  background-color: var(--jostum-primary-600);
+  color: #fff;
+}
+
+.table-jostum {
+  border-color: var(--jostum-border);
+}
+
+.table-jostum thead th {
+  background-color: var(--jostum-bg);
+  color: var(--jostum-text-strong);
+  border-color: var(--jostum-border);
+  font-weight: 600;
+}
+
+.table-jostum tbody td {
+  border-color: var(--jostum-border);
+}
+
+.progress-jostum {
+  background-color: #e5e5e5;
+  border-radius: 999px;
+  height: 0.65rem;
+}
+
+.progress-jostum .progress-bar {
+  background-color: var(--jostum-primary);
+}
+
+.w-60 {
+  width: 60%;
+}
+
+.alert-jostum {
+  background-color: var(--jostum-bg);
+  border: 1px solid var(--jostum-border);
+  border-left: 4px solid var(--jostum-primary);
+  border-radius: var(--jostum-radius);
+  color: var(--jostum-text-strong);
+}
+
+.jostum-hero {
+  background-color: var(--jostum-surface);
+  border: 1px solid var(--jostum-border);
+  border-radius: var(--jostum-radius);
+  box-shadow: var(--jostum-shadow);
+}
+
+.jostum-stepper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.5rem;
+}
+
+.jostum-step {
+  position: relative;
+  padding-left: 1.6rem;
+  color: var(--jostum-text-muted);
+  font-size: 0.95rem;
+}
+
+.jostum-step::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.25rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  border: 2px solid var(--jostum-border);
+  background-color: #fff;
+}
+
+.jostum-step.completed {
+  color: var(--jostum-text-strong);
+}
+
+.jostum-step.completed::before {
+  background-color: var(--jostum-secondary);
+  border-color: var(--jostum-secondary);
+}
+
+.jostum-step.active {
+  color: var(--jostum-primary);
+  font-weight: 600;
+}
+
+.jostum-step.active::before {
+  border-color: var(--jostum-primary);
+}
+
+.jostum-stat {
+  background-color: var(--jostum-bg);
+  border: 1px solid var(--jostum-border);
+  border-radius: var(--jostum-radius);
+  padding: 0.75rem 1rem;
+}
+
+.jostum-stat .label {
+  color: var(--jostum-text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.jostum-stat .value {
+  color: var(--jostum-text-strong);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.form-control,
+.form-select {
+  border-color: var(--jostum-border);
+  border-radius: var(--jostum-radius);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--jostum-primary);
+  box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.2);
+}
+
+.footer-jostum {
+  background-color: var(--jostum-surface);
+  border-top: 1px solid var(--jostum-border);
+  color: var(--jostum-text-muted);
+}
+
+.jostum-kpi {
+  background-color: var(--jostum-surface);
+  border: 1px solid var(--jostum-border);
+  border-radius: var(--jostum-radius);
+  box-shadow: var(--jostum-shadow);
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.jostum-kpi-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background-color: rgba(52, 152, 219, 0.12);
+  color: var(--jostum-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+.jostum-kpi-title {
+  color: var(--jostum-text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.2rem;
+}
+
+.jostum-kpi-value {
+  color: var(--jostum-text-strong);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.jostum-chart {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.jostum-donut {
+  width: 120px;
+  height: 120px;
+  transform: rotate(-90deg);
+}
+
+.jostum-donut-bg {
+  fill: none;
+  stroke: #e5e5e5;
+  stroke-width: 10;
+}
+
+.jostum-donut-value {
+  fill: none;
+  stroke: var(--jostum-primary);
+  stroke-width: 10;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.4s ease;
+}
+
+.jostum-donut-secondary {
+  stroke: var(--jostum-secondary);
+}
+
+.jostum-donut-text {
+  fill: var(--jostum-text-strong);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.jostum-chart-label {
+  color: var(--jostum-text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.jostum-chart-value {
+  color: var(--jostum-text-strong);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.dropdown-submenu {
+  position: relative;
+}
+
+.dropdown-submenu > .dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-left: 0.1rem;
+  display: none;
+}
+
+.dropdown-submenu > .dropdown-toggle::after {
+  margin-left: 0.5rem;
+  float: right;
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 991.98px) {
+  .dropdown-submenu > .dropdown-menu {
+    left: 0;
+    margin-left: 0;
+    margin-top: 0.25rem;
+  }
+}
+
+.dropdown-submenu > .dropdown-menu.show {
+  display: block;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dropdown-submenu:hover > .dropdown-menu {
+    display: block;
+  }
+}

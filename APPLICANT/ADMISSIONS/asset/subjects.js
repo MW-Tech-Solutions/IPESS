@@ -1,0 +1,66 @@
+const subjects = [
+    // Core Subjects (compulsory)
+    "English Language",
+    "Mathematics",
+    "Civic Education",
+
+    // Science & Technology
+    "Biology",
+    "Chemistry",
+    "Physics",
+    "Agricultural Science",
+    "Technical Drawing",
+    "Health Science",
+    "Physical & Health Education",
+    "Computer Studies",
+    "ICT",
+    "Basic Electricity",
+    "Applied Electricity",
+    "Basic Electronics",
+    "Auto Mechanics",
+    "Auto Electrical Work",
+    "Woodwork",
+    "Metalwork",
+    "Building Construction",
+    "Electronics Works",
+
+    // Commercial / Business
+    "Financial Accounting",
+    "Commerce",
+    "Economics",
+    "Marketing",
+    "Office Practice",
+    "Secretarial Studies",
+    "Data Processing",
+    "Computer Applications",
+    "Typewriting",
+    "Shorthand",
+    "Business Management",
+
+    // Arts & Humanities
+    "Government",
+    "Political Science",
+    "Christian Religious Studies (CRS)",
+    "Islamic Studies (IRS)",
+    "Geography",
+    "Music",
+    "Visual Art",
+    "Fine Art",
+    "Home Management",
+    "Foods and Nutrition",
+    "Clothing and Textiles",
+    "Animal Husbandry",
+
+    // Vocational / Trade Subjects
+    "Auto Body Repair & Spray Painting",
+    "Air Conditioning & Refrigeration",
+    "Furniture Making",
+    "Upholstery",
+    "Photography",
+    "Leather Goods",
+    "Dyeing & Bleaching",
+    "Garment Making & Textile Trades",
+    "Bricklaying & Blocklaying",
+    "Plumbing & Pipe Fitting",
+    "Catering Craft Practice"
+];

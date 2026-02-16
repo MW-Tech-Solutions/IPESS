@@ -1,0 +1,8 @@
+{
+    "require": {
+        "vlucas/phpdotenv": "^5.6",
+        "robthree/twofactorauth": "^3.0",
+        "pragmarx/google2fa": "^9.0",
+        "bacon/bacon-qr-code": "^3.0"
+    }
+}

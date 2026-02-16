@@ -1,0 +1,526 @@
+<?php
+/*
+session_start();
+
+// Simple RBAC check
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'ADMIN') {
+    header('Location: /login.php'); // Redirect to login
+    exit;
+}
+
+require_once 'controllers/AdminDashboardController.php';
+
+global $pdo;
+$controller = new AdminDashboardController($pdo);
+$applications = $controller->getApplications();
+$documents = $controller->getDocuments();
+*/
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JOSTUM PG SCHOOL - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+    <div class="wrapper" id="main-wrapper">
+        <!-- Fixed Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="#" class="sidebar-logo">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>JOSTUM PG</span>
+                </a>
+                <button class="sidebar-toggle" id="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <div class="sidebar-nav">
+                <ul class="nav flex-column">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link active" href="#management" data-bs-toggle="tab" data-bs-target="#management">
+                            <i class="fas fa-tasks"></i>
+                            <span>Application Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link" href="#verification" data-bs-toggle="tab" data-bs-target="#verification">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Document Verification</span>
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link" href="#decisions" data-bs-toggle="tab" data-bs-target="#decisions">
+                            <i class="fas fa-gavel"></i>
+                            <span>Admission Decisions</span>
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link" href="#reports" data-bs-toggle="tab" data-bs-target="#reports">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Navbar -->
+            <nav class="navbar">
+                <div class="navbar-brand">
+                    Admin Dashboard
+                </div>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <button class="dropdown-toggle notification-btn" data-bs-toggle="dropdown">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge">3</span>
+                        </button>
+                        <ul class="dropdown-menu notification-dropdown">
+                            <li><h6 class="dropdown-header">Notifications</h6></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user-plus"></i> New user registered</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Application submitted</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-exclamation-triangle"></i> System alert</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-center" href="#">View all notifications</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown user-dropdown">
+                        <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-shield"></i>
+                            </div>
+                            <span>Admin</span>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user"></i> Profile</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog"></i> Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Content Container -->
+            <div class="content-container">
+
+<!-- KPI Cards Section -->
+<div class="kpi-cards">
+    <div class="kpi-card">
+        <div class="kpi-icon primary">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>247</h3>
+            <p>Pending Applications</p>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon success">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>89</h3>
+            <p>Verified Documents</p>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon warning">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>34</h3>
+            <p>Awaiting Review</p>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon danger">
+            <i class="fas fa-times-circle"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>12</h3>
+            <p>Rejected This Month</p>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="charts-section">
+    <div class="chart-card">
+        <div class="chart-header">
+            <h4>Application Status Distribution</h4>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    This Month
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">This Week</a></li>
+                    <li><a class="dropdown-item" href="#">This Month</a></li>
+                    <li><a class="dropdown-item" href="#">This Year</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="chart-placeholder">
+            <i class="fas fa-chart-pie"></i>
+            <p>Application status breakdown</p>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div class="chart-header">
+            <h4>Processing Time Trends</h4>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    Last 30 Days
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">Last 7 Days</a></li>
+                    <li><a class="dropdown-item" href="#">Last 30 Days</a></li>
+                    <li><a class="dropdown-item" href="#">Last 3 Months</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="chart-placeholder">
+            <i class="fas fa-chart-line"></i>
+            <p>Average processing time trends</p>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs for Detailed Views -->
+<ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="applications-tab" data-bs-toggle="tab" data-bs-target="#applications" type="button" role="tab">Application Management</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab">Document Verification</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="admissions-tab" data-bs-toggle="tab" data-bs-target="#admissions" type="button" role="tab">Admission Decisions</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="dashboardTabsContent">
+    <!-- Application Management -->
+    <div class="tab-pane fade show active" id="applications" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Application Management</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Application ID</th>
+                                <th>Applicant Name</th>
+                                <th>Programme</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php /*
+                            foreach ($applications as $app): ?>
+                            <tr>
+                                <td><?php echo $app['id']; ?></td>
+                                <td><?php echo $app['applicant_name']; ?></td>
+                                <td><?php echo $app['programme']; ?></td>
+                                <td><?php echo $app['status']; ?></td>
+                                <td><?php echo $app['submitted_date']; ?></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewApplication(<?php echo $app['id']; ?>)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach;
+                            // SQL: SELECT id, applicant_name, programme, status, submitted_date FROM applications
+                            */ ?>
+                            <tr>
+                                <td>APP-2024-001</td>
+                                <td>Alice Johnson</td>
+                                <td>M.Sc Computer Science</td>
+                                <td><span class="badge badge-warning">Under Review</span></td>
+                                <td>2024-01-10</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewApplication(1)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>APP-2024-002</td>
+                                <td>Bob Wilson</td>
+                                <td>Ph.D Mathematics</td>
+                                <td><span class="badge badge-info">Pending Documents</span></td>
+                                <td>2024-01-08</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewApplication(2)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>APP-2024-003</td>
+                                <td>Carol Davis</td>
+                                <td>M.Sc Physics</td>
+                                <td><span class="badge badge-success">Complete</span></td>
+                                <td>2024-01-05</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewApplication(3)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <!-- TODO: Enable loop for applications data -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Verification -->
+    <div class="tab-pane fade" id="documents" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Document Verification</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Document Type</th>
+                                <th>Applicant</th>
+                                <th>Application ID</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php /*
+                            foreach ($documents as $doc): ?>
+                            <tr>
+                                <td><?php echo $doc['type']; ?></td>
+                                <td><?php echo $doc['applicant']; ?></td>
+                                <td><?php echo $doc['application_id']; ?></td>
+                                <td><?php echo $doc['status']; ?></td>
+                                <td><?php echo $doc['submitted_date']; ?></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-success" onclick="verifyDocument(<?php echo $doc['id']; ?>)">
+                                        <i class="fas fa-check"></i> Verify
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="rejectDocument(<?php echo $doc['id']; ?>)">
+                                        <i class="fas fa-times"></i> Reject
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach;
+                            // SQL: SELECT id, type, applicant, application_id, status, submitted_date FROM documents
+                            // Update: UPDATE documents SET status = 'verified' WHERE id = ?
+                            // Reject: UPDATE documents SET status = 'rejected' WHERE id = ?
+                            */ ?>
+                            <tr>
+                                <td>Degree Certificate</td>
+                                <td>Alice Johnson</td>
+                                <td>APP-2024-001</td>
+                                <td><span class="badge badge-warning">Pending</span></td>
+                                <td>2024-01-10</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-success" onclick="verifyDocument(1)">
+                                        <i class="fas fa-check"></i> Verify
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="rejectDocument(1)">
+                                        <i class="fas fa-times"></i> Reject
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Transcript</td>
+                                <td>Bob Wilson</td>
+                                <td>APP-2024-002</td>
+                                <td><span class="badge badge-success">Verified</span></td>
+                                <td>2024-01-08</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-success" onclick="verifyDocument(2)" disabled>
+                                        <i class="fas fa-check"></i> Verify
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="rejectDocument(2)" disabled>
+                                        <i class="fas fa-times"></i> Reject
+                                    </button>
+                                </td>
+                            </tr>
+                            <!-- TODO: Enable loop for documents data -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admission Decisions -->
+    <div class="tab-pane fade" id="admissions" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Admission Decisions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Application ID</th>
+                                        <th>Applicant</th>
+                                        <th>Programme</th>
+                                        <th>Current Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>APP-2024-001</td>
+                                        <td>Alice Johnson</td>
+                                        <td>M.Sc Computer Science</td>
+                                        <td><span class="badge badge-warning">Under Review</span></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="makeDecision(1)">
+                                                <i class="fas fa-gavel"></i> Decide
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>APP-2024-002</td>
+                                        <td>Bob Wilson</td>
+                                        <td>Ph.D Mathematics</td>
+                                        <td><span class="badge badge-info">Documents Complete</span></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="makeDecision(2)">
+                                                <i class="fas fa-gavel"></i> Decide
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Quick Decision</h6>
+                            </div>
+                            <div class="card-body">
+                                <form id="admissionForm">
+                                    <div class="mb-3">
+                                        <label for="decision" class="form-label">Decision</label>
+                                        <select class="form-select" id="decision" name="decision" required>
+                                            <option value="">Select Decision</option>
+                                            <option value="approved">Approved</option>
+                                            <option value="rejected">Rejected</option>
+                                            <option value="conditional">Conditional</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="conditions" class="form-label">Conditions (if any)</label>
+                                        <textarea class="form-control" id="conditions" name="conditions" rows="3" placeholder="Specify conditions for conditional approval..."></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-paper-plane"></i> Submit Decision
+                                    </button>
+                                </form>
+                                <?php /*
+                                // On submit: INSERT INTO admission_decisions (application_id, decision, conditions) VALUES (?, ?, ?)
+                                */ ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Enhanced JS for interactions
+function viewApplication(id) {
+    // AJAX to view application details
+    alert('View application ' + id);
+}
+
+function verifyDocument(id) {
+    if (confirm('Verify this document?')) {
+        // AJAX to verify document
+        alert('Document ' + id + ' verified');
+        location.reload(); // Refresh to show updated status
+    }
+}
+
+function rejectDocument(id) {
+    const reason = prompt('Reason for rejection:');
+    if (reason) {
+        // AJAX to reject document with reason
+        alert('Document ' + id + ' rejected');
+        location.reload();
+    }
+}
+
+function makeDecision(id) {
+    // Open decision modal or scroll to form
+    document.getElementById('admissions-tab').click();
+    document.getElementById('decision').focus();
+}
+
+document.getElementById('admissionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const decision = document.getElementById('decision').value;
+    const conditions = document.getElementById('conditions').value;
+
+    if (confirm(`Submit ${decision} decision${conditions ? ' with conditions' : ''}?`)) {
+        // AJAX to submit decision
+        alert('Decision submitted successfully');
+        this.reset();
+    }
+});
+
+// Add loading states and animations
+document.addEventListener('DOMContentLoaded', function() {
+    // Add fade-in animation to cards
+    const cards = document.querySelectorAll('.kpi-card, .chart-card, .card');
+    cards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.classList.add('fade-in');
+    });
+});
+</script>
+    </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script>
+        // Sidebar toggle functionality
+        document.getElementById('sidebar-toggle').addEventListener('click', function() {
+            document.getElementById('main-wrapper').classList.toggle('sidebar-collapsed');
+        });
+
+        // Close sidebar on mobile when clicking outside
+        document.addEventListener('click', function(event) {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebar-toggle');
+            if (!sidebar.contains(event.target) && !toggle.contains(event.target) && window.innerWidth <= 768) {
+                document.getElementById('main-wrapper').classList.remove('sidebar-collapsed');
+            }
+        });
+    </script>
+</body>
+</html>

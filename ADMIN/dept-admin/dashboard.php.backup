@@ -1,0 +1,573 @@
+<?php
+/*
+session_start();
+
+// Simple RBAC check
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'DEPARTMENT_ADMIN') {
+    header('Location: /login.php'); // Redirect to login
+    exit;
+}
+
+require_once 'controllers/DeptAdminDashboardController.php';
+
+global $pdo;
+$controller = new DeptAdminDashboardController($pdo);
+$applications = $controller->getDepartmentApplications();
+$supervisors = $controller->getSupervisors();
+$workload = $controller->getSupervisorWorkload();
+*/
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JOSTUM PG SCHOOL - Department Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/assets/css/style.css">
+</head>
+<body>
+    <div class="wrapper" id="main-wrapper">
+        <!-- Fixed Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="#" class="sidebar-logo">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>JOSTUM PG</span>
+                </a>
+                <button class="sidebar-toggle" id="sidebar-toggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <div class="sidebar-nav">
+                <ul class="nav flex-column">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link active" href="#applications" data-bs-toggle="tab" data-bs-target="#applications">
+                            <i class="fas fa-folder-open"></i>
+                            <span>Department Applications</span>
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link" href="#assignment" data-bs-toggle="tab" data-bs-target="#assignment">
+                            <i class="fas fa-user-plus"></i>
+                            <span>Supervisor Assignment</span>
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link" href="#reports" data-bs-toggle="tab" data-bs-target="#reports">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link" href="#analytics" data-bs-toggle="tab" data-bs-target="#analytics">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Navbar -->
+            <nav class="navbar">
+                <div class="navbar-brand">
+                    Department Admin Dashboard
+                </div>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <button class="dropdown-toggle notification-btn" data-bs-toggle="dropdown">
+                            <i class="fas fa-bell"></i>
+                            <span class="notification-badge">3</span>
+                        </button>
+                        <ul class="dropdown-menu notification-dropdown">
+                            <li><h6 class="dropdown-header">Notifications</h6></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user-plus"></i> New user registered</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-file-alt"></i> Application submitted</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-exclamation-triangle"></i> System alert</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-center" href="#">View all notifications</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown user-dropdown">
+                        <button class="dropdown-toggle" data-bs-toggle="dropdown">
+                            <div class="user-avatar">
+                                <i class="fas fa-user-cog"></i>
+                            </div>
+                            <span>Dept Admin</span>
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user"></i> Profile</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog"></i> Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Content Container -->
+            <div class="content-container">
+
+<!-- KPI Cards Section -->
+<div class="kpi-cards">
+    <div class="kpi-card">
+        <div class="kpi-icon primary">
+            <i class="fas fa-folder-open"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>156</h3>
+            <p>Department Applications</p>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon success">
+            <i class="fas fa-user-check"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>89</h3>
+            <p>Assigned Students</p>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon warning">
+            <i class="fas fa-user-clock"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>67</h3>
+            <p>Pending Assignments</p>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon danger">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>23</h3>
+            <p>Available Supervisors</p>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="charts-section">
+    <div class="chart-card">
+        <div class="chart-header">
+            <h4>Programme Distribution</h4>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    This Semester
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">This Month</a></li>
+                    <li><a class="dropdown-item" href="#">This Semester</a></li>
+                    <li><a class="dropdown-item" href="#">This Year</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="chart-placeholder">
+            <i class="fas fa-chart-pie"></i>
+            <p>Applications by programme type</p>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div class="chart-header">
+            <h4>Supervisor Workload</h4>
+            <div class="dropdown">
+                <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    Current Load
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#">Current Load</a></li>
+                    <li><a class="dropdown-item" href="#">Historical</a></li>
+                    <li><a class="dropdown-item" href="#">Projected</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="chart-placeholder">
+            <i class="fas fa-chart-bar"></i>
+            <p>Current supervisor assignments</p>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs for Detailed Views -->
+<ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="applications-tab" data-bs-toggle="tab" data-bs-target="#applications" type="button" role="tab">Department Applications</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="assignment-tab" data-bs-toggle="tab" data-bs-target="#assignment" type="button" role="tab">Supervisor Assignment</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab">Reports</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="dashboardTabsContent">
+    <!-- Department Applications -->
+    <div class="tab-pane fade show active" id="applications" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Department Applications</h5>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" id="programmeFilter" style="width: auto;">
+                            <option value="">All Programmes</option>
+                            <option value="MSc Computer Science">MSc Computer Science</option>
+                            <option value="PhD Mathematics">PhD Mathematics</option>
+                            <option value="MSc Physics">MSc Physics</option>
+                            <option value="PhD Chemistry">PhD Chemistry</option>
+                        </select>
+                        <select class="form-select form-select-sm" id="statusFilter" style="width: auto;">
+                            <option value="">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="assigned">Assigned</option>
+                            <option value="complete">Complete</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Application ID</th>
+                                <th>Applicant Name</th>
+                                <th>Programme</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                                <th>Supervisor</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php /*
+                            foreach ($applications as $app): ?>
+                            <tr>
+                                <td><?php echo $app['id']; ?></td>
+                                <td><?php echo $app['applicant_name']; ?></td>
+                                <td><?php echo $app['programme']; ?></td>
+                                <td><?php echo $app['status']; ?></td>
+                                <td><?php echo $app['submitted_date']; ?></td>
+                                <td><?php echo $app['supervisor_name'] ?? 'Unassigned'; ?></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewApplication(<?php echo $app['id']; ?>)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach;
+                            // SQL: SELECT id, applicant_name, programme, status, submitted_date FROM applications WHERE department = ?
+                            */ ?>
+                            <tr>
+                                <td>APP-2024-001</td>
+                                <td>Alice Johnson</td>
+                                <td>MSc Computer Science</td>
+                                <td><span class="badge badge-warning">Pending Assignment</span></td>
+                                <td>2024-01-10</td>
+                                <td>Unassigned</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewApplication(1)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>APP-2024-002</td>
+                                <td>Bob Wilson</td>
+                                <td>PhD Mathematics</td>
+                                <td><span class="badge badge-success">Assigned</span></td>
+                                <td>2024-01-08</td>
+                                <td>Dr. Smith</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewApplication(2)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>APP-2024-003</td>
+                                <td>Carol Davis</td>
+                                <td>MSc Physics</td>
+                                <td><span class="badge badge-info">Under Supervision</span></td>
+                                <td>2024-01-05</td>
+                                <td>Prof. Johnson</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewApplication(3)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <!-- TODO: Enable loop for applications data -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supervisor Assignment -->
+    <div class="tab-pane fade" id="assignment" role="tabpanel">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Supervisor Assignment</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Application ID</th>
+                                        <th>Student Name</th>
+                                        <th>Programme</th>
+                                        <th>Current Supervisor</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>APP-2024-001</td>
+                                        <td>Alice Johnson</td>
+                                        <td>MSc Computer Science</td>
+                                        <td><span class="text-muted">Unassigned</span></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="assignSupervisor(1)">
+                                                <i class="fas fa-user-plus"></i> Assign
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>APP-2024-004</td>
+                                        <td>David Brown</td>
+                                        <td>PhD Chemistry</td>
+                                        <td><span class="text-muted">Unassigned</span></td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="assignSupervisor(4)">
+                                                <i class="fas fa-user-plus"></i> Assign
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Available Supervisors</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="supervisor-list">
+                            <div class="supervisor-item p-2 border-bottom">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>Dr. Sarah Smith</strong>
+                                        <br><small class="text-muted">Computer Science</small>
+                                    </div>
+                                    <span class="badge badge-info">3 students</span>
+                                </div>
+                            </div>
+                            <div class="supervisor-item p-2 border-bottom">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>Prof. Michael Johnson</strong>
+                                        <br><small class="text-muted">Mathematics</small>
+                                    </div>
+                                    <span class="badge badge-success">2 students</span>
+                                </div>
+                            </div>
+                            <div class="supervisor-item p-2 border-bottom">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>Dr. Emily Davis</strong>
+                                        <br><small class="text-muted">Physics</small>
+                                    </div>
+                                    <span class="badge badge-warning">5 students</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">Quick Assignment</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="assignmentForm">
+                            <div class="mb-3">
+                                <label for="application" class="form-label">Application ID</label>
+                                <input type="text" class="form-control" id="application" name="application" placeholder="APP-2024-XXX" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="supervisor" class="form-label">Select Supervisor</label>
+                                <select class="form-select" id="supervisor" name="supervisor" required>
+                                    <option value="">Choose Supervisor</option>
+                                    <option value="1">Dr. Sarah Smith</option>
+                                    <option value="2">Prof. Michael Johnson</option>
+                                    <option value="3">Dr. Emily Davis</option>
+                                    <?php /*
+                                    foreach ($supervisors as $sup): ?>
+                                    <option value="<?php echo $sup['id']; ?>"><?php echo $sup['name']; ?></option>
+                                    <?php endforeach;
+                                    // SQL: SELECT id, name FROM supervisors WHERE department = ?
+                                    */ ?>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-user-plus"></i> Assign Supervisor
+                            </button>
+                        </form>
+                        <?php /*
+                        // On submit: INSERT INTO supervisor_assignments (application_id, supervisor_id) VALUES (?, ?)
+                        */ ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports -->
+    <div class="tab-pane fade" id="reports" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Supervisor Workload Report</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Supervisor</th>
+                                <th>Department</th>
+                                <th>Current Load</th>
+                                <th>Capacity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php /*
+                            foreach ($workload as $wl): ?>
+                            <tr>
+                                <td><?php echo $wl['supervisor_name']; ?></td>
+                                <td><?php echo $wl['department']; ?></td>
+                                <td><?php echo $wl['current_load']; ?></td>
+                                <td><?php echo $wl['capacity']; ?></td>
+                                <td><?php echo $wl['status']; ?></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewWorkload(<?php echo $wl['supervisor_id']; ?>)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach;
+                            // SQL: SELECT s.name as supervisor_name, s.department, COUNT(sa.id) as current_load, s.capacity FROM supervisors s LEFT JOIN supervisor_assignments sa ON s.id = sa.supervisor_id WHERE s.department = ? GROUP BY s.id
+                            */ ?>
+                            <tr>
+                                <td>Dr. Sarah Smith</td>
+                                <td>Computer Science</td>
+                                <td>3</td>
+                                <td>6</td>
+                                <td><span class="badge badge-success">Available</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewWorkload(1)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Prof. Michael Johnson</td>
+                                <td>Mathematics</td>
+                                <td>2</td>
+                                <td>4</td>
+                                <td><span class="badge badge-success">Available</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewWorkload(2)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Dr. Emily Davis</td>
+                                <td>Physics</td>
+                                <td>5</td>
+                                <td>5</td>
+                                <td><span class="badge badge-warning">At Capacity</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" onclick="viewWorkload(3)">
+                                        <i class="fas fa-eye"></i> View
+                                    </button>
+                                </td>
+                            </tr>
+                            <!-- TODO: Enable loop for workload data -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Enhanced JS for interactions
+document.getElementById('programmeFilter').addEventListener('change', function() {
+    // AJAX to filter applications
+    console.log('Programme filter applied:', this.value);
+});
+
+document.getElementById('statusFilter').addEventListener('change', function() {
+    // AJAX to filter applications
+    console.log('Status filter applied:', this.value);
+});
+
+function viewApplication(id) {
+    // AJAX to view application details
+    alert('View application ' + id);
+}
+
+function assignSupervisor(appId) {
+    // Open assignment modal or scroll to form
+    document.getElementById('assignment-tab').click();
+    document.getElementById('application').value = 'APP-2024-' + appId.toString().padStart(3, '0');
+    document.getElementById('supervisor').focus();
+}
+
+function viewWorkload(supervisorId) {
+    // AJAX to view detailed workload
+    alert('View workload for supervisor ' + supervisorId);
+}
+
+document.getElementById('assignmentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const application = document.getElementById('application').value;
+    const supervisor = document.getElementById('supervisor').value;
+
+    if (confirm(`Assign ${application} to selected supervisor?`)) {
+        // AJAX to assign supervisor
+        alert('Supervisor assigned successfully');
+        this.reset();
+    }
+});
+
+// Add loading states and animations
+document.addEventListener('DOMContentLoaded', function() {
+    // Add fade-in animation to cards
+    const cards = document.querySelectorAll('.kpi-card, .chart-card, .card');
+    cards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.classList.add('fade-in');
+    });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<?php
+session_start();
+header('Content-Type: application/json');
+require_once '../includes/db.php';
+require_once __DIR__ . '/../../includes/status_engine.php';
+require_once __DIR__ . '/../../includes/completion_service.php';
+require_once __DIR__ . '/../includes/mailer.php';
+
+$response = ['success' => false, 'message' => 'An unknown error occurred.'];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $doc_id = filter_input(INPUT_POST, 'doc_id', FILTER_VALIDATE_INT);
+    $status = filter_input(INPUT_POST, 'status', FILTER_SANITIZE_STRING);
+    $comments = filter_input(INPUT_POST, 'comments', FILTER_SANITIZE_STRING);
+    $score = filter_input(INPUT_POST, 'score', FILTER_VALIDATE_INT) ?? 0;
+    $user_id = $_SESSION['user_id'] ?? 0;
+    $role = $_SESSION['role'] ?? 'ADMIN';
+
+    if (!$doc_id || !$status) {
+        $response['message'] = 'Invalid input.';
+    } else {
+        try {
+            $pdo->beginTransaction();
+
+            $query = "
+                INSERT INTO document_verification 
+                    (upload_id, verification_status, admin_remark, score, verified_by, verified_at) 
+                VALUES 
+                    (:doc_id, :status, :comments, :score, :user_id, NOW())
+                ON DUPLICATE KEY UPDATE 
+                    verification_status = VALUES(verification_status),
+                    admin_remark = VALUES(admin_remark),
+                    score = VALUES(score),
+                    verified_by = VALUES(verified_by),
+                    verified_at = NOW()
+            ";
+            
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([
+                ':status'   => $status,
+                ':comments' => $comments,
+                ':score'    => $score,
+                ':doc_id'   => $doc_id,
+                ':user_id'  => $user_id
+            ]);
+
+            if ($status === 'Verified') {
+                $getAppIdStmt = $pdo->prepare("SELECT application_id FROM documents WHERE doc_id = ?");
+                $getAppIdStmt->execute([$doc_id]);
+                $application_id = $getAppIdStmt->fetchColumn();
+
+                if ($application_id) {
+                    $checkQuery = "
+                        SELECT 
+                            COUNT(d.doc_id) as total_docs,
+                            SUM(CASE WHEN dv.verification_status = 'Verified' THEN 1 ELSE 0 END) as verified_docs
+                        FROM documents d
+                        LEFT JOIN document_verification dv ON d.doc_id = dv.upload_id
+                        WHERE d.application_id = ?
+                    ";
+                    $checkStmt = $pdo->prepare($checkQuery);
+                    $checkStmt->execute([$application_id]);
+                    $counts = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+                    if ($counts['total_docs'] > 0 && $counts['total_docs'] == $counts['verified_docs']) {
+                        $progressQuery = "
+                            INSERT INTO application_progress 
+                                (application_id, stage, stage_status, stage_updated_at) 
+                            VALUES 
+                                (:app_id, 'Documents Verified', 'Completed', NOW())
+                            ON DUPLICATE KEY UPDATE 
+                                stage = VALUES(stage),
+                                stage_status = VALUES(stage_status),
+                                stage_updated_at = VALUES(stage_updated_at)
+                        ";
+                        $progStmt = $pdo->prepare($progressQuery);
+                        $progStmt->execute([':app_id' => $application_id]);
+
+                        // Ensure completion percentage reflects fully verified docs
+                        $upd = $pdo->prepare("UPDATE applications SET completion_percentage = 100 WHERE application_id = ? AND (completion_percentage IS NULL OR completion_percentage < 100)");
+                        $upd->execute([$application_id]);
+                    }
+
+                    update_completion($pdo, (int) $application_id);
+                }
+            }
+
+            if ($status === 'Rejected') {
+                $getAppIdStmt = $pdo->prepare("SELECT a.application_id, a.application_number, a.user_id, d.document_type, COALESCE(u.email, aa.email) AS email, CONCAT(p.first_name, ' ', p.surname) AS name
+                                               FROM applications a
+                                               JOIN documents d ON a.application_id = d.application_id
+                                               LEFT JOIN users u ON a.user_id = u.user_id
+                                               LEFT JOIN applicant_accounts aa ON aa.user_id = a.user_id
+                                               LEFT JOIN personal_details p ON a.application_id = p.application_id
+                                               WHERE d.doc_id = ? LIMIT 1");
+                $getAppIdStmt->execute([$doc_id]);
+                $appRow = $getAppIdStmt->fetch(PDO::FETCH_ASSOC);
+                if ($appRow) {
+                    $reason = trim((string) $comments);
+                    $reasonText = $reason !== '' ? $reason : 'Document quality or validity issue.';
+                    update_application_status($pdo, (int) $appRow['application_id'], 'ACTION_REQUIRED_DOCS', [
+                        'actor_id' => $user_id,
+                        'actor_role' => $role,
+                        'note' => 'Document rejected: ' . $reasonText,
+                        'notify_user_id' => (int) $appRow['user_id'],
+                        'notify_title' => 'Document Re-upload Required',
+                        'notify_message' => 'A document was rejected. Please re-upload the required document(s). Reason: ' . $reasonText
+                    ]);
+
+                    if (!empty($appRow['email'])) {
+                        $docLabel = !empty($appRow['document_type']) ? ucwords(str_replace('_', ' ', $appRow['document_type'])) : 'Document';
+                        portal_send_mail(
+                            $appRow['email'],
+                            $appRow['name'] ?: $appRow['email'],
+                            'Document Re-upload Required',
+                            '<p>Your <strong>' . htmlspecialchars($docLabel) . '</strong> was rejected. Please log in and re-upload the corrected document.</p>'
+                            . '<p><strong>Reason:</strong> ' . htmlspecialchars($reasonText) . '</p>'
+                            . '<p><strong>Application No:</strong> ' . htmlspecialchars($appRow['application_number'] ?? '') . '</p>',
+                            'Document re-upload required.'
+                        );
+                    }
+                }
+            }
+
+            $pdo->commit();
+            $response = ['success' => true, 'message' => 'Verification saved and progress updated.'];
+
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            error_log('Verification Logic Error: ' . $e->getMessage());
+            $response['message'] = 'Database error: ' . $e->getMessage();
+        }
+    }
+}
+echo json_encode($response);

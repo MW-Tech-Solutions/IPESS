@@ -1,0 +1,37 @@
+[
+    {
+        "date": "2026-01-17",
+        "method": "Remita",
+        "amount": 50000,
+        "reference": "PAY-7540",
+        "status": "Completed"
+    },
+    {
+        "date": "2026-01-17",
+        "method": "Bank Transfer",
+        "amount": 50000,
+        "reference": "PAY-5882",
+        "status": "Completed"
+    },
+    {
+        "date": "2026-01-17",
+        "method": "Card Payment",
+        "amount": 50000,
+        "reference": "PAY-1009",
+        "status": "Completed"
+    },
+    {
+        "date": "2026-01-17",
+        "method": "Card Payment",
+        "amount": 50000,
+        "reference": "PAY-2613",
+        "status": "Completed"
+    },
+    {
+        "date": "2026-01-17",
+        "method": "Remita",
+        "amount": 10000,
+        "reference": "PAY-8608",
+        "status": "Completed"
+    }
+]

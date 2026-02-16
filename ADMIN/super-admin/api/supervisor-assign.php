@@ -1,0 +1,316 @@
+<?php
+require_once __DIR__ . '/../includes/db.php';
+
+header('Content-Type: application/json');
+
+function table_exists(PDO $pdo, string $table): bool {
+    $stmt = $pdo->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?");
+    $stmt->execute([$table]);
+    return (bool) $stmt->fetchColumn();
+}
+
+function column_exists(PDO $pdo, string $table, string $column): bool {
+    $stmt = $pdo->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?");
+    $stmt->execute([$table, $column]);
+    return (bool) $stmt->fetchColumn();
+}
+
+function get_columns(PDO $pdo, string $table): array {
+    $stmt = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ?");
+    $stmt->execute([$table]);
+    return array_map('strtolower', $stmt->fetchAll(PDO::FETCH_COLUMN));
+}
+
+function get_column_type(PDO $pdo, string $table, string $column): ?string {
+    $stmt = $pdo->prepare("SELECT data_type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?");
+    $stmt->execute([$table, $column]);
+    $type = $stmt->fetchColumn();
+    return $type ? strtolower((string) $type) : null;
+}
+
+$action = $_GET['action'] ?? $_POST['action'] ?? '';
+
+try {
+    if (!$pdo) {
+        echo json_encode(['success' => false, 'message' => 'Database unavailable.']);
+        exit;
+    }
+
+    if ($action === 'departments') {
+        if (table_exists($pdo, 'departments')) {
+            $rows = $pdo->query("SELECT dept_id AS id, dept_name AS name FROM departments ORDER BY dept_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            $rows = $pdo->query("SELECT DISTINCT department AS id, department AS name FROM programme_choices ORDER BY department ASC")->fetchAll(PDO::FETCH_ASSOC);
+        }
+        echo json_encode(['success' => true, 'data' => $rows]);
+        exit;
+    }
+
+    if ($action === 'supervisors') {
+        $departmentId = $_GET['department_id'] ?? '';
+        $rows = [];
+
+        if (table_exists($pdo, 'supervisors')) {
+            if ($departmentId !== '') {
+                $stmt = $pdo->prepare("
+                    SELECT s.supervisor_id AS id,
+                           COALESCE(s.full_name, u.email) AS name,
+                           u.email
+                    FROM supervisors s
+                    LEFT JOIN users u ON s.user_id = u.user_id
+                    WHERE s.status = 'Active' AND s.department_id = ?
+                    ORDER BY s.full_name ASC
+                ");
+                $stmt->execute([$departmentId]);
+            } else {
+                $stmt = $pdo->prepare("
+                    SELECT s.supervisor_id AS id,
+                           COALESCE(s.full_name, u.email) AS name,
+                           u.email
+                    FROM supervisors s
+                    LEFT JOIN users u ON s.user_id = u.user_id
+                    WHERE s.status = 'Active'
+                    ORDER BY s.full_name ASC
+                ");
+                $stmt->execute();
+            }
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } elseif (column_exists($pdo, 'users', 'role_id')) {
+            $roleId = 4;
+            if (table_exists($pdo, 'roles')) {
+                $roleStmt = $pdo->prepare("SELECT role_id FROM roles WHERE role_key = 'SUPERVISOR' OR role_name = 'Supervisor' LIMIT 1");
+                $roleStmt->execute();
+                $roleId = (int) ($roleStmt->fetchColumn() ?: 4);
+            }
+            $stmt = $pdo->prepare("SELECT user_id AS id, email AS name, email FROM users WHERE role_id = ? ORDER BY email ASC");
+            $stmt->execute([$roleId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        echo json_encode(['success' => true, 'data' => $rows]);
+        exit;
+    }
+
+    if ($action === 'students') {
+        $departmentId = $_GET['department_id'] ?? '';
+        if ($departmentId === '') {
+            echo json_encode(['success' => true, 'data' => []]);
+            exit;
+        }
+
+        $hasCurrentStatus = column_exists($pdo, 'applications', 'current_status');
+        $admitWhere = $hasCurrentStatus
+            ? "(a.status = 'Admitted' OR a.current_status = 'ADMISSION_APPROVED')"
+            : "a.status = 'Admitted'";
+
+        $deptName = '';
+        if (table_exists($pdo, 'departments')) {
+            $stmt = $pdo->prepare("SELECT dept_name FROM departments WHERE dept_id = ? LIMIT 1");
+            $stmt->execute([$departmentId]);
+            $deptName = (string) ($stmt->fetchColumn() ?: '');
+        }
+
+        $pcDeptType = get_column_type($pdo, 'programme_choices', 'department');
+        $pcDeptIsNumeric = in_array($pcDeptType, ['int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'numeric'], true);
+        $deptFilterValue = $pcDeptIsNumeric ? $departmentId : ($deptName !== '' ? $deptName : $departmentId);
+
+        $deptJoin = table_exists($pdo, 'departments')
+            ? "LEFT JOIN departments d ON pc.department = d.dept_id"
+            : "LEFT JOIN departments d ON 1=0";
+
+        $studentSql = "
+            SELECT a.application_id,
+                   a.user_id AS student_id,
+                   a.application_number,
+                   a.status,
+                   p.first_name,
+                   p.surname,
+                   u.email,
+                   pc.department,
+                   d.dept_name
+            FROM applications a
+            JOIN (
+                SELECT user_id, MAX(application_id) AS application_id
+                FROM applications
+                WHERE {$admitWhere}
+                GROUP BY user_id
+            ) latest ON latest.application_id = a.application_id
+            JOIN programme_choices pc ON pc.application_id = a.application_id
+            LEFT JOIN personal_details p ON p.application_id = a.application_id
+            JOIN users u ON u.user_id = a.user_id
+            {$deptJoin}
+            WHERE pc.department = ?
+            ORDER BY p.surname ASC, p.first_name ASC
+        ";
+        $stmt = $pdo->prepare($studentSql);
+        $stmt->execute([$deptFilterValue]);
+        $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (empty($students)) {
+            $studentSql = "
+                SELECT a.application_id,
+                       a.user_id AS student_id,
+                       a.application_number,
+                       a.status,
+                       p.first_name,
+                       p.surname,
+                       u.email,
+                       pc.department,
+                       d.dept_name
+                FROM applications a
+                JOIN (
+                    SELECT user_id, MAX(application_id) AS application_id
+                    FROM applications
+                    GROUP BY user_id
+                ) latest ON latest.application_id = a.application_id
+                JOIN programme_choices pc ON pc.application_id = a.application_id
+                LEFT JOIN personal_details p ON p.application_id = a.application_id
+                JOIN users u ON u.user_id = a.user_id
+                {$deptJoin}
+                WHERE pc.department = ?
+                ORDER BY p.surname ASC, p.first_name ASC
+            ";
+            $stmt = $pdo->prepare($studentSql);
+            $stmt->execute([$deptFilterValue]);
+            $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        $assignmentMap = [];
+        if (table_exists($pdo, 'supervisor_students') && !empty($students)) {
+            $cols = get_columns($pdo, 'supervisor_students');
+            $supervisorCol = in_array('supervisor_id', $cols, true) ? 'supervisor_id' : (in_array('supervisor_user_id', $cols, true) ? 'supervisor_user_id' : null);
+            $studentCol = in_array('student_id', $cols, true) ? 'student_id' : (in_array('user_id', $cols, true) ? 'user_id' : null);
+            $applicationCol = in_array('application_id', $cols, true) ? 'application_id' : null;
+            $keyCol = $applicationCol ?: $studentCol;
+
+            if ($supervisorCol && $keyCol) {
+                $keys = array_map(static function ($row) use ($keyCol) {
+                    return $keyCol === 'application_id' ? (int) $row['application_id'] : (int) $row['student_id'];
+                }, $students);
+                $keys = array_values(array_filter(array_unique($keys)));
+                if (!empty($keys)) {
+                    $placeholders = implode(',', array_fill(0, count($keys), '?'));
+                    $stmt = $pdo->prepare("SELECT {$keyCol} AS ref_id, {$supervisorCol} AS supervisor_id FROM supervisor_students WHERE {$keyCol} IN ({$placeholders})");
+                    $stmt->execute($keys);
+                    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                        $assignmentMap[(int) $row['ref_id']] = (int) $row['supervisor_id'];
+                    }
+                }
+            }
+        }
+
+        if (!empty($assignmentMap)) {
+            foreach ($students as &$student) {
+                $refId = isset($assignmentMap[(int) $student['application_id']]) ? (int) $student['application_id'] : (int) $student['student_id'];
+                $student['assigned_supervisor_id'] = $assignmentMap[$refId] ?? null;
+            }
+            unset($student);
+        }
+
+        echo json_encode(['success' => true, 'data' => $students]);
+        exit;
+    }
+
+    if ($action === 'assign') {
+        $studentId = (int) ($_POST['student_id'] ?? 0);
+        $applicationId = (int) ($_POST['application_id'] ?? 0);
+        $supervisorId = (int) ($_POST['supervisor_id'] ?? 0);
+        $departmentId = $_POST['department_id'] ?? null;
+
+        if ($studentId <= 0 || $supervisorId <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Missing student or supervisor.']);
+            exit;
+        }
+
+        if (!table_exists($pdo, 'supervisor_students')) {
+            echo json_encode(['success' => false, 'message' => 'supervisor_students table not found.']);
+            exit;
+        }
+
+        $cols = get_columns($pdo, 'supervisor_students');
+        $supervisorCol = in_array('supervisor_id', $cols, true) ? 'supervisor_id' : (in_array('supervisor_user_id', $cols, true) ? 'supervisor_user_id' : null);
+        $studentCol = in_array('student_id', $cols, true) ? 'student_id' : (in_array('user_id', $cols, true) ? 'user_id' : null);
+        $applicationCol = in_array('application_id', $cols, true) ? 'application_id' : null;
+        $departmentCol = in_array('department_id', $cols, true) ? 'department_id' : null;
+        $assignedAtCol = in_array('assigned_at', $cols, true) ? 'assigned_at' : null;
+        $studentUserIdCol = in_array('student_user_id', $cols, true) ? 'student_user_id' : null;
+        $applicationNumberCol = in_array('application_number', $cols, true) ? 'application_number' : null;
+
+        if ($supervisorCol === null || $studentCol === null) {
+            echo json_encode(['success' => false, 'message' => 'supervisor_students schema missing supervisor/student columns.']);
+            exit;
+        }
+
+        $keyCol = $applicationCol ? 'application_id' : $studentCol;
+        $keyVal = $applicationCol ? $applicationId : $studentId;
+        if ($keyVal <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Missing application or student reference.']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("SELECT 1 FROM supervisor_students WHERE {$keyCol} = ? LIMIT 1");
+        $stmt->execute([$keyVal]);
+        $exists = (bool) $stmt->fetchColumn();
+
+        if ($exists) {
+            $setParts = ["{$supervisorCol} = ?"];
+            $params = [$supervisorId];
+            if ($departmentCol !== null && $departmentId !== null && $departmentId !== '') {
+                $setParts[] = "{$departmentCol} = ?";
+                $params[] = $departmentId;
+            }
+            if ($studentUserIdCol !== null) {
+                $setParts[] = "{$studentUserIdCol} = ?";
+                $params[] = $studentId;
+            }
+            if ($applicationNumberCol !== null && !empty($_POST['application_number'])) {
+                $setParts[] = "{$applicationNumberCol} = ?";
+                $params[] = trim((string) $_POST['application_number']);
+            }
+            if ($assignedAtCol !== null) {
+                $setParts[] = "{$assignedAtCol} = NOW()";
+            }
+            $params[] = $keyVal;
+            $stmt = $pdo->prepare("UPDATE supervisor_students SET " . implode(', ', $setParts) . " WHERE {$keyCol} = ?");
+            $stmt->execute($params);
+        } else {
+            $insertCols = [$supervisorCol, $studentCol];
+            $insertVals = [$supervisorId, $studentId];
+
+            if ($applicationCol !== null && $applicationId > 0) {
+                $insertCols[] = $applicationCol;
+                $insertVals[] = $applicationId;
+            }
+            if ($studentUserIdCol !== null) {
+                $insertCols[] = $studentUserIdCol;
+                $insertVals[] = $studentId;
+            }
+            if ($applicationNumberCol !== null && !empty($_POST['application_number'])) {
+                $insertCols[] = $applicationNumberCol;
+                $insertVals[] = trim((string) $_POST['application_number']);
+            }
+            if ($departmentCol !== null && $departmentId !== null && $departmentId !== '') {
+                $insertCols[] = $departmentCol;
+                $insertVals[] = $departmentId;
+            }
+            if ($assignedAtCol !== null) {
+                $insertCols[] = $assignedAtCol;
+            }
+
+            $placeholders = array_fill(0, count($insertVals), '?');
+            if ($assignedAtCol !== null) {
+                $placeholders[] = 'NOW()';
+            }
+            $stmt = $pdo->prepare("INSERT INTO supervisor_students (" . implode(', ', $insertCols) . ") VALUES (" . implode(', ', $placeholders) . ")");
+            $stmt->execute($insertVals);
+        }
+
+        echo json_encode(['success' => true, 'message' => 'Supervisor assigned.']);
+        exit;
+    }
+
+    echo json_encode(['success' => false, 'message' => 'Invalid action.']);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+}
