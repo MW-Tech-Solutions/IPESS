@@ -24,37 +24,24 @@ try {
                 $rows = $pdo->query("SELECT role_id, role_key, role_name FROM roles ORDER BY role_name")->fetchAll(PDO::FETCH_ASSOC);
                 break;
             case 'faculties':
-                $rows = $pdo->query("SELECT faculty_id, faculty_name FROM faculties ORDER BY faculty_name")->fetchAll(PDO::FETCH_ASSOC);
+                $rows = $pdo->query("SELECT faculty_id, faculty_name FROM faculties WHERE faculty_id = 6 ORDER BY faculty_name")->fetchAll(PDO::FETCH_ASSOC);
                 break;
             case 'departments':
-                $facultyId = isset($_GET['faculty_id']) ? (int) $_GET['faculty_id'] : 0;
-                if ($facultyId > 0) {
-                    $stmt = $pdo->prepare("
-                        SELECT d.dept_id, d.dept_name, f.faculty_name, d.faculty_id
-                        FROM departments d
-                        LEFT JOIN faculties f ON f.faculty_id = d.faculty_id
-                        WHERE d.faculty_id = ?
-                        ORDER BY d.dept_name
-                    ");
-                    $stmt->execute([$facultyId]);
-                    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                } else {
-                    $rows = $pdo->query("
-                        SELECT d.dept_id, d.dept_name, f.faculty_name, d.faculty_id
-                        FROM departments d
-                        LEFT JOIN faculties f ON f.faculty_id = d.faculty_id
-                        ORDER BY d.dept_name
-                    ")->fetchAll(PDO::FETCH_ASSOC);
-                }
+                $rows = $pdo->query("
+                    SELECT d.dept_id, d.dept_name, f.faculty_name, d.faculty_id
+                    FROM departments d
+                    LEFT JOIN faculties f ON f.faculty_id = d.faculty_id
+                    WHERE d.faculty_id = 6
+                    ORDER BY d.dept_name
+                ")->fetchAll(PDO::FETCH_ASSOC);
                 break;
             case 'degree_types':
                 $rows = $pdo->query("SELECT degree_id, degree_name FROM degree_types ORDER BY degree_name")->fetchAll(PDO::FETCH_ASSOC);
                 break;
             case 'courses':
-                $facultyId = (int) ($_GET['faculty_id'] ?? 0);
                 $departmentId = (int) ($_GET['department_id'] ?? 0);
                 $programmeId = (int) ($_GET['programme_id'] ?? 0);
-                $where = [];
+                $where = ["d.faculty_id = 6"];
                 $params = [];
                 if ($departmentId > 0) {
                     $where[] = "c.dept_id = ?";
@@ -64,19 +51,15 @@ try {
                     $where[] = "c.degree_id = ?";
                     $params[] = $programmeId;
                 }
-                if ($facultyId > 0) {
-                    $where[] = "d.faculty_id = ?";
-                    $params[] = $facultyId;
-                }
-                $whereSql = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+                $whereSql = 'WHERE ' . implode(' AND ', $where);
                 $stmt = $pdo->prepare("
                     SELECT c.course_id, c.course_title, c.dept_id, c.degree_id,
                            d.dept_name, dt.degree_name
-                    FROM courses c
-                    LEFT JOIN departments d ON d.dept_id = c.dept_id
-                    LEFT JOIN degree_types dt ON dt.degree_id = c.degree_id
-                    {$whereSql}
-                    ORDER BY c.course_title
+                     FROM courses c
+                     LEFT JOIN departments d ON d.dept_id = c.dept_id
+                     LEFT JOIN degree_types dt ON dt.degree_id = c.degree_id
+                     {$whereSql}
+                     ORDER BY c.course_title
                 ");
                 $stmt->execute($params);
                 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);

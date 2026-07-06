@@ -1,12 +1,6 @@
 <?php
-// session_start();
-// if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'DEPARTMENT_ADMIN') {
-//     header('Location: /login.php');
-//     exit;
-// }
-
-$pageTitle = 'Department Dashboard';
-$pageSubtitle = 'Track department-wide applications, supervisors, and student performance.';
+$pageTitle = 'Program Dashboard';
+$pageSubtitle = 'Track program-wide applications, supervisors, and student performance.';
 
 require_once 'includes/header.php';
 require_once 'includes/sidebar.php';
@@ -15,7 +9,7 @@ require_once 'includes/topbar.php';
 
 <section class="page-hero">
     <div>
-        <h1>Department Command View</h1>
+        <h1>Program Command View</h1>
         <p class="panel-muted">Quick insight into admissions, supervision load, and student activity.</p>
     </div>
     <div class="hero-actions">
@@ -54,18 +48,6 @@ require_once 'includes/topbar.php';
         </div>
     </div>
 </section>
-
-<section class="panel">
-    <div class="panel-header">
-        <div>
-            <h3 class="panel-title">Department Insights</h3>
-            <div class="panel-muted">Application trends and supervisor workload snapshots.</div>
-        </div>
-    </div>
-    <div class="panel-body">
-        <div class="row g-3">
-            <div class="col-lg-6">
-                <div class="border rounded-4 p-4 h-100 bg-white">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">Application Trends by Programme</h6>
                         <span class="text-muted small">This Semester</span>
@@ -95,7 +77,7 @@ require_once 'includes/topbar.php';
 <section class="panel">
     <div class="panel-header">
         <div>
-            <h3 class="panel-title">Department Activity</h3>
+            <h3 class="panel-title">Program Activity</h3>
             <div class="panel-muted">Latest actions from coordinators and reviewers.</div>
         </div>
     </div>

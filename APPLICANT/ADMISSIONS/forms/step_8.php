@@ -4,11 +4,12 @@ $data = $_SESSION['form_data']['step_8'] ?? [];
 function getFileStatus($fieldName, $sessionData) {
     if (!empty($sessionData[$fieldName])) {
         $path = htmlspecialchars($sessionData[$fieldName]);
+        $fullUrl = htmlspecialchars(app_url($sessionData[$fieldName]));
         $filename = basename($path);
         return "
         <div class='mt-2 p-2 bg-success-subtle border border-success-subtle rounded d-flex align-items-center justify-content-between'>
             <span class='text-success small'><i class='bi bi-check-circle-fill me-1'></i> Uploaded</span>
-            <a href='$path' target='_blank' class='btn btn-sm btn-outline-success py-0' style='font-size: 0.75rem;'>View</a>
+            <a href='$fullUrl' target='_blank' class='btn btn-sm btn-outline-success py-0' style='font-size: 0.75rem;'>View</a>
         </div>";
     }
     return '';
@@ -42,7 +43,7 @@ if (isset($_SESSION['application_id'], $pdo)) {
             }
         }
         $hasRejections = count($rejectedFields) > 0;
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
     }
 }
 
@@ -104,7 +105,7 @@ function field_attrs(string $fieldName, bool $requiredWhenNoRejections = false):
         <?php echo getFileStatus('passport_profile_file', $data); ?>
         <?php if (!empty($data['passport_profile_file'])): ?>
             <div class="mt-2">
-                <img src="<?php echo htmlspecialchars($data['passport_profile_file']); ?>" alt="Profile Passport" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
+                <img src="<?php echo htmlspecialchars(app_url($data['passport_profile_file'])); ?>" alt="Profile Passport" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
             </div>
         <?php endif; ?>
         <small class="text-muted d-block mt-1">This image will be used on your dashboard top bar.</small>

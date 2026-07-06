@@ -2,11 +2,7 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-ini_set('session.gc_maxlifetime', '1800');
-session_set_cookie_params(['lifetime' => 1800, 'path' => '/', 'httponly' => true, 'samesite' => 'Lax']);
-session_start();
-require_once 'admin/db.php'; 
-require_once __DIR__ . '/../config/urls.php';
+require_once __DIR__ . '/../app/bootstrap.php';
 
 if (isset($_GET['reset']) && $_GET['reset'] === '1') {
     unset($_SESSION['pending_admin_login']);
@@ -16,7 +12,10 @@ if (isset($_GET['reset']) && $_GET['reset'] === '1') {
 // Check if already logged in
 if (isset($_SESSION['user_id'])) {
     $role = $_SESSION['role'] ?? '';
-    admin_redirect_by_role($role);
+    $dashboard = dashboard_for_role($role);
+    if ($dashboard !== 'ADMIN/login.php' && $dashboard !== '/ADMIN/login.php' && $dashboard !== '') {
+        admin_redirect_by_role($role);
+    }
 }
 
 $error = '';
@@ -24,25 +23,7 @@ $otp_error = '';
 $show_otp = false;
 
 function admin_redirect_by_role(string $role): void {
-    switch ($role) {
-        case 'SUPER_ADMIN':
-            redirect_to('ADMIN/super-admin/dashboard.php');
-            break;
-        case 'ADMIN':
-            redirect_to('ADMIN/admin/dashboard.php');
-            break;
-        case 'DEPARTMENT_ADMIN':
-            redirect_to('ADMIN/dept-admin/dashboard.php');
-            break;
-        case 'SUPERVISOR':
-            redirect_to('ADMIN/supervisor/dashboard.php');
-            break;
-        case 'REVIEWER':
-            redirect_to('ADMIN/reviewer/dashboard.php');
-            break;
-        default:
-            redirect_to('ADMIN/index.php');
-    }
+    redirect_to(dashboard_for_role($role));
 }
 
 
@@ -228,9 +209,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             try {
                 $user = user_login_query($pdo, $email);
 
-                $allowedRoles = ['SUPER_ADMIN', 'ADMIN', 'DEPARTMENT_ADMIN', 'SUPERVISOR', 'REVIEWER'];
+                $allowedRoles = [
+                    'SUPER_ADMIN',
+                    'ICT_ADMIN',
+                    'PORTAL_ADMIN',
+                    'REGISTRY',
+                    'ADMISSIONS_OFFICER',
+                    'BURSARY',
+                    'PG_SCHOOL_OFFICER',
+                    'FACULTY_OFFICER',
+                    'DEPARTMENT_ADMIN',
+                    'HOD',
+                    'SUPERVISOR',
+                    'REVIEWER',
+                    'ADMIN',
+                ];
 
-                if ($user && password_verify($password, $user['password_hash']) && in_array($user['role'], $allowedRoles, true)) {
+                $loginRole = normalize_role($user['role'] ?? '');
+                if ($user && password_verify($password, $user['password_hash']) && in_array($loginRole, array_map('normalize_role', $allowedRoles), true)) {
                     ensure_totp_columns($pdo);
 
                     $totpSecret = $user['totp_secret'] ?? '';
@@ -248,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                     $_SESSION['pending_admin_login'] = [
                         'user_id' => (int) $user['user_id'],
-                        'role' => $user['role'],
+                        'role' => $loginRole,
                         'email' => $email,
                         'name' => $user['full_name'] ?? 'Admin User',
                         'totp_secret' => $totpSecret,
@@ -276,8 +272,8 @@ if (!$show_otp && isset($_SESSION['pending_admin_login'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
-    <title>Login - JOSTUM PG SCHOOL</title>
+    <link rel="icon" type="image/png" href="/asset/homepage/ipess_logo.png">
+    <title>Login - IPESS FUAM Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/assets/css/style.css">
@@ -555,7 +551,7 @@ if (!$show_otp && isset($_SESSION['pending_admin_login'])) {
 
 <!-- Background -->
 <div style="
-    background: url('../APPLICANT/ADMISSIONS/images/jostumgate.png') no-repeat center center/cover;
+    background: url('../APPLICANT/ADMISSIONS/images/auditorium.jpg') no-repeat center center/cover;
     height: 100vh;
     position: relative;
 ">
@@ -570,19 +566,19 @@ if (!$show_otp && isset($_SESSION['pending_admin_login'])) {
             <!-- LEFT BRANDING PANEL -->
             <div class="branding-panel">
                 <div class="university-name">
-                    JOSEPH SARWUN TARKA UNIVERSITY MAKURDI
+                    FEDERAL UNIVERSITY OF AGRICULTURE MAKURDI
                 </div>
 
                 <div class="postgraduate-badge">
-                    POSTGRADUATE SCHOOL
+                    IPESS FUAM
                 </div>
 
                 <div class="logo-container">
-                    <img src="images/logo.jpeg" class="university-logo" alt="University Logo">
+                    <img src="images/ipess_logo.png" class="university-logo" alt="University Logo">
                 </div>
 
                 <div class="established-text">
-                    Established 1988
+                    Center of Excellence
                 </div>
             </div>
 
@@ -685,7 +681,7 @@ if (!$show_otp && isset($_SESSION['pending_admin_login'])) {
                 </div>
 
                 <div class="footer-text">
-                    © 2026 JOSTUM ICT Directorate
+                    © 2026 IPESS FUAM
                 </div>
 
             </div>

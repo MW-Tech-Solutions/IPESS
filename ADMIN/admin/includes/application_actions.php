@@ -1,19 +1,25 @@
 <?php
-session_start();
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../../../app/bootstrap.php';
 require_once __DIR__ . '/../../../includes/status_engine.php';
 require_once __DIR__ . '/../../../ADMIN/includes/mailer.php';
-require_once __DIR__ . '/../../../config/urls.php';
+enforce_session_timeout(900, 'ADMIN/login.php');
+require_role(['PG_SCHOOL_OFFICER', 'ADMISSIONS_OFFICER', 'PORTAL_ADMIN', 'SUPER_ADMIN'], 'ADMIN/login.php');
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'ADMIN') {
-    redirect_to('ADMIN/login.php');
+$wantsJson = !empty($_POST['ajax']);
+if ($wantsJson) {
+    header('Content-Type: application/json');
 }
 
 $appId = isset($_POST['app_id']) ? (int) $_POST['app_id'] : 0;
 $action = $_POST['action'] ?? '';
 
 if ($appId <= 0 || !in_array($action, ['accept', 'reject'], true)) {
-    $_SESSION['error'] = 'Invalid action.';
+    $msg = 'Invalid action.';
+    if ($wantsJson) {
+        echo json_encode(['success' => false, 'message' => $msg]);
+        exit();
+    }
+    $_SESSION['error'] = $msg;
     redirect_to('ADMIN/admin/application-management.php');
 }
 
@@ -34,6 +40,12 @@ try {
     }
 
     if ($action === 'reject') {
+        require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+        $progManager = new ApplicationProgressManager($pdo);
+        if (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_PG_REVIEW)) {
+            throw new Exception("Cannot make a final decision before the PG Review stage is completed.");
+        }
+
         update_application_status($pdo, $appId, 'ADMISSION_REJECTED', [
             'actor_id' => $_SESSION['user_id'] ?? null,
             'actor_role' => $_SESSION['role'] ?? 'ADMIN',
@@ -58,7 +70,20 @@ try {
         $_SESSION['success_message'] = 'Application rejected.';
     }
 } catch (Exception $e) {
+    if ($wantsJson) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        exit();
+    }
     $_SESSION['error'] = $e->getMessage();
 }
 
-redirect_to('ADMIN/admin/view.php?app_no=' . urlencode($_POST['app_no'] ?? ''));
+if ($wantsJson) {
+    echo json_encode(['success' => true, 'message' => $_SESSION['success_message'] ?? 'Action completed.']);
+    unset($_SESSION['success_message']);
+    exit();
+}
+
+$embed = isset($_POST['embed']) && $_POST['embed'] === '1';
+redirect_to('ADMIN/admin/view.php?app_no=' . urlencode($_POST['app_no'] ?? '') . ($embed ? '&embed=1' : ''));
+
+

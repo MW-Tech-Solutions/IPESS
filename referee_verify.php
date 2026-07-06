@@ -63,14 +63,17 @@ try {
         }
     }
 
-    // Check if already verified
-    $checkStmt = $pdo->prepare("SELECT verified_status FROM referee_uploads WHERE referee_id = ?");
-    $checkStmt->execute([$refId]);
-    $status = $checkStmt->fetchColumn();
+    require_once __DIR__ . '/classes/ApplicationProgressManager.php';
+    $progManager = new ApplicationProgressManager($pdo);
+    $appId = (int) $data['application_id'];
 
     if ($status === 'Verified') {
         $message = "You have already completed this verification process. Thank you!";
         $messageType = "success";
+    } elseif (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_DOC_VERIFY)) {
+        $message = "This application is not yet ready for referee verification. Documents verification must be completed first by the admissions office.";
+        $messageType = "warning";
+        $showForm = false;
     } else {
         $showForm = true;
     }

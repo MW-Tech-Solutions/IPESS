@@ -130,6 +130,14 @@ if ($action === 'update' || $action === 'bulk') {
             continue;
         }
 
+        $appId = (int) $appRow['application_id'];
+        require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+        $progManager = new ApplicationProgressManager($pdo);
+        if (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_REFEREES)) {
+            echo json_encode(['success' => false, 'message' => 'Cannot perform Departmental Review before Referee Report is completed for application ' . $item['app_code']]);
+            exit;
+        }
+
         $newStatus = 'UNDER_DEPT_REVIEW';
         $label = strtolower($item['status'] ?? '');
         if (str_contains($label, 'approved')) {

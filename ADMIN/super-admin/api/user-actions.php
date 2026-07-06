@@ -149,9 +149,7 @@ if ($action === 'send_reset') {
     $resetStmt->execute([$userId, $user['email'], $tokenHash, $expires]);
 
     $settings = $pdo->query("SELECT * FROM system_settings LIMIT 1")->fetch(PDO::FETCH_ASSOC);
-    $baseUrl = getenv('APP_BASE_URL')
-        ?: ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '13.60.198.99'));
-    $resetLink = rtrim($baseUrl, '/') . '/ADMIN/reset-password.php?token=' . urlencode($token);
+    $resetLink = app_absolute_url('ADMIN/reset-password.php?token=' . urlencode($token));
 
     $subject = 'JOSTUM PG School - Password Reset';
     $body = "Hello " . ($user['full_name'] ?: $user['email']) . ",<br><br>";

@@ -4,17 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
-    <title>Forgot Password - JOSTUM Postgraduate</title>
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>">
+    <title>Forgot Password - IPESS FUAM</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     
     <style>
         :root {
-            --primary-blue: #2c4474;
-            --accent-yellow: #f1b434;
-            --overlay-blue: rgba(44, 68, 116, 0.88);
+            --primary-blue: #6EB533;
+            --accent-yellow: #d4af37;
+            --overlay-blue: rgba(120, 45, 50, 0.85);
         }
 
         body, html {
@@ -152,7 +152,7 @@
         </div>
 
         <div class="footer-copy">
-            &copy; <?php echo date('Y'); ?> JOSTUM Postgraduate Portal
+            &copy; <?php echo date('Y'); ?> IPESS FUAM Portal
         </div>
     </div>
 </div>

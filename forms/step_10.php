@@ -63,11 +63,26 @@ elseif (strpos($status_lower, 'reject') !== false || strpos($status_lower, 'decl
     $is_admitted = false;
 } 
 
+// ─── Normalise old DB labels to new names ───────────────────────────────────
+$normalise_map = [
+    'Documents Verified'  => 'Documents Verification',
+    'Referee Reports'     => 'Referee Report',
+    'Academic Review'     => 'Departmental Review',
+    'Final Decision'      => 'Final Decisions',
+];
+$normalised_prog = [];
+foreach ($progress_map as $stage => $val) {
+    $key = $normalise_map[$stage] ?? $stage;
+    $normalised_prog[$key] = $val;
+}
+$progress_map = $normalised_prog;
+
 $submission_status = 'PENDING';
-$doc_status = 'IN PROGRESS';
-$ref_status = 'PENDING';
-$academic_status = 'PENDING';
-$final_status = 'PENDING';
+$doc_status        = 'IN PROGRESS';
+$ref_status        = 'PENDING';
+$dept_status       = 'PENDING';
+$pg_status         = 'PENDING';
+$final_status      = 'PENDING';
 
 try {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM documents WHERE application_id = ?");
@@ -83,9 +98,9 @@ try {
     $stmt->execute([$application_id]);
     $doc_verified = (int) $stmt->fetchColumn();
 
-if ($doc_total > 0 && $doc_verified >= $doc_total) {
-    $doc_status = 'COMPLETED';
-}
+    if ($doc_total > 0 && $doc_verified >= $doc_total) {
+        $doc_status = 'COMPLETED';
+    }
 
     $stmt = $pdo->prepare("SELECT verified_status FROM referee_uploads WHERE application_id = ? ORDER BY submitted_at DESC LIMIT 1");
     $stmt->execute([$application_id]);
@@ -93,16 +108,25 @@ if ($doc_total > 0 && $doc_verified >= $doc_total) {
     if ($ref_row) {
         $ref_status = ($ref_row === 'Verified') ? 'COMPLETED' : 'IN PROGRESS';
     }
-} catch (PDOException $e) {
-}
+} catch (PDOException $e) {}
 
+// Departmental Review
 if (in_array($app_current_status, ['UNDER_DEPT_REVIEW','DEPT_APPROVED','REVIEWER_ASSIGNED','UNDER_REVIEWER_REVIEW','REVIEWER_APPROVED','REVIEWER_REJECTED','ADMIN_FINAL_REVIEW','ADMISSION_APPROVED','ADMISSION_REJECTED','SUBMITTED'], true)) {
-    $academic_status = 'IN PROGRESS';
+    $dept_status = 'IN PROGRESS';
 }
-if (in_array($app_current_status, ['REVIEWER_APPROVED','ADMIN_FINAL_REVIEW','ADMISSION_APPROVED','ADMISSION_REJECTED','SUBMITTED','DEPT_APPROVED'], true)) {
-    $academic_status = 'COMPLETED';
+if (in_array($app_current_status, ['DEPT_APPROVED','REVIEWER_APPROVED','ADMIN_FINAL_REVIEW','ADMISSION_APPROVED','ADMISSION_REJECTED'], true)) {
+    $dept_status = 'COMPLETED';
 }
 
+// PG Review
+if (in_array($app_current_status, ['REVIEWER_ASSIGNED','UNDER_REVIEWER_REVIEW','REVIEWER_APPROVED','REVIEWER_REJECTED','ADMIN_FINAL_REVIEW','ADMISSION_APPROVED','ADMISSION_REJECTED'], true)) {
+    $pg_status = 'IN PROGRESS';
+}
+if (in_array($app_current_status, ['REVIEWER_APPROVED','ADMIN_FINAL_REVIEW','ADMISSION_APPROVED','ADMISSION_REJECTED'], true)) {
+    $pg_status = 'COMPLETED';
+}
+
+// Final Decisions
 if (in_array($app_current_status, ['ADMISSION_APPROVED','ADMISSION_REJECTED'], true) || in_array(strtolower($public_status), ['admitted','rejected'], true)) {
     $final_status = (stripos($public_status, 'reject') !== false || $app_current_status === 'ADMISSION_REJECTED') ? 'REJECTED' : 'APPROVED';
 }
@@ -112,28 +136,40 @@ if ($submittedLike !== 'draft' && $submittedLike !== 'pending' && $app_number !=
     $submission_status = 'COMPLETED';
 }
 
+// Override with DB progress_map if available
+$stage_vars = [
+    'Application Submitted'  => &$submission_status,
+    'Documents Verification' => &$doc_status,
+    'Referee Report'         => &$ref_status,
+    'Departmental Review'    => &$dept_status,
+    'PG Review'              => &$pg_status,
+    'Final Decisions'        => &$final_status,
+];
+foreach ($stage_vars as $stage => &$var) {
+    if (isset($progress_map[$stage])) {
+        $db_st = strtoupper($progress_map[$stage]['status']);
+        if ($db_st === 'COMPLETED') $var = 'COMPLETED';
+        elseif (in_array($db_st, ['APPROVED','REJECTED'], true)) $var = $db_st;
+        elseif ($db_st === 'IN PROGRESS') $var = 'IN PROGRESS';
+    }
+}
+unset($var);
+
 $defined_stages = [
-    ['label' => 'Application Submitted', 'status' => $submission_status],
-    ['label' => 'Documents Verified', 'status' => $doc_status],
-    ['label' => 'Academic Review', 'status' => $academic_status],
-    ['label' => 'Referee Reports', 'status' => $ref_status],
-    ['label' => 'Final Decision', 'status' => $final_status],
+    ['label' => 'Application Submitted',  'status' => $submission_status, 'date' => $progress_map['Application Submitted']['date']  ?? null],
+    ['label' => 'Documents Verification', 'status' => $doc_status,        'date' => $progress_map['Documents Verification']['date'] ?? null],
+    ['label' => 'Referee Report',         'status' => $ref_status,        'date' => $progress_map['Referee Report']['date']         ?? null],
+    ['label' => 'Departmental Review',    'status' => $dept_status,       'date' => $progress_map['Departmental Review']['date']    ?? null],
+    ['label' => 'PG Review',              'status' => $pg_status,         'date' => $progress_map['PG Review']['date']              ?? null],
+    ['label' => 'Final Decisions',        'status' => $final_status,      'date' => $progress_map['Final Decisions']['date']        ?? null],
 ];
 
+// Cascade to completed when final decision made
 if (in_array($final_status, ['APPROVED', 'REJECTED'], true)) {
-    $submission_status = 'COMPLETED';
-    $doc_status = 'COMPLETED';
-    $academic_status = 'COMPLETED';
-    $ref_status = 'COMPLETED';
-    $defined_stages = [
-        ['label' => 'Application Submitted', 'status' => $submission_status],
-        ['label' => 'Documents Verified', 'status' => $doc_status],
-        ['label' => 'Academic Review', 'status' => $academic_status],
-        ['label' => 'Referee Reports', 'status' => $ref_status],
-        ['label' => 'Final Decision', 'status' => $final_status],
-    ];
+    for ($i = 0; $i < 5; $i++) $defined_stages[$i]['status'] = 'COMPLETED';
 }
 ?>
+
 
 <style>
     .status-header {
@@ -190,6 +226,8 @@ if (in_array($final_status, ['APPROVED', 'REJECTED'], true)) {
     .step-dot.pending { background: #f8f9fa; color: #ced4da; border: 2px solid #e9ecef; }
     .step-dot.processing { background: #fff; color: var(--bs-primary); border: 2px solid var(--bs-primary); box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15); }
     .step-dot.completed { background: #198754; color: #fff; border: 2px solid #198754; }
+    .step-dot.rejected { background: #dc3545; color: #fff; border: 2px solid #dc3545; }
+    .step-date { font-size: 10px; color: #adb5bd; margin-top: 3px; }
 
     
     .step-content {
@@ -271,23 +309,25 @@ if (in_array($final_status, ['APPROVED', 'REJECTED'], true)) {
         </div>
             
         <div class="col-12 col-md-6">
-            
-            <div class="p-4 border rounded-3 bg-white h-100 shadow-sm d-flex align-items-center justify-content-between cursor-pointer" 
-     onclick="printSlipBackground('helpers/print_slip.php?app_no=<?php echo urlencode($app_number); ?>')">
-    <div>
-        <small class="text-uppercase text-muted fw-bold" style="font-size: 11px;">Action</small>
-        <div class="fw-bold fs-5 mt-1 text-primary">Print Slip</div>
-        <small class="text-muted" style="font-size: 11px;">Tap to print document</small>
-    </div>
-    <div class="btn btn-outline-primary rounded-circle p-3">
-        <i class="bi bi-printer fs-5"></i>
-    </div>
-</div>
-            <iframe id="printFrame" style="display:none;"></iframe>
+            <div class="p-4 border rounded-3 bg-white h-100 shadow-sm d-flex flex-column justify-content-between">
+                <div>
+                    <small class="text-uppercase text-muted fw-bold" style="font-size: 11px;">Application Document Actions</small>
+                    <div class="fw-bold fs-5 mt-1 text-dark">Manage Slip & Form</div>
+                    <small class="text-muted" style="font-size: 11px;">View your completed application form or download/print the acknowledgment slip.</small>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <a href="helpers/success.php?app_no=<?php echo urlencode(encrypt_app_number($app_number)); ?>&view=1" target="_blank" class="btn btn-outline-primary flex-fill py-2 fw-semibold">
+                        <i class="bi bi-eye me-1"></i> View Form
+                    </a>
+                    <a href="helpers/success.php?app_no=<?php echo urlencode(encrypt_app_number($app_number)); ?>" target="_blank" class="btn btn-primary flex-fill py-2 fw-semibold shadow-sm">
+                        <i class="bi bi-download me-1"></i> Download Slip
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
-    <h6 class="fw-bold text-muted border-bottom pb-2 mb-4">APPLICATION PROGRESS</h6>
+    <h6 class="fw-bold text-muted border-bottom pb-2 mb-4">APPLICATION TRACKING HISTORY</h6>
     
     <div class="tracking-wrapper">
         <?php foreach($defined_stages as $stage): 
@@ -309,8 +349,8 @@ if (in_array($final_status, ['APPROVED', 'REJECTED'], true)) {
                 $text_color = 'text-primary';
                 $status_display = '<span class="badge bg-primary bg-opacity-10 text-primary border border-primary">IN PROGRESS</span>';
             } elseif ($status_code === 'REJECTED') {
-                $css_class  = 'completed';
-                $icon_class = 'bi-x-circle';
+                $css_class  = 'rejected';
+                $icon_class = 'bi-x-circle-fill';
                 $text_color = 'text-danger';
                 $status_display = '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger">REJECTED</span>';
             } elseif ($status_code === 'APPROVED') {
@@ -319,6 +359,7 @@ if (in_array($final_status, ['APPROVED', 'REJECTED'], true)) {
                 $text_color = 'text-success';
                 $status_display = '<span class="badge bg-success bg-opacity-10 text-success border border-success">APPROVED</span>';
             }
+            $stage_date = !empty($stage['date']) ? '<div class="step-date">' . date('d M Y', strtotime($stage['date'])) . '</div>' : '';
         ?>
             <div class="timeline-item">
                 <div class="step-dot <?php echo $css_class; ?>">
@@ -329,6 +370,7 @@ if (in_array($final_status, ['APPROVED', 'REJECTED'], true)) {
                         <?php echo htmlspecialchars($stage_label); ?>
                     </div>
                     <div><?php echo $status_display; ?></div>
+                    <?php echo $stage_date; ?>
                 </div>
             </div>
         <?php endforeach; ?>

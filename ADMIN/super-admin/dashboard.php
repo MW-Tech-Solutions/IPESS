@@ -1,9 +1,4 @@
 <?php
-// session_start();
-// if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'SUPER_ADMIN') {
-//     header('Location: /login.php');
-//     exit;
-// }
 
 $pageTitle = 'Command Center';
 $pageSubtitle = 'Institution-wide view of admissions, users, and verification flow.';
@@ -97,24 +92,10 @@ require_once 'includes/topbar.php';
         </div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-university"></i></div>
-        <div>
-            <div class="stat-title">Faculties</div>
-            <div class="stat-value"><?php echo number_format($stats['total_faculties']); ?></div>
-        </div>
-    </div>
-    <div class="stat-card">
         <div class="stat-icon"><i class="fas fa-paper-plane"></i></div>
         <div>
             <div class="stat-title">Submitted</div>
             <div class="stat-value"><?php echo number_format($stats['submitted']); ?></div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon"><i class="fas fa-building"></i></div>
-        <div>
-            <div class="stat-title">Departments</div>
-            <div class="stat-value"><?php echo number_format($stats['total_departments']); ?></div>
         </div>
     </div>
     <div class="stat-card">
@@ -129,6 +110,20 @@ require_once 'includes/topbar.php';
         <div>
             <div class="stat-title">Programmes</div>
             <div class="stat-value"><?php echo number_format($stats['total_programmes']); ?></div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-university"></i></div>
+        <div>
+            <div class="stat-title">Faculties</div>
+            <div class="stat-value"><?php echo number_format($stats['total_faculties']); ?></div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-building"></i></div>
+        <div>
+            <div class="stat-title">Departments</div>
+            <div class="stat-value"><?php echo number_format($stats['total_departments']); ?></div>
         </div>
     </div>
     <div class="stat-card">
@@ -165,7 +160,7 @@ require_once 'includes/topbar.php';
     <div class="panel-header">
         <div>
             <h3 class="panel-title">Recent Applications</h3>
-            <div class="panel-muted">Latest submissions across faculties.</div>
+            <div class="panel-muted">Latest submissions across programmes.</div>
         </div>
         <a class="btn btn-outline-primary btn-sm" href="applications.php">View All</a>
     </div>

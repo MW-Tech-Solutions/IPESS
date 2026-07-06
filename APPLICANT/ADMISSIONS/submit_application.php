@@ -1,20 +1,7 @@
-<?php
-session_start();
-require_once __DIR__ . '/../../config/urls.php';
+﻿<?php
+
+require_once __DIR__ . '/db.php';
 header('Content-Type: application/json');
-
-$baseDir = __DIR__ . '/PhpMailer/src/'; 
-if (!file_exists($baseDir . 'PHPMailer.php')) {
-    echo json_encode(['status' => 'error', 'message' => "PHPMailer files not found at: " . $baseDir]);
-    exit;
-}
-
-require $baseDir . 'Exception.php';
-require $baseDir . 'PHPMailer.php';
-require $baseDir . 'SMTP.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
 
 try {
     $year = date('Y');
@@ -29,23 +16,8 @@ try {
         throw new Exception("A valid recipient email is required.");
     }
 
-    $mail = new PHPMailer(true);
-
-    $mail->isSMTP();
-    $mail->Host       = 'smtp.gmail.com';
-    $mail->SMTPAuth   = true;
-    $mail->Username   = 'jostumpg@gmail.com'; 
-    $mail->Password   = 'avajrmliqzokhbbi'; 
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; 
-    $mail->Port       = 587;
-
-    $mail->setFrom('jostumpg@gmail.com', 'JOSTUM-PG Admissions');
-    $mail->addAddress($email, "$firstName $surname");
-
-    $mail->isHTML(true);
-    $mail->Subject = "Application Received - ID: $appId";
-    
-    $mail->Body = "
+    $subject = "Application Received - ID: $appId";
+    $contentHtml = "
         <div style='font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;'>
             <h2 style='color: #0d6efd; text-align: center;'>Application Confirmation</h2>
             <p>Dear $firstName $surname,</p>
@@ -67,21 +39,25 @@ try {
             </p>
         </div>
     ";
+    $contentText = "Your application has been received. Your Application ID is: $appId";
 
-    $mail->AltBody = "Your application has been received. Your Application ID is: $appId";
+    $result = portal_send_mail($email, "$firstName $surname", $subject, $contentHtml, $contentText);
 
-    $mail->send();
+    if ($result['success']) {
+        echo json_encode([
+            'status' => 'success',
+            'appId' => $appId,
+            'email' => $email
+        ]);
+    } else {
+        throw new Exception($result['message']);
+    }
 
-    echo json_encode([
-        'status' => 'success',
-        'appId' => $appId,
-        'email' => $email
-    ]);
-
-} catch (Exception $e) {
+} catch (Throwable $e) {
     http_response_code(500);
     echo json_encode([
         'status' => 'error', 
-        'message' => "Mailer Error: {$mail->ErrorInfo}"
+        'message' => "Mailer Error: " . $e->getMessage()
     ]);
 }
+

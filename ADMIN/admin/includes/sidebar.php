@@ -1,6 +1,12 @@
 <?php
+require_once __DIR__ . '/../../../app/bootstrap.php';
+if (in_array(normalize_role(current_user_role()), ['SUPER_ADMIN', 'ICT_ADMIN'], true)) {
+    require_once __DIR__ . '/../../super-admin/includes/sidebar.php';
+    return;
+}
 $currentPage = basename($_SERVER['PHP_SELF']);
 $sidebarDisplayName = 'Admissions Operations';
+
 
 try {
     require_once __DIR__ . '/db.php';
@@ -79,6 +85,12 @@ try {
                 <a class="<?php echo $currentPage === 'reports.php' ? 'active' : ''; ?>" href="reports.php">
                     <i class="fas fa-chart-bar"></i>
                     <span>Reports</span>
+                </a>
+            </li>
+            <li>
+                <a href="../../modules/postutme/admin/dashboard.php">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>POST-UTME Screening</span>
                 </a>
             </li>
         </ul>

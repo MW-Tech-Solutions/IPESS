@@ -1,0 +1,25 @@
+.env
+*.pem
+*.key
+*.p12
+*.tgz
+*.tar
+*.gz
+*.zip
+*.rar
+*.bak
+*.backup
+*.old
+* copy*
+*(Copy)*
+/uploads/
+/ADMIN/uploads/
+/ADMIN/admin/uploads/
+/APPLICANT/ADMISSIONS/uploads/
+/helpers/uploads/
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+/modules/postutme/storage/uploads/*
+/modules/postutme/storage/jamb_imports/*
+!/modules/postutme/storage/uploads/.gitkeep
+!/modules/postutme/storage/jamb_imports/.gitkeep

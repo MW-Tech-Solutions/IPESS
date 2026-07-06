@@ -1,6 +1,7 @@
 <?php
-session_start();
-require 'db.php';
+require_once __DIR__ . '/../../app/bootstrap.php';
+
+
 require_once __DIR__ . '/../../includes/completion_service.php';
 require_once __DIR__ . '/../../includes/status_engine.php';
 require_once __DIR__ . '/../../includes/permissions.php';
@@ -16,7 +17,7 @@ if ($step_id == 9) {
  
     if (!isset($_POST['captcha_verified']) || $_POST['captcha_verified'] !== '1') {
         $_SESSION['msg'] = ['type' => 'danger', 'text' => 'Security Error: Please complete the captcha.'];
-        header("Location: dashboard.php?step=9");
+        redirect_to('APPLICANT/ADMISSIONS/dashboard.php?step=9');
         exit();
     }
 }
@@ -33,7 +34,7 @@ if (!$app) {
     $current_status = $app['current_status'] ?? 'DRAFT';
     if (!can_edit_application($current_status) && $step_id < 10) {
         $_SESSION['msg'] = ['type' => 'danger', 'text' => 'Your application is locked for editing.'];
-        header("Location: dashboard.php?step=10");
+        redirect_to('APPLICANT/ADMISSIONS/dashboard.php?step=10');
         exit();
     }
     // Update progress tracker
@@ -66,17 +67,55 @@ try {
             break;
 
         case 2: // Programme Info
-            $sql = "INSERT INTO programme_choices (application_id, faculty, department,degree_type, mode_of_study,course)
-                    VALUES (?, ?, ?, ?, ?,?)
+            $faculty_id = 0;
+            if (!empty($_POST['faculty'])) {
+                $stmt = $pdo->prepare("SELECT faculty_id FROM faculties WHERE faculty_name = ? LIMIT 1");
+                $stmt->execute([$_POST['faculty']]);
+                $faculty_id = (int)$stmt->fetchColumn() ?: 0;
+            }
+
+            $dept_id = 0;
+            if (!empty($_POST['department'])) {
+                $stmt = $pdo->prepare("SELECT dept_id FROM departments WHERE dept_name = ? LIMIT 1");
+                $stmt->execute([$_POST['department']]);
+                $dept_id = (int)$stmt->fetchColumn() ?: 0;
+            }
+
+            $degree_id = 0;
+            if (!empty($_POST['degree_type'])) {
+                $stmt = $pdo->prepare("SELECT degree_id FROM degree_types WHERE degree_name = ? OR (degree_name = 'Msc' AND ? = 'MSc') LIMIT 1");
+                $stmt->execute([$_POST['degree_type'], $_POST['degree_type']]);
+                $degree_id = (int)$stmt->fetchColumn() ?: 0;
+            }
+
+            $course_id = 0;
+            if (!empty($_POST['course'])) {
+                $stmt = $pdo->prepare("SELECT course_id FROM courses WHERE course_title = ? OR course_title LIKE ? LIMIT 1");
+                $stmt->execute([$_POST['course'], '%' . $_POST['course']]);
+                $course_id = (int)$stmt->fetchColumn() ?: 0;
+            }
+
+            $mode_id = 0;
+            if (!empty($_POST['mode'])) {
+                $stmt = $pdo->prepare("SELECT mode_id FROM study_modes WHERE mode_name = ? LIMIT 1");
+                $stmt->execute([$_POST['mode']]);
+                $mode_id = (int)$stmt->fetchColumn() ?: 0;
+            }
+
+            $sql = "INSERT INTO programme_choices (application_id, faculty, department, degree_type, mode_of_study, course)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE 
-                    faculty=VALUES(faculty), department=VALUES(department), 
-                    degree_type=VALUES(degree_type), mode_of_study=VALUES(mode_of_study)";
+                    faculty=VALUES(faculty), 
+                    department=VALUES(department), 
+                    degree_type=VALUES(degree_type), 
+                    mode_of_study=VALUES(mode_of_study),
+                    course=VALUES(course)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
-                $application_id, $_POST['faculty'], $_POST['department'], 
-                $_POST['degree_type'], $_POST['mode'],$_POST['course']
+                $application_id, $faculty_id, $dept_id, 
+                $degree_id, $mode_id, $course_id
             ]);
-            $pdo->prepare("UPDATE applications SET department_id = ? WHERE application_id = ?")->execute([$_POST['department'], $application_id]);
+            $pdo->prepare("UPDATE applications SET department_id = ? WHERE application_id = ?")->execute([$dept_id, $application_id]);
             break;
             case 3: // Academic History & O-Levels
             $sql = "INSERT INTO higher_education (application_id, highest_qualification, course_study, institution, grad_year, cgpa, mode_study)
@@ -146,7 +185,9 @@ try {
                     VALUES (?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE nysc_status=VALUES(nysc_status), certificate_number=VALUES(certificate_number), completion_year=VALUES(completion_year)";
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([$application_id, $_POST['nysc_status'], $_POST['nysc_number'] ?? null, $_POST['nysc_year'] ?? null]);
+            $nysc_number = !empty($_POST['nysc_number']) ? $_POST['nysc_number'] : null;
+            $nysc_year = !empty($_POST['nysc_year']) ? (int)$_POST['nysc_year'] : null;
+            $stmt->execute([$application_id, $_POST['nysc_status'], $nysc_number, $nysc_year]);
             break;
 
     
@@ -195,12 +236,14 @@ try {
         case 8: 
             
             $allowed_mime_types = [
-                'image/png' => 'jpg',
+                'image/jpeg' => 'jpg',
+                'image/jpg'  => 'jpg',
                 'image/png'  => 'png',
                 'application/pdf' => 'pdf'
             ];
-            $max_file_size = 1 * 1024 * 1024; 
-            $upload_base_dir = __DIR__ . '/uploads/';
+            $max_file_size = 2 * 1024 * 1024; 
+            $upload_base_dir = __DIR__ . '/../../uploads/';
+
 
             $upload_map = [
                 'passport_file'   => 'passports',
@@ -274,10 +317,16 @@ try {
             if (isset($_POST['declaration'])) {
                 if (!can_submit_application($pdo, $application_id)) {
                     $_SESSION['msg'] = ['type' => 'danger', 'text' => 'Application completion must be at least ' . COMPLETION_SUBMIT_THRESHOLD . '% before submission.'];
-                    header("Location: dashboard.php?step=9");
+                    redirect_to('APPLICANT/ADMISSIONS/dashboard.php?step=9');
                     exit();
                 }
-                $appNumber = "PG-" . date('Y') . "-" . strtoupper(substr(md5(uniqid()), 0, 5));
+                $year = date('Y');
+                $prefix = "APP/IPESS/{$year}/";
+                $stmt_serial = $pdo->prepare("SELECT MAX(CAST(SUBSTRING_INDEX(application_number, '/', -1) AS UNSIGNED)) FROM applications WHERE application_number LIKE ?");
+                $stmt_serial->execute([$prefix . '%']);
+                $maxSerial = (int)$stmt_serial->fetchColumn();
+                $nextSerial = $maxSerial + 1;
+                $appNumber = $prefix . str_pad((string)$nextSerial, 4, '0', STR_PAD_LEFT);
                 
                 $stmt = $pdo->prepare("UPDATE applications SET status = 'Submitted', current_status = 'SUBMITTED', application_number = ?, submitted_at = NOW() WHERE application_id = ?");
                 $stmt->execute([$appNumber, $application_id]);
@@ -304,24 +353,7 @@ try {
                 $nameRow = $nameStmt->fetch(PDO::FETCH_ASSOC);
                 $fullName = $nameRow ? ($nameRow['first_name'] . ' ' . $nameRow['surname']) : 'Applicant';
 
-                $baseDir = __DIR__ . '/PhpMailer/src/'; 
-                require_once $baseDir . 'Exception.php';
-                require_once $baseDir . 'PHPMailer.php';
-                require_once $baseDir . 'SMTP.php';
-
-                $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-                $mail->isSMTP();
-                $mail->Host       = 'smtp.gmail.com';
-                $mail->SMTPAuth   = true;
-                $mail->Username   = 'jostumpg@gmail.com';
-                $mail->Password   = 'avajrmliqzokhbbi'; 
-                $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS; 
-                $mail->Port       = 587;
-                $mail->setFrom('jostumpg@gmail.com', 'JOSTUM-PG');
-                $mail->addAddress($_SESSION['user_email']);
-                $mail->isHTML(true);
-                $mail->Subject = "Application Received - ID: $appNumber";
-                $mail->Body = "
+                $mailBody = "
 <div style='background-color: #1a120b; margin: 0; padding: 20px 0; width: 100%; font-family: Arial, sans-serif;'>
     <table width='100%' border='0' cellspacing='0' cellpadding='0' style='background-color: #1a120b;'>
         <tr>
@@ -355,16 +387,21 @@ try {
             </td>
         </tr>
     </table>
-</div>";   
-                    
-                
-                $mail->send();
+</div>";
+
+                portal_send_mail(
+                    $_SESSION['user_email'],
+                    $fullName,
+                    "Application Received - ID: $appNumber",
+                    $mailBody,
+                    "Your postgraduate application has been received successfully. Your Application ID is $appNumber."
+                );
 
                 update_completion($pdo, $application_id);
 
                 $pdo->commit(); 
                 unset($_SESSION['form_data']);
-                header("Location: success.php?app_no=$appNumber");
+                redirect_to("APPLICANT/ADMISSIONS/success.php?app_no=" . urlencode(encrypt_app_number($appNumber)));
                 exit();
             }
             break;
@@ -374,17 +411,18 @@ try {
     $pdo->commit();
     
     if ($step_id < 9) {
-        header("Location: dashboard.php?step=" . ($step_id + 1));
+        redirect_to("APPLICANT/ADMISSIONS/dashboard.php?step=" . ($step_id + 1));
     } else {
-        header("Location: dashboard.php?step=9");
+        redirect_to('APPLICANT/ADMISSIONS/dashboard.php?step=9');
     }
 
-} catch (Exception $e) {
+} catch (Throwable $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
     $_SESSION['msg'] = ['type' => 'danger', 'text' => 'Error: ' . $e->getMessage()];
-    header("Location: dashboard.php?step=" . $step_id);
+    redirect_to("APPLICANT/ADMISSIONS/dashboard.php?step=" . $step_id);
 }
 $_SESSION['msg'] = ['type' => 'success', 'text' => 'Step ' . $step_id . ' saved successfully!'];
 ?>
+

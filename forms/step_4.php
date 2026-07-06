@@ -22,3 +22,30 @@
     </div>
     
 </div>
+
+<script>
+function toggleNysc() {
+    const status = document.getElementById('nyscStatus').value;
+    const numInput = document.getElementsByName('nysc_number')[0];
+    const yearInput = document.getElementsByName('nysc_year')[0];
+    
+    if (status === 'Completed' || status === 'Exempted') {
+        numInput.required = true;
+        yearInput.required = true;
+        numInput.disabled = false;
+        yearInput.disabled = false;
+        numInput.closest('.col-md-6').style.display = 'block';
+        yearInput.closest('.col-md-6').style.display = 'block';
+    } else {
+        numInput.required = false;
+        yearInput.required = false;
+        numInput.disabled = true;
+        yearInput.disabled = true;
+        numInput.value = '';
+        yearInput.value = '';
+        numInput.closest('.col-md-6').style.display = 'none';
+        yearInput.closest('.col-md-6').style.display = 'none';
+    }
+}
+document.addEventListener('DOMContentLoaded', toggleNysc);
+</script>

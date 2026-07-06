@@ -605,6 +605,15 @@ try {
         $stmt = $pdo->prepare("SELECT application_id FROM referees WHERE referee_id = ? LIMIT 1");
         $stmt->execute([$refId]);
         $appId = (int) $stmt->fetchColumn();
+        
+        if ($appId > 0) {
+            require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+            $progManager = new ApplicationProgressManager($pdo);
+            if (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_DOC_VERIFY)) {
+                echo json_encode(['success' => false, 'message' => 'Cannot verify referee reports before Documents Verification is completed.']);
+                exit;
+            }
+        }
         if ($appId > 0) {
             $stmt = $pdo->prepare("SELECT user_id FROM applications WHERE application_id = ? LIMIT 1");
             $stmt->execute([$appId]);

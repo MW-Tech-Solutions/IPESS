@@ -85,6 +85,14 @@ try {
     $appUserId = (int) $stmt->fetchColumn();
 
     // 3. Update Database Status
+    if (in_array($decision, ['admit', 'approve', 'reject'], true)) {
+        require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+        $progManager = new ApplicationProgressManager($pdo);
+        if (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_PG_REVIEW)) {
+            throw new Exception("Cannot make a final decision before the PG Review stage is completed.");
+        }
+    }
+
     if ($decision === 'admit' || $decision === 'approve') {
         update_application_status($pdo, $appId, 'ADMISSION_APPROVED', [
             'actor_id' => $_SESSION['user_id'] ?? null,
@@ -198,8 +206,8 @@ try {
         exit();
     }
     $_SESSION['success_message'] = $message;
-    header("Location: ../admission-decision-view.php?app_no=" . urlencode($appNumber));
-    exit();
+    $embed = isset($_POST['embed']) && $_POST['embed'] === '1';
+    redirect_to('ADMIN/admin/admission-decision-view.php?app_no=' . urlencode($appNumber) . ($embed ? '&embed=1' : ''));
 
 } catch (Exception $e) {
     if ($pdo->inTransaction()) { $pdo->rollBack(); }
@@ -209,6 +217,6 @@ try {
         exit();
     }
     $_SESSION['error'] = $message;
-    header("Location: dashboard.php");
-    exit();
+    $embed = isset($_POST['embed']) && $_POST['embed'] === '1';
+    redirect_to('ADMIN/admin/admission-decisions.php' . ($embed ? '?embed=1' : ''));
 }

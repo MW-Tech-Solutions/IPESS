@@ -7,7 +7,13 @@ if (!isset($_GET['app_no'])) {
     redirect_to('dashboard.php');
 }
 
-$appNumber = $_GET['app_no'];
+$rawAppNo = $_GET['app_no'];
+$decrypted = decrypt_app_number($rawAppNo);
+if ($decrypted !== '' && str_contains($decrypted, 'IPESS')) {
+    $appNumber = $decrypted;
+} else {
+    $appNumber = $rawAppNo;
+}
 
 try {
     $stmt = $pdo->prepare("
@@ -421,5 +427,14 @@ try {
     </div>
 </div>
 
+<script>
+    <?php if (!isset($_GET['view'])): ?>
+    window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            window.print();
+        }, 500);
+    });
+    <?php endif; ?>
+</script>
 </body>
 </html>

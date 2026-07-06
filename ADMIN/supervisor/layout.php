@@ -1,18 +1,7 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-require_once __DIR__ . '/../../config/urls.php';
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'SUPERVISOR') {
-    redirect_to('ADMIN/login.php');
-}
-$timeoutSeconds = 300;
-if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > $timeoutSeconds) {
-    session_unset();
-    session_destroy();
-    redirect_to('ADMIN/login.php?timeout=1');
-}
-$_SESSION['last_activity'] = time();
+require_once __DIR__ . '/../../app/bootstrap.php';
+enforce_session_timeout(300, 'ADMIN/login.php');
+require_role(['SUPERVISOR', 'HOD', 'SUPER_ADMIN'], 'ADMIN/login.php');
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -78,6 +78,13 @@ if ($action === 'update_status') {
         exit;
     }
 
+    require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+    $progManager = new ApplicationProgressManager($pdo);
+    if (!$progManager->isStageCompleted($assignmentId, ApplicationProgressManager::STAGE_DEPT_REVIEW)) {
+        echo json_encode(['success' => false, 'message' => 'Cannot perform PG Review before Departmental Review is completed.']);
+        exit;
+    }
+
     $newStatus = map_ui_to_status($uiStatus);
     update_application_status($pdo, $assignmentId, $newStatus, [
         'actor_id' => $_SESSION['user_id'] ?? null,
@@ -95,6 +102,16 @@ if ($action === 'bulk') {
         echo json_encode(['success' => false, 'message' => 'No assignments selected.']);
         exit;
     }
+    
+    require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+    $progManager = new ApplicationProgressManager($pdo);
+    foreach ($ids as $id) {
+        if (!$progManager->isStageCompleted((int) $id, ApplicationProgressManager::STAGE_DEPT_REVIEW)) {
+            echo json_encode(['success' => false, 'message' => 'Cannot perform PG Review on application ID ' . $id . ' before Departmental Review is completed.']);
+            exit;
+        }
+    }
+
     $uiStatus = $_POST['status'] ?? 'Complete';
     $newStatus = map_ui_to_status($uiStatus);
     foreach ($ids as $id) {

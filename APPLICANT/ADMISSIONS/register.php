@@ -1,124 +1,207 @@
 <?php
-session_start();
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/../../config/urls.php';
+
+$studyModes = [];
+$degreeTypes = [];
+$courses = [];
+
+try {
+    $studyModes = $pdo->query("SELECT mode_id, mode_name FROM study_modes ORDER BY mode_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    $studyModes = [];
+}
+
+try {
+    $degreeTypes = $pdo->query("SELECT degree_id, degree_name FROM degree_types ORDER BY degree_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    $degreeTypes = [];
+}
+
+try {
+    $courses = $pdo->query("
+        SELECT
+            c.course_id,
+            c.course_title,
+            c.degree_id,
+            c.dept_id,
+            d.faculty_id
+        FROM courses c
+        LEFT JOIN departments d ON d.dept_id = c.dept_id
+        ORDER BY c.course_title ASC
+    ")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    $courses = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Create Account - JOSTUM</title>
+    <title>Create Account - IPESS FUAM</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
-    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     
     <style>
         :root {
-            --primary-blue: #21a1f1;
-            --navy-overlay: rgba(18, 36, 62, 0.75);
+            --primary-green: #6EB533;
+            --accent-burgundy: #782D32;
+            --light-overlay: rgba(255, 255, 255, 0.95);
         }
 
         body {
-            background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), 
-                        url('./images/jostumgate-opt.jpg') no-repeat center center fixed;
+            background: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)), 
+                        url('./images/auditorium.jpg') no-repeat center center fixed;
             background-size: cover;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             margin: 0;
-            padding: 15px;
+            padding: 14px;
         }
 
         .login-card {
-            background: var(--navy-overlay);
+            background: var(--light-overlay);
             width: 100%;
-            padding: 20px 20px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            color: white;
-            text-align: center;
-            backdrop-filter: blur(5px);
+            max-width: 1050px;
+            padding: 30px 20px;
+            border-radius: 8px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            color: #333333;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
         }
 
         .logo-container {
             width: 85px;
             height: 85px;
             background-color: white;
-            border-radius: 10%;
-            margin: 0 auto 15px auto;
+            border-radius: 50%;
+            margin: 20px auto 15px auto;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 3px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            padding: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 2px solid var(--primary-green);
         }
 
         .uni-logo {
             width: 100%;
             height: 100%;
-            object-fit: fill;
+            object-fit: contain;
         }
 
         .login-title {
             font-size: 1.5rem;
             font-weight: 700;
             margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--accent-burgundy);
+            text-align: center;
+            background: transparent;
+            padding: 0 10px;
         }
 
-        .form-control {
-            height: 54px;
-            border-radius: 10px 0 0 10px !important;
-            font-size: 16px !important; 
-            border: 1px solid transparent;
+        .form-area {
+            padding: 15px 22px 34px;
+        }
+
+        .registration-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 36px;
+            row-gap: 10px;
+        }
+
+        .form-control,
+        .form-select {
+            height: 43px;
+            border-radius: 4px !important;
+            font-size: 1.08rem !important;
+            border: 1px solid #dcdcdc;
+            color: #1f2937;
+            background-color: #ffffff;
+            box-shadow: none !important;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--primary-green);
+        }
+
+        .form-control::placeholder {
+            color: #8b8f96;
         }
 
         .input-group-text {
-            background-color: white !important;
-            border: none;
+            background-color: #ffffff !important;
+            border: 1px solid #dcdcdc;
+            border-left: none;
             color: #666;
-            border-radius: 0 10px 10px 0 !important;
+            border-radius: 0 4px 4px 0 !important;
             padding-right: 15px;
             cursor: pointer;
         }
 
+        .password-toggle .form-control {
+            border-radius: 4px 0 0 4px !important;
+            border-right: none;
+        }
+
         .password-toggle:hover .input-group-text {
-            color: var(--primary-blue);
+            color: var(--primary-green);
         }
 
         .btn-signin {
-            background-color: var(--primary-blue);
+            background-color: var(--primary-green);
             border: none;
-            height: 54px;
+            height: 43px;
             font-weight: 600;
-            font-size: 1.1rem;
-            border-radius: 10px;
-            margin-top: 10px;
+            font-size: 1rem;
+            border-radius: 4px;
+            margin-top: 0;
             color: white;
-            transition: opacity 0.2s;
+            transition: all 0.2s ease-in-out;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            overflow: hidden;
         }
         
         .btn-signin:hover {
-            background-color: #1a8acb;
+            background-color: #5c972a;
             color: white;
+            transform: translateY(-1px);
         }
 
         .footer-links {
-            margin-top: 20px;
-            font-size: 0.95rem;
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 34px;
+            gap: 16px;
         }
 
         .footer-links a, .btn-link {
-            color: var(--primary-blue);
+            color: var(--accent-burgundy);
             text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary-green);
+            text-decoration: underline;
         }
         
         .btn-link:hover {
-            color: #fff;
+            color: var(--primary-green);
         }
 
         .verification-step { display: none; }
@@ -130,17 +213,17 @@ require_once __DIR__ . '/../../config/urls.php';
             font-size: 22px; 
             font-weight: bold; 
             text-align: center; 
-            border: none; 
+            border: 1px solid #dcdcdc; 
             border-radius: 8px; 
             margin: 0 4px; 
             transition: all 0.3s; 
-            background-color: rgba(255, 255, 255, 0.9);
+            background-color: #ffffff;
         }
         
         .otp-input:focus { 
             outline: none; 
-            background: #fff;
-            box-shadow: 0 0 0 3px rgba(33, 161, 241, 0.5);
+            border-color: var(--primary-green);
+            box-shadow: 0 0 0 3px rgba(110, 181, 51, 0.2);
         }
         
         .otp-input.filled { background-color: #fff; }
@@ -163,19 +246,72 @@ require_once __DIR__ . '/../../config/urls.php';
         }
 
         .text-muted-custom {
-            color: rgba(255, 255, 255, 0.6) !important;
+            color: #6b7280 !important;
         }
         
         .text-primary-custom {
-            color: var(--primary-blue) !important;
+            color: var(--primary-green) !important;
         }
 
-        @media (min-width: 576px) {
-            .login-card { max-width: 400px; padding: 40px; }
-            .logo-container { width: 95px; height: 95px; }
-            .login-title { font-size: 1.8rem; }
-            .footer-links { flex-direction: row; justify-content: center; gap: 0; }
-            .login-link::before { content: "Already have an account? "; color: rgba(255,255,255,0.7); margin-right: 5px;}
+        .login-link {
+            display: inline-flex;
+            align-items: center;
+            background: var(--primary-green);
+            color: #fff;
+            border-radius: 4px;
+            overflow: hidden;
+            font-weight: 600;
+            min-height: 43px;
+            line-height: 1;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .login-link:hover {
+            background-color: #5c972a;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .login-link span,
+        .create-label {
+            padding: 0 18px;
+            display: inline-flex;
+            align-items: center;
+            height: 43px;
+        }
+
+        .login-link i,
+        .create-icon {
+            background: rgba(0, 0, 0, 0.15);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 43px;
+            font-size: .98rem;
+        }
+
+        .verification-step {
+            padding: 34px;
+            color: #333333;
+        }
+
+        @media (max-width: 768px) {
+            body { align-items: flex-start; padding: 12px; }
+            .login-card { border-radius: 10px; }
+            .form-area { padding: 18px 14px 22px; }
+            .registration-grid { grid-template-columns: 1fr; gap: 10px; }
+            .form-control,
+            .form-select { height: 46px; font-size: 1rem !important; }
+            .footer-links { flex-direction: column-reverse; align-items: stretch; margin-top: 20px; }
+            .login-link,
+            .btn-signin { justify-content: center; width: 100%; }
+            .login-link span,
+            .create-label { flex:1; justify-content:center; padding: 0 12px; }
+            .login-link i,
+            .create-icon { flex:0 0 42px; }
+            .login-title { font-size: 1.45rem; }
+            .otp-input { width: 38px; height: 50px; margin: 0 2px; }
         }
     </style>
 </head>
@@ -186,39 +322,72 @@ require_once __DIR__ . '/../../config/urls.php';
     <div id="step1-container">
         <header>
             <div class="logo-container">
-                <img src="./images/jostum.jpeg" alt="JOSTUM Logo" class="uni-logo">
+                <img src="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="IPESS FUAM Logo" class="uni-logo">
             </div>
-            <h1 class="login-title">Create Account</h1>
+            <h1 class="login-title">IPESS FUAM Create Account</h1>
         </header>
 
+        <div class="form-area">
         <div id="js-error-1"></div>
 
         <form onsubmit="event.preventDefault(); initiateSignup();">
-            <div class="input-group mb-3">
-                <input type="email" id="email" class="form-control" placeholder="Email Address" required>
-                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+            <div class="registration-grid">
+                <input type="text" id="surname" class="form-control" placeholder="Surname" required>
+                <input type="text" id="first_name" class="form-control" placeholder="First Name" required>
+                <input type="text" id="other_name" class="form-control" placeholder="Other Name">
+                <input type="email" id="email" class="form-control" placeholder="Email" required>
+                <input type="tel" id="phone" class="form-control" placeholder="Phone Number" required>
+                <select id="mode_of_study" class="form-select" required>
+                    <?php foreach ($studyModes as $mode): ?>
+                        <?php if (stripos((string) $mode['mode_name'], 'Full') !== false): ?>
+                            <option value="<?php echo (int) $mode['mode_id']; ?>" selected>
+                                <?php echo htmlspecialchars($mode['mode_name']); ?>
+                            </option>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </select>
+                <select id="programme_option" class="form-select" required>
+                    <option value="">Programme Option</option>
+                    <?php foreach ($degreeTypes as $degree): ?>
+                        <option value="<?php echo (int) $degree['degree_id']; ?>">
+                            <?php echo htmlspecialchars($degree['degree_name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <select id="programme" class="form-select" required>
+                    <option value="">Programme</option>
+                </select>
+                <div class="input-group password-toggle">
+                    <input type="password" id="password" class="form-control" placeholder="Password" required>
+                    <span class="input-group-text" onclick="togglePassword('password', this)">
+                        <i class="bi bi-eye-fill"></i>
+                    </span>
+                </div>
+                <div class="input-group password-toggle">
+                    <input type="password" id="confirm_password" class="form-control" placeholder="Confirm Password" required>
+                    <span class="input-group-text" onclick="togglePassword('confirm_password', this)">
+                        <i class="bi bi-eye-fill"></i>
+                    </span>
+                </div>
             </div>
 
-            <div class="input-group mb-3 password-toggle">
-                <input type="password" id="password" class="form-control" placeholder="Password" required>
-                <span class="input-group-text" onclick="togglePassword('password', this)">
-                    <i class="bi bi-eye-fill"></i>
-                </span>
-            </div>
+            <footer class="footer-links">
+                <a href="<?= htmlspecialchars(app_url('APPLICANT/ADMISSIONS/login.php')) ?>" class="login-link">
+                    <i class="bi bi-person-fill"></i><span>Already Have An Account</span>
+                </a>
+                <button type="button" onclick="initiateSignup()" id="sendBtn" class="btn btn-signin">
+                    <span class="create-icon"><i class="bi bi-person-fill"></i></span><span class="create-label">Create</span>
+                </button>
+            </footer>
 
-            <div class="input-group mb-4 password-toggle">
-                <input type="password" id="confirm_password" class="form-control" placeholder="Confirm Password" required>
-                <span class="input-group-text" onclick="togglePassword('confirm_password', this)">
-                    <i class="bi bi-eye-fill"></i>
-                </span>
-            </div>
 
-            <button type="button" onclick="initiateSignup()" id="sendBtn" class="btn btn-signin w-100">Sign Up</button>
+                        
+
+
+
+
         </form>
-        
-        <footer class="footer-links">
-            <a href="<?= htmlspecialchars(app_url('APPLICANT/ADMISSIONS/login.php')) ?>" class="login-link">Login here</a>
-        </footer>
+        </div>
     </div>
 
     <div id="step2-container" class="verification-step text-center">
@@ -252,7 +421,38 @@ require_once __DIR__ . '/../../config/urls.php';
 </main>
 
 <script>
+    const courseOptions = <?php echo json_encode(array_map(static function (array $course): array {
+        return [
+            'id' => (int) $course['course_id'],
+            'title' => (string) $course['course_title'],
+            'degree_id' => (int) $course['degree_id'],
+            'dept_id' => (int) $course['dept_id'],
+            'faculty_id' => (int) ($course['faculty_id'] ?? 0),
+        ];
+    }, $courses)); ?>;
     const inputs = document.querySelectorAll('.otp-input');
+    const programmeOption = document.getElementById('programme_option');
+    const programme = document.getElementById('programme');
+
+    function populateProgrammes() {
+        const degreeId = Number(programmeOption.value || 0);
+        const matchingCourses = courseOptions.filter(course => course.degree_id === degreeId);
+        programme.innerHTML = '<option value="">Programme</option>';
+
+        matchingCourses.forEach(course => {
+            const option = document.createElement('option');
+            option.value = course.id;
+            option.textContent = course.title;
+            option.dataset.deptId = course.dept_id;
+            option.dataset.facultyId = course.faculty_id;
+            programme.appendChild(option);
+        });
+
+        programme.disabled = !degreeId || matchingCourses.length === 0;
+    }
+
+    programmeOption?.addEventListener('change', populateProgrammes);
+    populateProgrammes();
 
     function showAlert(msg, targetId) {
         document.getElementById(targetId).innerHTML = `<div class="alert alert-danger py-2 small" style="border-radius:10px;"><i class="bi bi-exclamation-circle me-1"></i> ${msg}</div>`;
@@ -313,23 +513,46 @@ require_once __DIR__ . '/../../config/urls.php';
     }
 
     async function initiateSignup() {
+        const surname = document.getElementById('surname').value.trim();
+        const firstName = document.getElementById('first_name').value.trim();
+        const otherName = document.getElementById('other_name').value.trim();
+        const phone = document.getElementById('phone').value.trim();
         const email = document.getElementById('email').value;
+        const modeOfStudy = document.getElementById('mode_of_study').value;
+        const programmeOptionValue = programmeOption.value;
+        const programmeValue = programme.value;
+        const selectedProgramme = programme.options[programme.selectedIndex];
         const pass = document.getElementById('password').value;
         const confirm = document.getElementById('confirm_password').value;
         const btn = document.getElementById('sendBtn');
 
-        if (!email || !pass || pass !== confirm) {
-            return showAlert("Please check your passwords and email.", "js-error-1");
+        if (!surname || !firstName || !phone || !email || !modeOfStudy || !programmeOptionValue || !programmeValue || !pass || pass !== confirm) {
+            return showAlert("Please complete all required fields and confirm your passwords.", "js-error-1");
         }
 
         btn.disabled = true;
         btn.innerHTML = 'Processing...';
 
+        const payload = {
+            surname,
+            first_name: firstName,
+            other_name: otherName,
+            phone,
+            email,
+            mode_of_study: modeOfStudy,
+            programme_option: programmeOptionValue,
+            programme: programmeValue,
+            department: selectedProgramme?.dataset.deptId || '',
+            faculty: selectedProgramme?.dataset.facultyId || '',
+            password: pass,
+            confirm
+        };
+
         try {
             const response = await fetch('send_otp.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email, password: pass, confirm: confirm })
+                body: JSON.stringify(payload)
             });
             const data = await response.json();
 
@@ -341,11 +564,12 @@ require_once __DIR__ . '/../../config/urls.php';
             } else {
                 showAlert(data.message, "js-error-1");
                 btn.disabled = false;
-                btn.innerText = "Sign Up";
+                btn.innerHTML = '<span class="create-icon"><i class="bi bi-person-fill"></i></span><span class="create-label">Create</span>';
             }
         } catch (e) {
             showAlert("Server connection failed.", "js-error-1");
             btn.disabled = false;
+            btn.innerHTML = '<span class="create-icon"><i class="bi bi-person-fill"></i></span><span class="create-label">Create</span>';
         }
     }
 

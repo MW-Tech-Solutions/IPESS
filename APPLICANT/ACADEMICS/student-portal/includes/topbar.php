@@ -50,6 +50,21 @@ function infer_student_nav_target(string $title, string $message): string
     return 'dashboard';
 }
 
+function normalize_student_media_url(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+    if (preg_match('#^https?://#i', $value)) {
+        return $value;
+    }
+    if (preg_match('#^(localhost|127\.0\.0\.1)(:\d+)?/#i', $value)) {
+        return app_url($value);
+    }
+    return app_url(ltrim(str_replace('\\', '/', $value), '/'));
+}
+
 $studentUser = [
     'name' => (string) ($_SESSION['student_name'] ?? ''),
     'email' => (string) ($_SESSION['user_email'] ?? ''),
@@ -74,7 +89,7 @@ try {
                 $studentUser['email'] = (string) $row['email'];
             }
             if (!empty($row['avatar_url'])) {
-                $studentUser['avatar'] = (string) $row['avatar_url'];
+                $studentUser['avatar'] = normalize_student_media_url((string) $row['avatar_url']);
             }
         }
 
@@ -105,11 +120,7 @@ try {
                     }
                 }
                 if ($docPath !== '') {
-                    if (preg_match('#^https?://#i', $docPath) || strpos($docPath, '/') === 0) {
-                        $studentUser['avatar'] = $docPath;
-                    } else {
-                        $studentUser['avatar'] = '/' . ltrim(str_replace('\\', '/', $docPath), '/');
-                    }
+                    $studentUser['avatar'] = normalize_student_media_url($docPath);
                 }
         }
 
@@ -204,7 +215,7 @@ $studentCanAccessAcademics = !empty($_SESSION['student_can_access_academics']);
 ?>
 
 <header class="topbar" id="topbar">
-    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/jpeg" href="<?php echo htmlspecialchars(app_url('ADMIN/images/logo.jpeg'), ENT_QUOTES, 'UTF-8'); ?>">
 <?php if ($studentCanAccessAcademics): ?>
     <button class="sidebar-toggler" type="button" id="sidebarToggler" aria-label="Toggle sidebar">
             <i class="bi bi-list"></i>
@@ -214,8 +225,8 @@ $studentCanAccessAcademics = !empty($_SESSION['student_can_access_academics']);
     <?php if ($studentCanAccessAcademics): ?>
         <div class="ms-2 d-none d-md-flex align-items-center">
             <div class="btn-group btn-group-sm" role="group" aria-label="Dashboard switcher">
-                <a class="btn btn-outline-secondary" href="/dashboard.php">Admission</a>
-                <a class="btn btn-primary" href="index.php#dashboard" aria-current="page">Academics</a>
+                <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars(app_url('APPLICANT/ADMISSIONS/dashboard.php'), ENT_QUOTES, 'UTF-8'); ?>">Admission</a>
+                <a class="btn btn-primary" href="<?php echo htmlspecialchars(app_url('APPLICANT/ACADEMICS/student-portal/index.php#dashboard'), ENT_QUOTES, 'UTF-8'); ?>" aria-current="page">Academics</a>
             </div>
         </div>
     <?php endif; ?>
@@ -397,7 +408,7 @@ $studentCanAccessAcademics = !empty($_SESSION['student_can_access_academics']);
                     <button type="button" class="btn btn-outline-secondary" onclick="openHelpModalFromAccount()">
                         <i class="bi bi-question-circle me-2"></i>Help & Support
                     </button>
-                    <a class="btn btn-danger" href="/APPLICANT/ADMISSIONS/logout.php">
+                    <a class="btn btn-danger" href="<?php echo htmlspecialchars(app_url('APPLICANT/ADMISSIONS/logout.php'), ENT_QUOTES, 'UTF-8'); ?>">
                         <i class="bi bi-box-arrow-right me-2"></i>Logout
                     </a>
                 </div>

@@ -1,25 +1,7 @@
 <?php
 session_start();
 
-// 1. Database Configuration (Ideally move this to a separate config.php)
-$host    = '127.0.0.1';
-$db      = 'jostum_pg';
-$user    = 'root';
-$pass    = '';
-$charset = 'utf8mb4';
-
-$dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-$options = [
-    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::ATTR_EMULATE_PREPARES   => false,
-];
-
-try {
-    $pdo = new PDO($dsn, $user, $pass, $options);
-} catch (\PDOException $e) {
-    die("Database Connection Failed: " . $e->getMessage());
-}
+require_once __DIR__ . '/../config/db.php';
 
 // 2. Security Check: Ensure form was submitted and session exists
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['form_data']['step_8'])) {

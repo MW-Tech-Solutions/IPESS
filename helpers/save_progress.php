@@ -153,7 +153,9 @@ try {
                     VALUES (?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE nysc_status=VALUES(nysc_status), certificate_number=VALUES(certificate_number), completion_year=VALUES(completion_year)";
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([$application_id, $_POST['nysc_status'], $_POST['nysc_number'] ?? null, $_POST['nysc_year'] ?? null]);
+            $nysc_number = !empty($_POST['nysc_number']) ? $_POST['nysc_number'] : null;
+            $nysc_year = !empty($_POST['nysc_year']) ? (int)$_POST['nysc_year'] : null;
+            $stmt->execute([$application_id, $_POST['nysc_status'], $nysc_number, $nysc_year]);
             break;
 
         case 5: 
@@ -298,7 +300,7 @@ try {
        
         $appYear = date('Y');
         $formattedSerial = str_pad($application_id, 4, '0', STR_PAD_LEFT);
-        $appNumber = "PG-{$appYear}-{$formattedSerial}";
+        $appNumber = "APP/IPESS/{$appYear}/{$formattedSerial}";
         $stmtApp = $pdo->prepare("
                 UPDATE applications 
                 SET application_number = ?, 
@@ -308,31 +310,16 @@ try {
             ");
             $stmtApp->execute([$appNumber, $application_id]);
 
-            $checkProgress = $pdo->prepare("SELECT progress_id FROM application_progress WHERE application_id = ?");
-            $checkProgress->execute([$application_id]);
-
-            if (!$checkProgress->fetch()) {
-                $stmtProgress = $pdo->prepare("
-                    INSERT INTO application_progress (application_id, stage, stage_status, stage_updated_at) 
-                    VALUES (?, 'Application Submitted', 'Completed', NOW())
-                ");
-            } else {
-                $stmtProgress = $pdo->prepare("
-                    UPDATE application_progress 
-                    SET stage = 'Application Submitted', 
-                        stage_status = 'Completed', 
-                        stage_updated_at = NOW() 
-                    WHERE application_id = ?
-                ");
-            }
-            $stmtProgress->execute([$application_id]);
+            require_once __DIR__ . '/../classes/ApplicationProgressManager.php';
+            $progManager = new ApplicationProgressManager($pdo);
+            $progManager->initializeApplication($application_id);
             
             $stmtUser = $pdo->prepare("SELECT surname, first_name, other_name FROM personal_details WHERE application_id = ?");
             $stmtUser->execute([$application_id]);
             $userData = $stmtUser->fetch(PDO::FETCH_ASSOC);
             $fullName = strtoupper($userData['surname'] . ' ' . $userData['first_name'] . ' ' . $userData['other_name']);
             
-            $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+            $protocol = function_exists('is_secure_connection') ? (is_secure_connection() ? "https" : "http") : (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
             $domain   = $_SERVER['HTTP_HOST'];
             $basePath = rtrim(dirname($_SERVER['PHP_SELF']), '/\\');
             $loginUrl = app_url('APPLICANT/ADMISSIONS/login.php');
@@ -402,10 +389,10 @@ try {
 
                 $mail->send();
 
-                $pdo->commit(); 
-                unset($_SESSION['form_data']);
-                header("Location: success.php?app_no=$appNumber");
-                exit();
+                 $pdo->commit(); 
+                 unset($_SESSION['form_data']);
+                 header("Location: success.php?app_no=" . urlencode(encrypt_app_number($appNumber)));
+                 exit();
             }
             break;
     }

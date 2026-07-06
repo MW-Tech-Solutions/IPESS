@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
-<title>Postgraduate Application Form</title>
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>">
+<title>IPESS FUAM Postgraduate Application Form</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     
@@ -128,13 +128,42 @@
         }
 .modal-content {
     border: none;
-    border-radius: 16px;
+    border-radius: 4px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
 .alert-primary {
     background-color: #e7f1ff;
-    border: 1px dashed #0d6efd;
-    color: #0d6efd;
+    border: 1px dashed #6EB533;
+    color: #6EB533;
+}
+.text-primary {
+    color: #6EB533 !important;
+}
+.btn-primary {
+    background-color: #6EB533 !important;
+    border-color: #6EB533 !important;
+    border-radius: 4px !important;
+}
+.btn-primary:hover {
+    background-color: #782D32 !important;
+    border-color: #782D32 !important;
+}
+.step-indicator li.active .step-icon {
+    background: #6EB533 !important;
+    border-color: #6EB533 !important;
+    color: #fff !important;
+}
+.step-indicator li.completed .step-icon {
+    background: #d4af37 !important;
+    border-color: #d4af37 !important;
+    color: #111 !important;
+}
+.section-header {
+    border-left: 4px solid #6EB533 !important;
+    color: #6EB533 !important;
+}
+.btn {
+    border-radius: 4px !important;
 }
     </style>
 </head>
@@ -144,7 +173,7 @@
         <div class="col-lg-12">
             <div class="form-container">
                 
-                <h3 class="text-center mb-2 text-primary">Postgraduate Application</h3>
+                <h3 class="text-center mb-2 text-primary">IPESS FUAM Postgraduate Application</h3>
                 <p class="text-center text-muted mb-4">Complete the form below to apply</p>
 
                 <div class="progress mb-4" style="height: 5px;">

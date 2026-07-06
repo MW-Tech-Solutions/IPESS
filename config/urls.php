@@ -1,61 +1,120 @@
 <?php
-function load_env_fallback_local(string $path): void
+function app_root_path(): string
 {
-    if (!file_exists($path)) {
-        return;
+    static $root = null;
+    if ($root !== null) {
+        return $root;
     }
-    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if ($line === '' || str_starts_with($line, '#')) {
-            continue;
+
+    $projectRoot = str_replace('\\', '/', realpath(__DIR__ . '/..') ?: (__DIR__ . '/..'));
+    $documentRoot = str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+
+    if ($documentRoot !== '' && stripos($projectRoot, $documentRoot) === 0) {
+        $relative = substr($projectRoot, strlen($documentRoot));
+        $relative = '/' . trim($relative, '/');
+        $root = $relative === '/' ? '' : $relative;
+    } else {
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+        $parts = $scriptName !== '' ? explode('/', trim(str_replace('\\', '/', $scriptName), '/')) : [];
+        $projectName = basename($projectRoot);
+        
+        $index = false;
+        foreach ($parts as $i => $part) {
+            if (strcasecmp($part, $projectName) === 0) {
+                $index = $i;
+                break;
+            }
         }
-        $parts = explode('=', $line, 2);
-        if (count($parts) !== 2) {
-            continue;
-        }
-        $key = trim($parts[0]);
-        $value = trim($parts[1]);
-        $value = trim($value, "\"'");
-        if ($key !== '' && getenv($key) === false) {
-            putenv($key . '=' . $value);
-            $_ENV[$key] = $value;
+        
+        if ($index !== false) {
+            $root = '/' . implode('/', array_slice($parts, 0, $index + 1));
+        } else {
+            $root = '';
         }
     }
+
+    return rtrim($root, '/');
 }
 
-function app_base_url(): string
+function app_origin(): string
 {
-    if (!isset($_ENV['APP_BASE_URL'])) {
-        load_env_fallback_local(__DIR__ . '/../.env');
-    }
-    $base = $_ENV['APP_BASE_URL'] ?? '';
-    if ($base) {
-        return rtrim($base, '/');
-    }
-
-    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    require_once __DIR__ . '/../app/config/app.php';
+    $https = is_secure_connection();
     $scheme = $https ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
-
     return $scheme . '://' . $host;
 }
 
 function app_url(string $path = ''): string
 {
-    $base = app_base_url();
+    if (preg_match('#^https?://#i', $path)) {
+        return $path;
+    }
+    if (preg_match('#^(localhost|127\.0\.0\.1)(:\d+)?/#i', $path)) {
+        $scheme = parse_url(app_origin(), PHP_URL_SCHEME) ?: 'http';
+        return $scheme . '://' . ltrim($path, '/');
+    }
+
+    $root = app_root_path();
+
     if ($path === '' || $path === '/') {
-        return $base;
+        return $root !== '' ? $root . '/' : '/';
     }
-    if ($path[0] !== '/') {
-        $path = '/' . $path;
+
+    $path = '/' . ltrim($path, '/');
+
+    if ($root !== '' && ($path === $root || strpos($path, $root . '/') === 0)) {
+        return $path;
     }
-    return $base . $path;
+
+    return ($root !== '' ? $root : '') . $path;
+}
+
+function app_absolute_url(string $path = ''): string
+{
+    return rtrim(app_origin(), '/') . app_url($path);
 }
 
 function redirect_to(string $path, int $code = 302): void
 {
-    header('Location: ' . app_url($path), true, $code);
-    exit();
+    $url = app_absolute_url($path);
+    if (!headers_sent()) {
+        header('Location: ' . $url, true, $code);
+        exit();
+    } else {
+        echo '<script type="text/javascript">';
+        echo 'window.location.href="' . $url . '";';
+        echo '</script>';
+        echo '<noscript>';
+        echo '<meta http-equiv="refresh" content="0;url=' . $url . '" />';
+        echo '</noscript>';
+        exit();
+    }
 }
-?>
+
+if (!function_exists('encrypt_app_number')) {
+    function encrypt_app_number(string $appNo): string
+    {
+        $key = 'JOSTUM_APP_SECRET_KEY_2026';
+        $encrypted = openssl_encrypt($appNo, 'AES-128-ECB', $key);
+        return str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($encrypted));
+    }
+}
+
+if (!function_exists('decrypt_app_number')) {
+    function decrypt_app_number(string $hash): string
+    {
+        $key = 'JOSTUM_APP_SECRET_KEY_2026';
+        $data = str_replace(['-', '_'], ['+', '/'], $hash);
+        $mod = strlen($data) % 4;
+        if ($mod) {
+            $data .= str_repeat('=', 4 - $mod);
+        }
+        $encrypted = base64_decode($data);
+        if ($encrypted === false) {
+            return '';
+        }
+        $decrypted = openssl_decrypt($encrypted, 'AES-128-ECB', $key);
+        return $decrypted ?: '';
+    }
+}

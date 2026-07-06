@@ -1,26 +1,7 @@
-
-
 <?php
-session_start();
+
 require 'db.php';
 header('Content-Type: application/json');
-
-
-$baseDir = __DIR__ . '/PhpMailer/src/'; 
-if (!file_exists($baseDir . 'PHPMailer.php')) {
-    echo json_encode(['success' => false, 'message' => "PHPMailer files not found at: " . $baseDir]);
-    exit;
-}
-
-require $baseDir . 'Exception.php';
-require $baseDir . 'PHPMailer.php';
-require $baseDir . 'SMTP.php';
-
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -33,6 +14,37 @@ $email = filter_var($data['email'], FILTER_VALIDATE_EMAIL);
 if (!$email) {
     echo json_encode(['success' => false, 'message' => 'Invalid email address.']);
     exit;
+}
+
+$isResend = !empty($data['resend']);
+if (!$isResend) {
+    $requiredFields = [
+        'surname' => 'Surname',
+        'first_name' => 'First name',
+        'phone' => 'Phone number',
+        'mode_of_study' => 'Mode of study',
+        'programme_option' => 'Programme option',
+        'programme' => 'Programme',
+        'password' => 'Password',
+        'confirm' => 'Confirm password',
+    ];
+
+    foreach ($requiredFields as $field => $label) {
+        if (trim((string) ($data[$field] ?? '')) === '') {
+            echo json_encode(['success' => false, 'message' => $label . ' is required.']);
+            exit;
+        }
+    }
+
+    if (strlen((string) $data['password']) < 6) {
+        echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters.']);
+        exit;
+    }
+
+    if (($data['password'] ?? '') !== ($data['confirm'] ?? '')) {
+        echo json_encode(['success' => false, 'message' => 'Passwords do not match.']);
+        exit;
+    }
 }
 
 try {
@@ -48,39 +60,34 @@ try {
 }
 $otp = rand(100000, 999999);
 
-// $_SESSION['otp'] = $otp;
-// $_SESSION['otp_time'] = time();
-// Change these lines in send_otp.php
-$_SESSION['auth_otp'] = $otp;   // Add 'auth_'
-$_SESSION['auth_email'] = $email; // Add 'auth_'
-$_SESSION['auth_time'] = time();  // Add 'auth_'
+$_SESSION['auth_otp'] = $otp;   
+$_SESSION['auth_email'] = $email; 
+$_SESSION['auth_time'] = time();  
 
-$mail = new PHPMailer(true);
+if (!$isResend) {
+    $_SESSION['signup_data'] = [
+        'surname' => trim((string) ($data['surname'] ?? '')),
+        'first_name' => trim((string) ($data['first_name'] ?? '')),
+        'other_name' => trim((string) ($data['other_name'] ?? '')),
+        'phone' => trim((string) ($data['phone'] ?? '')),
+        'email' => $email,
+        'mode_of_study' => (int) ($data['mode_of_study'] ?? 0),
+        'programme_option' => (int) ($data['programme_option'] ?? 0),
+        'programme' => (int) ($data['programme'] ?? 0),
+        'department' => (int) ($data['department'] ?? 0),
+        'faculty' => (int) ($data['faculty'] ?? 0),
+        'password' => (string) ($data['password'] ?? ''),
+    ];
+}
 
-try {
-    
-    $mail->isSMTP();
-    $mail->Host       = 'smtp.gmail.com';
-    $mail->SMTPAuth   = true;
-    $mail->Username   = 'jostumpg@gmail.com';
-    $mail->Password   = 'avajrmliqzokhbbi'; 
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; 
-    $mail->Port       = 587;
+$subject = 'Your Verification Code';
+$contentHtml = "<h2>Your OTP is: <b>$otp</b></h2><p>This code is valid for 5 minutes.</p>";
+$contentText = "Your OTP is: $otp. Valid for 5 minutes.";
 
-    $mail->setFrom('jostumpg@gmail.com', 'JOSTUM-PG');
-    $mail->addAddress($email);
+$result = portal_send_mail($email, $email, $subject, $contentHtml, $contentText);
 
-    $mail->isHTML(true);
-    $mail->Subject = 'Your Verification Code';
-    $mail->Body    = "<h2>Your OTP is: <b>$otp</b></h2><p>This code is valid for 5 minutes.</p>";
-    $mail->AltBody = "Your OTP is: $otp. Valid for 5 minutes.";
-
-    $mail->send();
+if ($result['success']) {
     echo json_encode(['success' => true, 'message' => 'OTP sent successfully']);
-
-} catch (Exception $e) {
-    echo json_encode([
-        'success' => false, 
-        'message' => "Mailer Error: {$mail->ErrorInfo}"
-    ]);
+} else {
+    echo json_encode(['success' => false, 'message' => 'Mailer Error: ' . $result['message']]);
 }

@@ -1,26 +1,7 @@
-
-
 <?php
-session_start();
+
 require 'db.php';
 header('Content-Type: application/json');
-
-
-$baseDir = __DIR__ . '/../PhpMailer/src/'; 
-if (!file_exists($baseDir . 'PHPMailer.php')) {
-    echo json_encode(['success' => false, 'message' => "PHPMailer files not found at: " . $baseDir]);
-    exit;
-}
-
-require $baseDir . 'Exception.php';
-require $baseDir . 'PHPMailer.php';
-require $baseDir . 'SMTP.php';
-
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -46,39 +27,21 @@ try {
     echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
     exit;
 }
-$otp = rand(100000, 999999);
 
+$otp = rand(100000, 999999);
 
 $_SESSION['auth_otp'] = $otp;   
 $_SESSION['auth_email'] = $email; 
 $_SESSION['auth_time'] = time();  
 
-$mail = new PHPMailer(true);
+$subject = 'Your Verification Code';
+$contentHtml = "<h2>Your OTP is: <b>$otp</b></h2><p>This code is valid for 5 minutes.</p>";
+$contentText = "Your OTP is: $otp. Valid for 5 minutes.";
 
-try {
-    
-    $mail->isSMTP();
-    $mail->Host       = 'smtp.gmail.com';
-    $mail->SMTPAuth   = true;
-    $mail->Username   = 'jostumpg@gmail.com';
-    $mail->Password   = 'avajrmliqzokhbbi'; 
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; 
-    $mail->Port       = 587;
+$result = portal_send_mail($email, $email, $subject, $contentHtml, $contentText);
 
-    $mail->setFrom('jostumpg@gmail.com', 'JOSTUM-PG');
-    $mail->addAddress($email);
-
-    $mail->isHTML(true);
-    $mail->Subject = 'Your Verification Code';
-    $mail->Body    = "<h2>Your OTP is: <b>$otp</b></h2><p>This code is valid for 5 minutes.</p>";
-    $mail->AltBody = "Your OTP is: $otp. Valid for 5 minutes.";
-
-    $mail->send();
+if ($result['success']) {
     echo json_encode(['success' => true, 'message' => 'OTP sent successfully']);
-
-} catch (Exception $e) {
-    echo json_encode([
-        'success' => false, 
-        'message' => "Mailer Error: {$mail->ErrorInfo}"
-    ]);
+} else {
+    echo json_encode(['success' => false, 'message' => 'Mailer Error: ' . $result['message']]);
 }

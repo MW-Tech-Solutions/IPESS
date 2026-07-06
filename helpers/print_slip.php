@@ -1,12 +1,19 @@
 <?php
 session_start();
-require '../config/db.php';
+require_once '../config/db.php';
+require_once '../config/urls.php';
 
 // Check if app_no is provided, otherwise redirect
 if (!isset($_GET['app_no'])) {
     $appNumber = '';
 } else {
-    $appNumber = $_GET['app_no'];
+    $rawAppNo = $_GET['app_no'];
+    $decrypted = decrypt_app_number($rawAppNo);
+    if ($decrypted !== '' && str_contains($decrypted, 'IPESS')) {
+        $appNumber = $decrypted;
+    } else {
+        $appNumber = $rawAppNo;
+    }
 }
 
 try {

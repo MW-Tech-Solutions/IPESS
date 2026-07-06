@@ -20,27 +20,27 @@ require_once 'includes/topbar.php';
 <section class="panel">
     <div class="panel-header">
         <div>
-            <h3 class="panel-title">Add Course</h3>
-            <div class="panel-muted">Courses must be tied to a faculty, department, and programme.</div>
+            <h3 class="panel-title">Add Program / Course</h3>
+            <div class="panel-muted">Tie new courses to the IPESS Center, a specific Program Area, and a Degree Type.</div>
         </div>
     </div>
     <div class="panel-body">
         <form id="courseForm" class="row g-3">
             <div class="col-md-4">
-                <label class="form-label">Course Title</label>
-                <input type="text" class="form-control" name="course_title" placeholder="MSc Computer Science" required>
+                <label class="form-label">Program / Course Title</label>
+                <input type="text" class="form-control" name="course_title" placeholder="e.g. MSc Procurement Management" required>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Faculty</label>
+                <label class="form-label">Center</label>
                 <select class="form-select" id="facultySelect" required></select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Department</label>
-                <select class="form-select" name="dept_id" id="deptSelect" required disabled></select>
+                <label class="form-label">Program Area</label>
+                <select class="form-select" name="dept_id" id="deptSelect" required></select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Programme Type</label>
-                <select class="form-select" name="degree_id" id="programmeSelect" required disabled></select>
+                <label class="form-label">Degree Type</label>
+                <select class="form-select" name="degree_id" id="programmeSelect" required></select>
             </div>
             <div class="col-md-1 d-flex align-items-end">
                 <button class="btn btn-primary w-100" type="submit">Add</button>
@@ -52,23 +52,23 @@ require_once 'includes/topbar.php';
 <section class="panel">
     <div class="panel-header">
         <div>
-            <h3 class="panel-title">Course Directory</h3>
-            <div class="panel-muted">Courses currently available in the system.</div>
+            <h3 class="panel-title">Program & Course Directory</h3>
+            <div class="panel-muted">Programs and courses currently available in the system.</div>
         </div>
     </div>
     <div class="panel-body">
         <div class="row g-3 mb-3">
             <div class="col-md-3">
-                <label class="form-label">Faculty</label>
+                <label class="form-label">Center</label>
                 <select class="form-select" id="filterFaculty"></select>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Department</label>
-                <select class="form-select" id="filterDepartment" disabled></select>
+                <label class="form-label">Program Area</label>
+                <select class="form-select" id="filterDepartment"></select>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Programme Type</label>
-                <select class="form-select" id="filterProgramme" disabled></select>
+                <label class="form-label">Degree Type</label>
+                <select class="form-select" id="filterProgramme"></select>
             </div>
             <div class="col-md-3 d-flex align-items-end">
                 <button class="btn btn-outline-primary w-100" id="applyCourseFilters">Apply Filters</button>
@@ -78,9 +78,9 @@ require_once 'includes/topbar.php';
             <table class="table align-middle mb-0" id="coursesTable">
                 <thead>
                     <tr>
-                        <th>Course</th>
-                        <th>Department</th>
-                        <th>Programme</th>
+                        <th>Course / Program</th>
+                        <th>Program Area</th>
+                        <th>Degree Type</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -106,9 +106,9 @@ function loadFaculties() {
     fetch('api/manage-entities.php?entity=faculties&action=list')
         .then(response => response.json())
         .then(data => {
-            facultySelect.innerHTML = '<option value="">Select Faculty</option>';
-            filterFaculty.innerHTML = '<option value="">Select Faculty</option>';
-            if (!data.success) return;
+            facultySelect.innerHTML = '';
+            filterFaculty.innerHTML = '';
+            if (!data.success || !data.data.length) return;
             data.data.forEach(faculty => {
                 const option = document.createElement('option');
                 option.value = faculty.faculty_id;
@@ -119,17 +119,20 @@ function loadFaculties() {
                 opt2.textContent = faculty.faculty_name;
                 filterFaculty.appendChild(opt2);
             });
+            // Default to IPESS (faculty_id = 6) and load departments
+            const defaultId = 6;
+            facultySelect.value = defaultId;
+            filterFaculty.value = defaultId;
+            loadDepartments(defaultId, deptSelect);
+            loadDepartments(defaultId, filterDepartment);
         });
 }
 
-function loadDepartments(facultyId = '', target = deptSelect) {
-    const url = facultyId
-        ? `api/manage-entities.php?entity=departments&action=list&faculty_id=${facultyId}`
-        : 'api/manage-entities.php?entity=departments&action=list';
-    fetch(url)
+function loadDepartments(facultyId = 6, target = deptSelect) {
+    fetch(`api/manage-entities.php?entity=departments&action=list&faculty_id=${facultyId}`)
         .then(response => response.json())
         .then(data => {
-            target.innerHTML = '<option value="">Select Department</option>';
+            target.innerHTML = '<option value="">Select Program Area</option>';
             if (!data.success) return;
             data.data.forEach(dept => {
                 const option = document.createElement('option');
@@ -144,7 +147,7 @@ function loadProgrammes(target = programmeSelect) {
     fetch('api/manage-entities.php?entity=degree_types&action=list')
         .then(response => response.json())
         .then(data => {
-            target.innerHTML = '<option value="">Select Programme</option>';
+            target.innerHTML = '<option value="">Select Degree Type</option>';
             if (!data.success) return;
             data.data.forEach(programme => {
                 const option = document.createElement('option');
@@ -159,7 +162,7 @@ function loadCourses(filters = {}) {
     const params = new URLSearchParams({
         entity: 'courses',
         action: 'list',
-        faculty_id: filters.faculty_id || '',
+        faculty_id: 6,
         department_id: filters.department_id || '',
         programme_id: filters.programme_id || ''
     });
@@ -207,48 +210,24 @@ courseForm.addEventListener('submit', function(e) {
                 alert(data.message || 'Unable to add course.');
                 return;
             }
+            const savedDept = deptSelect.value;
+            const savedProg = programmeSelect.value;
             courseForm.reset();
+            facultySelect.value = 6;
+            deptSelect.value = savedDept;
+            programmeSelect.value = savedProg;
             loadCourses();
         });
 });
 
-facultySelect.addEventListener('change', function() {
-    deptSelect.disabled = !this.value;
-    programmeSelect.disabled = true;
-    programmeSelect.innerHTML = '<option value="">Select Programme</option>';
-    loadDepartments(this.value, deptSelect);
-});
-
 refreshCoursesBtn.addEventListener('click', loadCourses);
 loadFaculties();
-loadProgrammes();
+loadProgrammes(programmeSelect);
+loadProgrammes(filterProgramme);
 loadCourses();
 
-filterFaculty.addEventListener('change', () => {
-    filterDepartment.disabled = !filterFaculty.value;
-    filterProgramme.disabled = true;
-    filterDepartment.innerHTML = '<option value="">Select Department</option>';
-    filterProgramme.innerHTML = '<option value="">Select Programme</option>';
-    if (filterFaculty.value) {
-        loadDepartments(filterFaculty.value, filterDepartment);
-    }
-});
-
-filterDepartment.addEventListener('change', () => {
-    filterProgramme.disabled = !filterDepartment.value;
-    filterProgramme.innerHTML = '<option value="">Select Programme</option>';
-    if (filterDepartment.value) {
-        loadProgrammes(filterProgramme);
-    }
-});
-
 applyCourseFiltersBtn.addEventListener('click', () => {
-    if (!filterFaculty.value || !filterDepartment.value || !filterProgramme.value) {
-        coursesTableBody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">Select Faculty, Department, and Programme.</td></tr>';
-        return;
-    }
     loadCourses({
-        faculty_id: filterFaculty.value,
         department_id: filterDepartment.value,
         programme_id: filterProgramme.value
     });

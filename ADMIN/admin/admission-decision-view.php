@@ -454,25 +454,31 @@ require_once __DIR__ . '/includes/topbar.php';
                         <div class="value-text">Eligible for decision</div>
                     </div>
                     <div class="d-flex gap-2">
-                        <form method="POST" action="includes/process_decision.php">
+                        <form method="POST" action="includes/process_decision.php" class="decision-form">
                             <input type="hidden" name="app_id" value="<?php echo (int) $appId; ?>">
+                            <input type="hidden" name="embed" value="<?php echo $isEmbed ? '1' : '0'; ?>">
                             <input type="hidden" name="decision" value="approve">
-                            <button type="submit" class="btn btn-success" <?php echo (!$isFinal) ? '' : 'disabled'; ?>>
-                                <i class="fas fa-check me-1"></i> Accept Student
+                            <button type="submit" class="btn btn-success submit-btn" <?php echo (!$isFinal) ? '' : 'disabled'; ?>>
+                                <span class="btn-text"><i class="fas fa-check me-1"></i> Accept Student</span>
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                             </button>
                         </form>
-                        <form method="POST" action="includes/process_decision.php">
+                        <form method="POST" action="includes/process_decision.php" class="decision-form">
                             <input type="hidden" name="app_id" value="<?php echo (int) $appId; ?>">
+                            <input type="hidden" name="embed" value="<?php echo $isEmbed ? '1' : '0'; ?>">
                             <input type="hidden" name="decision" value="reject">
-                            <button type="submit" class="btn btn-outline-danger" <?php echo (!$isFinal) ? '' : 'disabled'; ?>>
-                                <i class="fas fa-times me-1"></i> Reject
+                            <button type="submit" class="btn btn-outline-danger submit-btn" <?php echo (!$isFinal) ? '' : 'disabled'; ?>>
+                                <span class="btn-text"><i class="fas fa-times me-1"></i> Reject</span>
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                             </button>
                         </form>
-                        <form method="POST" action="includes/process_decision.php">
+                        <form method="POST" action="includes/process_decision.php" class="decision-form">
                             <input type="hidden" name="app_id" value="<?php echo (int) $appId; ?>">
+                            <input type="hidden" name="embed" value="<?php echo $isEmbed ? '1' : '0'; ?>">
                             <input type="hidden" name="decision" value="revoke">
-                            <button type="submit" class="btn btn-outline-warning" <?php echo $isAdmitted ? '' : 'disabled'; ?>>
-                                <i class="fas fa-undo me-1"></i> Revoke Admission
+                            <button type="submit" class="btn btn-outline-warning submit-btn" <?php echo $isAdmitted ? '' : 'disabled'; ?>>
+                                <span class="btn-text"><i class="fas fa-undo me-1"></i> Revoke Admission</span>
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                             </button>
                         </form>
                     </div>
@@ -755,6 +761,83 @@ document.querySelectorAll('[data-doc-url]').forEach(btn => {
             const modal = new bootstrap.Modal(document.getElementById('docPreviewModal'));
             modal.show();
         }
+    });
+});
+
+document.querySelectorAll('.decision-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const btn = this.querySelector('.submit-btn');
+        const btnText = btn.querySelector('.btn-text');
+        const spinner = btn.querySelector('.spinner-border');
+
+        // Disable buttons
+        document.querySelectorAll('.submit-btn').forEach(allBtn => {
+            allBtn.classList.add('disabled');
+            allBtn.style.pointerEvents = 'none';
+            allBtn.style.opacity = '0.6';
+        });
+
+        btnText.innerHTML = "Processing...";
+        if (spinner) spinner.classList.remove('d-none');
+
+        // Build FormData
+        const formData = new FormData(this);
+        formData.append('ajax', '1');
+
+        fetch(this.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (spinner) spinner.classList.add('d-none');
+            if (data.success) {
+                btnText.innerHTML = "Completed";
+                // Show success alert
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success mt-3 w-100';
+                alertDiv.role = 'alert';
+                alertDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>${data.message}`;
+                form.appendChild(alertDiv);
+
+                setTimeout(() => {
+                    if (isEmbed && window.parent) {
+                        const modalEl = window.parent.document.getElementById('appViewModal');
+                        if (modalEl) {
+                            const modalInstance = window.parent.bootstrap.Modal.getInstance(modalEl);
+                            if (modalInstance) {
+                                modalInstance.hide();
+                            }
+                        }
+                        window.parent.location.reload();
+                    } else {
+                        window.location.reload();
+                    }
+                }, 1500);
+            } else {
+                btnText.innerHTML = "Error";
+                alert(data.message || 'Operation failed.');
+                // Re-enable buttons
+                document.querySelectorAll('.submit-btn').forEach(allBtn => {
+                    allBtn.classList.remove('disabled');
+                    allBtn.style.pointerEvents = 'auto';
+                    allBtn.style.opacity = '1';
+                });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            if (spinner) spinner.classList.add('d-none');
+            btnText.innerHTML = "Failed";
+            alert("Network error occurred.");
+            document.querySelectorAll('.submit-btn').forEach(allBtn => {
+                allBtn.classList.remove('disabled');
+                allBtn.style.pointerEvents = 'auto';
+                allBtn.style.opacity = '1';
+            });
+        });
     });
 });
 </script>

@@ -5,10 +5,11 @@ class ApplicationProgressManager {
     private $pdo;
 
     public const STAGE_SUBMITTED      = 'Application Submitted';
-    public const STAGE_DOC_VERIFY     = 'Documents Verified';
-    public const STAGE_ACADEMIC       = 'Academic Review';
-    public const STAGE_REFEREES       = 'Referee Reports';
-    public const STAGE_DECISION       = 'Final Decision';
+    public const STAGE_DOC_VERIFY     = 'Documents Verification';
+    public const STAGE_REFEREES       = 'Referee Report';
+    public const STAGE_DEPT_REVIEW    = 'Departmental Review';
+    public const STAGE_PG_REVIEW      = 'PG Review';
+    public const STAGE_DECISION       = 'Final Decisions';
 
     public const STATUS_PENDING       = 'Pending';
     public const STATUS_IN_PROGRESS   = 'In Progress';
@@ -17,9 +18,10 @@ class ApplicationProgressManager {
     public const ALL_STAGES = [
         self::STAGE_SUBMITTED,
         self::STAGE_DOC_VERIFY,
-        self::STAGE_ACADEMIC,
         self::STAGE_REFEREES,
-        self::STAGE_DECISION
+        self::STAGE_DEPT_REVIEW,
+        self::STAGE_PG_REVIEW,
+        self::STAGE_DECISION,
     ];
 
     public function __construct(PDO $pdo) {
@@ -112,6 +114,12 @@ class ApplicationProgressManager {
             ];
         }
         return $result;
+    }
+
+    public function isStageCompleted(int $appId, string $stageName): bool {
+        $history = $this->getAllProgress($appId);
+        $status = strtoupper(trim($history[$stageName]['status'] ?? ''));
+        return in_array($status, ['COMPLETED', 'APPROVED'], true);
     }
 }
 ?>

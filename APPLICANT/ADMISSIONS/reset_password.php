@@ -62,16 +62,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
-<title>Set New Password - JOSTUM</title>
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>">
+    <title>Set New Password - IPESS FUAM</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background: #cbd5e0; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; }
-        .reset-card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
-        .brand-icon { font-size: 3rem; color: #2c4474; margin-bottom: 20px; }
-        .btn-primary { background: #2c4474; border: none; border-radius: 25px; padding: 12px; font-weight: bold; width: 100%; }
-        .form-control { border-radius: 10px; padding: 12px; margin-bottom: 20px; }
+        body { background: #e2e8f0; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; }
+        .reset-card { background: white; padding: 40px; border-radius: 4px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .brand-icon { font-size: 3rem; color: #6EB533; margin-bottom: 20px; }
+        .btn-primary { background: #6EB533; border: none; border-radius: 4px; padding: 12px; font-weight: bold; width: 100%; }
+        .btn-primary:hover { background: #782D32; }
+        .form-control { border-radius: 4px; padding: 12px; margin-bottom: 20px; }
     </style>
 </head>
 <body>

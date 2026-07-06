@@ -527,8 +527,9 @@ require_once __DIR__ . '/includes/topbar.php';
                 <form method="POST" action="./includes/application_actions.php" class="decision-form">
                     <input type="hidden" name="app_id" value="<?php echo $appId; ?>">
                     <input type="hidden" name="app_no" value="<?php echo htmlspecialchars($appNumber); ?>">
+                    <input type="hidden" name="embed" value="<?php echo $isEmbed ? '1' : '0'; ?>">
                     <input type="hidden" name="action" value="accept">
-                    <button type="submit" class="btn btn-outline-success px-4 submit-btn">
+                    <button type="submit" class="btn btn-outline-success px-4 submit-btn" <?php echo ($app['current_status'] !== 'DRAFT') ? 'disabled style="pointer-events: none; opacity: 0.6;"' : ''; ?>>
                         <span class="btn-text"><i class="bi bi-check-circle me-2"></i>Accept Application</span>
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                     </button>
@@ -536,8 +537,9 @@ require_once __DIR__ . '/includes/topbar.php';
                 <form method="POST" action="./includes/application_actions.php" class="decision-form">
                     <input type="hidden" name="app_id" value="<?php echo $appId; ?>">
                     <input type="hidden" name="app_no" value="<?php echo htmlspecialchars($appNumber); ?>">
+                    <input type="hidden" name="embed" value="<?php echo $isEmbed ? '1' : '0'; ?>">
                     <input type="hidden" name="action" value="reject">
-                    <button type="submit" class="btn btn-outline-danger px-4 submit-btn">
+                    <button type="submit" class="btn btn-outline-danger px-4 submit-btn" <?php echo ($app['current_status'] !== 'DRAFT') ? 'disabled style="pointer-events: none; opacity: 0.6;"' : ''; ?>>
                         <span class="btn-text"><i class="bi bi-x-circle me-2"></i>Reject Application</span>
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                     </button>
@@ -710,6 +712,258 @@ require_once __DIR__ . '/includes/topbar.php';
 
         <div class="col-lg-4">
             
+            <?php 
+            $adminRole = strtoupper($_SESSION['role'] ?? '');
+            if ($adminRole === 'SUPER_ADMIN' || $adminRole === 'ICT_ADMIN'): 
+                // Fetch current progress stages
+                $progress_list = [];
+                try {
+                    $stmt_prog = $pdo->prepare("SELECT stage, stage_status, stage_updated_at FROM application_progress WHERE application_id = ?");
+                    $stmt_prog->execute([$appId]);
+                    foreach ($stmt_prog->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                        $progress_list[$row['stage']] = [
+                            'status' => $row['stage_status'],
+                            'date' => $row['stage_updated_at']
+                        ];
+                    }
+                } catch (PDOException $e) {}
+
+                $core_stages_list = [
+                    'Application Submitted',
+                    'Documents Verification',
+                    'Referee Report',
+                    'Departmental Review',
+                    'PG Review',
+                    'Final Decisions'
+                ];
+            ?>
+            <div class="card-custom border-danger border-opacity-25 shadow-sm mb-4" style="border-top: 4px solid #dc3545;">
+                <div class="section-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <span class="section-title text-danger fw-bold"><i class="bi bi-shield-lock-fill me-2"></i> Super Admin Override</span>
+                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger small" style="font-size: 10px;">Full Access</span>
+                </div>
+                <div class="card-body-custom p-3 bg-light">
+                    <p class="text-muted small mb-3" style="font-size: 11px; line-height: 1.4;">Directly alter tracking stages or insert custom workflow steps below.</p>
+                    
+                    <!-- List of current stages and status controls -->
+                    <div class="d-flex flex-column gap-3 mb-4">
+                        <?php 
+                        // Merge core stages and database-only custom stages
+                        $all_view_stages = $core_stages_list;
+                        foreach (array_keys($progress_list) as $db_stage) {
+                            if (!in_array($db_stage, $all_view_stages, true)) {
+                                $all_view_stages[] = $db_stage;
+                            }
+                        }
+
+                        foreach ($all_view_stages as $stg): 
+                            $is_core = in_array($stg, $core_stages_list, true);
+                            $stg_status = $progress_list[$stg]['status'] ?? 'Pending';
+                            
+                            $badge_class = match(strtoupper($stg_status)) {
+                                'COMPLETED' => 'bg-success',
+                                'APPROVED' => 'bg-success',
+                                'REJECTED' => 'bg-danger',
+                                'IN PROGRESS' => 'bg-primary',
+                                default => 'bg-secondary'
+                            };
+                        ?>
+                            <div class="p-3 border rounded bg-white shadow-xs d-flex flex-column gap-2" style="border-color: #e2e8f0 !important;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold text-dark" style="font-size: 12px;">
+                                        <?php echo htmlspecialchars($stg); ?>
+                                        <?php if (!$is_core): ?>
+                                            <span class="badge bg-warning text-dark ms-1" style="font-size: 8px;">CUSTOM</span>
+                                        <?php endif; ?>
+                                    </span>
+                                    <span class="badge <?php echo $badge_class; ?> rounded-pill text-white px-2 py-1" style="font-size: 10px; font-weight: 600;">
+                                        <?php echo htmlspecialchars($stg_status); ?>
+                                    </span>
+                                </div>
+
+                                <!-- Update status form -->
+                                <form class="super-override-form d-flex gap-2 align-items-center mt-1">
+                                    <input type="hidden" name="application_id" value="<?php echo $appId; ?>">
+                                    <input type="hidden" name="action" value="set_stage">
+                                    <input type="hidden" name="stage" value="<?php echo htmlspecialchars($stg); ?>">
+                                    
+                                    <select name="stage_status" class="form-select form-select-sm" style="font-size: 11px; height: 32px; padding: 4px 8px;">
+                                        <?php foreach (['Pending', 'In Progress', 'Completed', 'Approved', 'Rejected'] as $opt): ?>
+                                            <option value="<?php echo $opt; ?>" <?php echo (strcasecmp($stg_status, $opt) === 0) ? 'selected' : ''; ?>>
+                                                <?php echo $opt; ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    
+                                    <button type="submit" class="btn btn-sm btn-danger px-3 font-semibold text-white d-flex align-items-center" style="font-size: 11px; height: 32px;">
+                                        <span>Apply</span>
+                                    </button>
+
+                                    <?php if (!$is_core): ?>
+                                        <button type="button" class="btn btn-sm btn-outline-danger px-2 remove-custom-stage-btn" data-stage="<?php echo htmlspecialchars($stg); ?>" title="Delete Custom Stage" style="height: 32px; display: flex; align-items: center; justify-content: center;">
+                                            <i class="bi bi-trash" style="font-size: 13px;"></i>
+                                        </button>
+                                    <?php endif; ?>
+                                </form>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <!-- Add custom stage accordion trigger -->
+                    <button class="btn btn-sm btn-outline-dark w-100 d-flex align-items-center justify-content-center gap-1 py-2" style="font-size: 11px; font-weight: 600;" type="button" data-bs-toggle="collapse" data-bs-target="#addCustomStageCollapse" aria-expanded="false">
+                        <i class="bi bi-plus-circle"></i> Add Custom Workflow Stage
+                    </button>
+
+                    <div class="collapse mt-3" id="addCustomStageCollapse">
+                        <div class="p-3 border rounded bg-white shadow-xs">
+                            <form class="super-add-stage-form">
+                                <input type="hidden" name="application_id" value="<?php echo $appId; ?>">
+                                <input type="hidden" name="action" value="add_stage">
+                                
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-dark mb-1" style="font-size: 11px;">Stage Name</label>
+                                    <input type="text" name="new_stage_name" class="form-control form-control-sm" placeholder="e.g. Dean Clearance" style="font-size: 12px;" required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-dark mb-1" style="font-size: 11px;">Initial Status</label>
+                                    <select name="stage_status" class="form-select form-select-sm" style="font-size: 12px;">
+                                        <option value="Pending">Pending</option>
+                                        <option value="In Progress" selected>In Progress</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="Approved">Approved</option>
+                                        <option value="Rejected">Rejected</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold text-dark mb-1" style="font-size: 11px;">Admin Note (Optional)</label>
+                                    <input type="text" name="note" class="form-control form-control-sm" placeholder="Reason for custom stage..." style="font-size: 12px;">
+                                </div>
+
+                                <button type="submit" class="btn btn-sm btn-danger w-100 py-2 fw-bold" style="font-size: 11px; letter-spacing: 0.5px;">ADD STAGE</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // 1. Handling stage status updates
+                document.querySelectorAll('.super-override-form').forEach(form => {
+                    form.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        const btn = this.querySelector('button[type="submit"]');
+                        const originalText = btn.innerHTML;
+                        btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>`;
+                        btn.disabled = true;
+
+                        const formData = new FormData(this);
+
+                        fetch('./api/update_progress.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+                                btn.className = 'btn btn-sm btn-success px-3';
+                                setTimeout(() => window.location.reload(), 800);
+                            } else {
+                                alert(data.message || 'Failed to update stage');
+                                btn.innerHTML = originalText;
+                                btn.disabled = false;
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('Network error occurred.');
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                        });
+                    });
+                });
+
+                // 2. Handling custom stage creation
+                const addForm = document.querySelector('.super-add-stage-form');
+                if (addForm) {
+                    addForm.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        const btn = this.querySelector('button[type="submit"]');
+                        const originalText = btn.innerHTML;
+                        btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Adding...`;
+                        btn.disabled = true;
+
+                        const formData = new FormData(this);
+
+                        fetch('./api/update_progress.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                btn.innerHTML = 'Success!';
+                                btn.className = 'btn btn-sm btn-success w-100 py-2';
+                                setTimeout(() => window.location.reload(), 800);
+                            } else {
+                                alert(data.message || 'Failed to add custom stage');
+                                btn.innerHTML = originalText;
+                                btn.disabled = false;
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('Network error occurred.');
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                        });
+                    });
+                }
+
+                // 3. Handling custom stage removal
+                document.querySelectorAll('.remove-custom-stage-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const stage = this.dataset.stage;
+                        if (!confirm(`Are you sure you want to remove the custom stage "${stage}"?`)) return;
+
+                        this.disabled = true;
+                        const originalHTML = this.innerHTML;
+                        this.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>`;
+
+                        const formData = new FormData();
+                        formData.append('application_id', '<?php echo $appId; ?>');
+                        formData.append('action', 'remove_stage');
+                        formData.append('stage', stage);
+
+                        fetch('./api/update_progress.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                setTimeout(() => window.location.reload(), 500);
+                            } else {
+                                alert(data.message || 'Failed to remove stage');
+                                this.disabled = false;
+                                this.innerHTML = originalHTML;
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('Network error occurred.');
+                            this.disabled = false;
+                            this.innerHTML = originalHTML;
+                        });
+                    });
+                });
+            });
+            </script>
+            <?php endif; ?>
+
             <div class="card-custom border-primary border-opacity-25" style="border-top-width: 4px;">
                 <div class="section-header bg-white">
                     <span class="section-title text-primary"><i class="bi bi-folder2-open me-2"></i> Verification Documents</span>
@@ -783,7 +1037,7 @@ require_once __DIR__ . '/includes/topbar.php';
                         <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">NYSC Status</h6>
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted small">Status</span>
-                            <span class="fw-medium text-end"><?php echo htmlspecialchars($app['nysc_status']); ?></span>
+                            <span class="fw-medium text-end"><?php echo htmlspecialchars($app['nysc_status'] ?? ''); ?></span>
                         </div>
                         <div class="d-flex justify-content-between">
                             <span class="text-muted small">Cert No.</span>
@@ -819,23 +1073,78 @@ require_once __DIR__ . '/includes/topbar.php';
 <script>
 document.querySelectorAll('.decision-form').forEach(form => {
     form.addEventListener('submit', function(e) {
-        // Find the button inside the current form
+        e.preventDefault();
+
         const btn = this.querySelector('.submit-btn');
         const btnText = btn.querySelector('.btn-text');
         const spinner = btn.querySelector('.spinner-border');
 
-        // 1. Disable all buttons in the action bar to prevent double clicks
+        // Disable buttons
         document.querySelectorAll('.submit-btn').forEach(allBtn => {
             allBtn.classList.add('disabled');
             allBtn.style.pointerEvents = 'none';
-            allBtn.style.opacity = '0.7';
+            allBtn.style.opacity = '0.6';
         });
 
-        // 2. Change the clicked button state
-        btnText.innerHTML = "Processing..."; // Optional: Change text
-        spinner.classList.remove('d-none'); // Show the loading spinner
-        
-        // Form continues to process_decision.php automatically
+        btnText.innerHTML = "Processing...";
+        spinner.classList.remove('d-none');
+
+        // Build FormData
+        const formData = new FormData(this);
+        formData.append('ajax', '1');
+
+        fetch(this.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            spinner.classList.add('d-none');
+            if (data.success) {
+                btnText.innerHTML = "Completed";
+                // Show success alert
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success mt-3';
+                alertDiv.role = 'alert';
+                alertDiv.innerHTML = `<i class="bi bi-check-circle-fill me-2"></i>${data.message}`;
+                form.appendChild(alertDiv);
+
+                setTimeout(() => {
+                    if (isEmbed && window.parent) {
+                        const modalEl = window.parent.document.getElementById('appViewModal');
+                        if (modalEl) {
+                            const modalInstance = window.parent.bootstrap.Modal.getInstance(modalEl);
+                            if (modalInstance) {
+                                modalInstance.hide();
+                            }
+                        }
+                        window.parent.location.reload();
+                    } else {
+                        window.location.reload();
+                    }
+                }, 1500);
+            } else {
+                btnText.innerHTML = "Error";
+                alert(data.message || 'Operation failed.');
+                // Re-enable buttons
+                document.querySelectorAll('.submit-btn').forEach(allBtn => {
+                    allBtn.classList.remove('disabled');
+                    allBtn.style.pointerEvents = 'auto';
+                    allBtn.style.opacity = '1';
+                });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            spinner.classList.add('d-none');
+            btnText.innerHTML = "Failed";
+            alert("Network error occurred.");
+            document.querySelectorAll('.submit-btn').forEach(allBtn => {
+                allBtn.classList.remove('disabled');
+                allBtn.style.pointerEvents = 'auto';
+                allBtn.style.opacity = '1';
+            });
+        });
     });
 });
 </script>

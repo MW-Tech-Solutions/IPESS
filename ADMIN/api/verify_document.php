@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             INSERT INTO application_progress 
                                 (application_id, stage, stage_status, stage_updated_at) 
                             VALUES 
-                                (:app_id, 'Documents Verified', 'Completed', NOW())
+                                (:app_id, 'Documents Verification', 'Completed', NOW())
                             ON DUPLICATE KEY UPDATE 
                                 stage = VALUES(stage),
                                 stage_status = VALUES(stage_status),

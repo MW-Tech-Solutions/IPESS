@@ -175,6 +175,48 @@ function update_application_status(PDO $pdo, int $application_id, string $new_st
     log_application_history($pdo, $application_id, $prev_status, $new_status, $actor_id, $actor_role, $note);
     log_audit($pdo, 'Application Status Update', $actor_id, "Application {$application_id}: {$prev_status} -> {$new_status}");
 
+    // Automatically update application_progress tracking table stages
+    try {
+        if (table_exists($pdo, 'application_progress')) {
+            $setStageProgress = function($appId, $stage, $status) use ($pdo) {
+                $check = $pdo->prepare("SELECT progress_id FROM application_progress WHERE application_id = ? AND stage = ?");
+                $check->execute([$appId, $stage]);
+                if ($check->fetch()) {
+                    $pdo->prepare("UPDATE application_progress SET stage_status = ?, stage_updated_at = NOW() WHERE application_id = ? AND stage = ?")
+                        ->execute([$status, $appId, $stage]);
+                } else {
+                    $pdo->prepare("INSERT INTO application_progress (application_id, stage, stage_status, stage_updated_at) VALUES (?, ?, ?, NOW())")
+                        ->execute([$appId, $stage, $status]);
+                }
+            };
+
+            // Departmental Review
+            $dept_done_statuses = ['DEPT_APPROVED', 'REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
+            if (in_array($new_status, $dept_done_statuses, true)) {
+                $setStageProgress($application_id, 'Departmental Review', 'Completed');
+            } elseif ($new_status === 'UNDER_DEPT_REVIEW') {
+                $setStageProgress($application_id, 'Departmental Review', 'In Progress');
+            }
+
+            // PG Review
+            $pg_done_statuses = ['REVIEWER_APPROVED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
+            if (in_array($new_status, $pg_done_statuses, true)) {
+                $setStageProgress($application_id, 'PG Review', 'Completed');
+            } elseif (in_array($new_status, ['REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW'], true)) {
+                $setStageProgress($application_id, 'PG Review', 'In Progress');
+            }
+
+            // Final Decisions
+            if ($new_status === 'ADMISSION_APPROVED') {
+                $setStageProgress($application_id, 'Final Decisions', 'Approved');
+            } elseif ($new_status === 'ADMISSION_REJECTED') {
+                $setStageProgress($application_id, 'Final Decisions', 'Rejected');
+            }
+        }
+    } catch (Exception $progressEx) {
+        error_log('Error updating stage progress: ' . $progressEx->getMessage());
+    }
+
     if (!empty($context['notify_user_id'])) {
         notify_user($pdo, (int) $context['notify_user_id'], $context['notify_title'] ?? 'Application Update', $context['notify_message'] ?? "Your application status is now {$map[$new_status]['label']}.");
     }

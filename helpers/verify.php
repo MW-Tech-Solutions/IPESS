@@ -8,7 +8,15 @@ if (!isset($_GET['app_no'])) {
     exit();
 }
 
-$appNumber = $_GET['app_no'];
+require_once __DIR__ . '/../config/urls.php';
+
+$rawAppNo = $_GET['app_no'];
+$decrypted = decrypt_app_number($rawAppNo);
+if ($decrypted !== '' && str_contains($decrypted, 'IPESS')) {
+    $appNumber = $decrypted;
+} else {
+    $appNumber = $rawAppNo;
+}
 
 try {
     $stmt = $pdo->prepare("

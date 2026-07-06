@@ -1,4 +1,3 @@
-
 <?php
 $page_title = $page_title ?? 'JOSTUM PG Portal';
 include __DIR__ . '/includes/header.php';

@@ -1,9 +1,4 @@
 <?php
-session_start();
-// if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'ADMIN') {
-//     header('Location: /login.php');
-//     exit;
-// }
 
 $pageTitle = 'Admin Dashboard';
 $pageSubtitle = 'Admissions activity, verification flow, and application throughput.';

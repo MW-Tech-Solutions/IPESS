@@ -24,19 +24,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $appId = $stmtApp->fetchColumn();
 
             if ($appId) {
+                require_once __DIR__ . '/../classes/ApplicationProgressManager.php';
+                $progManager = new ApplicationProgressManager($pdo);
+                if (!$progManager->isStageCompleted((int) $appId, ApplicationProgressManager::STAGE_DOC_VERIFY)) {
+                    $_SESSION['message'] = "Cannot verify referee reports before Documents Verification is completed.";
+                    $_SESSION['msg_type'] = "danger";
+                    header("Location: referees.php?page=" . $currentPageNum);
+                    exit;
+                }
+
                 verify_referee_submission($pdo, $refId, $_SESSION['user_id'] ?? 0, 'Verified', null);
                 update_completion($pdo, (int) $appId);
 
                 // Update Application Progress
-                $stmtCheck = $pdo->prepare("SELECT progress_id FROM application_progress WHERE application_id = ? AND stage = 'Referee Reports'");
+                $stmtCheck = $pdo->prepare("SELECT progress_id FROM application_progress WHERE application_id = ? AND stage = 'Referee Report'");
                 $stmtCheck->execute([$appId]);
                 $existingProgress = $stmtCheck->fetch();
 
                 if ($existingProgress) {
-                    $stmtProgress = $pdo->prepare("UPDATE application_progress SET stage_status = 'Completed', stage_updated_at = NOW() WHERE application_id = ? AND stage = 'Referee Reports'");
+                    $stmtProgress = $pdo->prepare("UPDATE application_progress SET stage_status = 'Completed', stage_updated_at = NOW() WHERE application_id = ? AND stage = 'Referee Report'");
                     $stmtProgress->execute([$appId]);
                 } else {
-                    $stmtProgress = $pdo->prepare("INSERT INTO application_progress (application_id, stage, stage_status, stage_updated_at) VALUES (?, 'Referee Reports', 'Completed', NOW())");
+                    $stmtProgress = $pdo->prepare("INSERT INTO application_progress (application_id, stage, stage_status, stage_updated_at) VALUES (?, 'Referee Report', 'Completed', NOW())");
                     $stmtProgress->execute([$appId]);
                 }
 
@@ -78,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($data) {
                 $applicantName = $data['first_name'] . ' ' . $data['surname'];
                 $request = create_referee_request($pdo, $refId, (int) $data['application_id'], $_SESSION['user_id'] ?? null);
-                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+                $protocol = function_exists('is_secure_connection') ? (is_secure_connection() ? "https://" : "http://") : ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://");
                 $vLink = $protocol . $_SERVER['HTTP_HOST'] . "/referee_verify.php?token=" . urlencode($request['token']);
 
                 $sent = send_referee_request_email($pdo, $refId, $vLink);

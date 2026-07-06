@@ -47,7 +47,7 @@ try {
     $stmt = $pdo->prepare("INSERT INTO password_resets (user_id, email, token_hash, expires_at) VALUES (?, ?, ?, ?)");
     $stmt->execute([(int) $user['user_id'], $email, $tokenHash, $expiresAt]);
 
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $protocol = function_exists('is_secure_connection') ? (is_secure_connection() ? 'https' : 'http') : ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http');
     $host = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
     $basePath = rtrim(dirname($_SERVER['REQUEST_URI'] ?? '/'), '/');
     $resetLink = $protocol . '://' . $host . $basePath . '/reset_password.php?token=' . urlencode($token);
@@ -64,7 +64,8 @@ try {
 
     echo json_encode(['status' => 'success', 'message' => 'Recovery link sent to your email.']);
     exit;
-} catch (Exception $e) {
+} catch (Throwable $e) {
     echo json_encode(['status' => 'error', 'message' => 'Server error. Please try again.']);
     exit;
 }
+

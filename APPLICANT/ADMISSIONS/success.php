@@ -1,17 +1,35 @@
 <?php
-session_start();
-require 'db.php';
+require_once __DIR__ . '/../../app/bootstrap.php';
+
 
 if (!isset($_GET['app_no'])) {
-    header("Location: dashboard.php");
+    redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
     exit();
 }
 
-$appNumber = $_GET['app_no'];
+$rawAppNo = $_GET['app_no'];
+$decrypted = decrypt_app_number($rawAppNo);
+if ($decrypted !== '' && str_contains($decrypted, 'IPESS')) {
+    $appNumber = $decrypted;
+} else {
+    $appNumber = $rawAppNo;
+}
 
 try {
     $stmt = $pdo->prepare("
-        SELECT a.*, u.email as user_email, p.*, pc.*, n.*, w.*, r.*
+        SELECT 
+            a.*, 
+            u.email as user_email, 
+            p.*, 
+            pc.*, 
+            n.*, 
+            w.*, 
+            r.*,
+            f.faculty_name,
+            d.dept_name,
+            dt.degree_name,
+            c.course_title,
+            sm.mode_name
         FROM applications a
         JOIN users u ON a.user_id = u.user_id
         LEFT JOIN personal_details p ON a.application_id = p.application_id
@@ -19,7 +37,12 @@ try {
         LEFT JOIN nysc_details n ON a.application_id = n.application_id
         LEFT JOIN work_experience w ON a.application_id = w.application_id
         LEFT JOIN research_details r ON a.application_id = r.application_id
-        WHERE a.application_number = ? AND a.status = 'Submitted'
+        LEFT JOIN faculties f ON pc.faculty = f.faculty_id
+        LEFT JOIN departments d ON pc.department = d.dept_id
+        LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
+        LEFT JOIN courses c ON pc.course = c.course_id
+        LEFT JOIN study_modes sm ON pc.mode_of_study = sm.mode_id
+        WHERE a.application_number = ? AND a.status != 'Draft'
     ");
     $stmt->execute([$appNumber]);
     $app = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -42,7 +65,7 @@ try {
     $stmt->execute([$appId]);
     $referees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-} catch (PDOException $e) {
+} catch (Throwable $e) {
     die("Error fetching application details: " . $e->getMessage());
 }
 ?>
@@ -53,13 +76,13 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/png" href="<?php echo htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>">
 <title>Acknowledgment Slip - <?php echo $appNumber; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
         :root {
-            --brand-blue: #1a4388;
+            --brand-blue: #d11b27;
             --text-dark: #333;
             --text-muted: #666;
             --border-light: #eee;
@@ -133,7 +156,7 @@ try {
             .header-top { display: grid; grid-template-columns: 120px 1fr 120px; }
             .header-meta { flex-direction: row; justify-content: space-between; }
             .info-grid { grid-template-columns: repeat(2, 1fr); }
-            .section-title { -webkit-print-color-adjust: exact; background-color: #1a4388 !important; color: white !important; }
+            .section-title { -webkit-print-color-adjust: exact; background-color: var(--brand-blue) !important; color: white !important; }
         }
     </style>
 </head>
@@ -150,11 +173,11 @@ try {
     <header>
         <div class="header-top">
             <div class="logo-box">
-                <img src="./images/jostum.png" alt="JOSTUM Logo" class="uni-logo">
+                <img src="<?php echo htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="IPESS Logo" class="uni-logo">
             </div>
             <div class="header-titles">
-                <h2>Joseph Sarwuan Tarka University, Makurdi</h2>
-                <p>Postgraduate School</p>
+                <h2>Institute of Procurement, Environmental and Social Standards (IPESS)</h2>
+                <p>Joseph Sarwuan Tarka University, Makurdi</p>
                 <div class="fw-bold mt-1 text-dark" style="font-size: 0.85rem;">Official Application Acknowledgment Slip</div>
             </div>
             <div class="d-none d-md-block"></div>
@@ -184,9 +207,9 @@ try {
 
     <div class="section-title">Programme of Study</div>
     <div class="info-grid">
-        <div class="info-item"><span class="label">Degree Applied</span><span class="value"><?php echo $app['degree_type']; ?></span></div>
-        <div class="info-item"><span class="label">Mode of Study</span><span class="value"><?php echo $app['mode_of_study']; ?></span></div>
-        <div class="info-item" style="grid-column: 1 / -1;"><span class="label">Department / Course</span><span class="value"><?php echo $app['department'] . ' - ' . $app['course']; ?></span></div>
+        <div class="info-item"><span class="label">Degree Applied</span><span class="value"><?php echo htmlspecialchars($app['degree_name'] ?? $app['degree_type']); ?></span></div>
+        <div class="info-item"><span class="label">Mode of Study</span><span class="value"><?php echo htmlspecialchars($app['mode_name'] ?? $app['mode_of_study']); ?></span></div>
+        <div class="info-item" style="grid-column: 1 / -1;"><span class="label">Department / Course</span><span class="value"><?php echo htmlspecialchars(($app['dept_name'] ?? $app['department']) . ' - ' . ($app['course_title'] ?? $app['course'])); ?></span></div>
     </div>
 
     <div class="section-title">Tertiary Education</div>
@@ -216,7 +239,7 @@ try {
                     $stmt_res = $pdo->prepare("SELECT * FROM olevel_results WHERE exam_id = ?");
                     $stmt_res->execute([$exam['id']]);
                     $exam_results = $stmt_res->fetchAll(PDO::FETCH_ASSOC);
-                } catch (Exception $e) { $exam_results = []; }
+                } catch (Throwable $e) { $exam_results = []; }
             ?>
             <div class="col-md-6">
                 <div class="data-card shadow-sm border">
@@ -275,9 +298,9 @@ try {
             </thead>
             <tbody>
                 <tr>
-                    <td class="value py-2"><?php echo htmlspecialchars($app['nysc_status']); ?></td>
+                    <td class="value py-2"><?php echo htmlspecialchars($app['nysc_status'] ?? 'N/A'); ?></td>
                     <td class="value py-2 font-monospace"><?php echo htmlspecialchars($app['certificate_number'] ?: 'N/A'); ?></td>
-                    <td class="value py-2"><?php echo !empty($app['nysc_year']) ? $app['nysc_year'] : 'N/A'; ?></td>
+                    <td class="value py-2"><?php echo !empty($app['completion_year']) ? htmlspecialchars($app['completion_year']) : 'N/A'; ?></td>
                 </tr>
             </tbody>
         </table>
@@ -331,7 +354,7 @@ try {
     <div class="row align-items-center">
         <div class="col-md-3 mb-3 mb-md-0 text-center">
             <?php 
-                $qrContent = "AppNo:" . $appNumber . " | URL:https://pg.jostum.edu.ng/verify";
+                $qrContent = "AppNo:" . $appNumber . " | URL:https://cipess.jostumservices.com";
                 $qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=" . urlencode($qrContent);
             ?>
             <div style="display: inline-block; padding: 10px; border: 1px solid #eee; background: #fff;">
@@ -366,5 +389,14 @@ try {
 </div>
 </div>
 
+<script>
+    <?php if (!isset($_GET['view'])): ?>
+    window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            window.print();
+        }, 500);
+    });
+    <?php endif; ?>
+</script>
 </body>
 </html>

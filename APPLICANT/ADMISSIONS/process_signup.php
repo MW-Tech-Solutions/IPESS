@@ -42,13 +42,19 @@ try {
     $_SESSION['auth_email'] = $email; 
     $_SESSION['auth_time'] = time();
 
-    // 4. Send Email (Simulation)
-    // In production: mail($email, "Your OTP", "Code: $otp");
-    
-    // RETURNING OTP FOR TESTING (Remove 'debug_otp' in production)
-    echo json_encode(['success' => true, 'message' => 'OTP sent.', 'debug_otp' => $otp]);
+    // Send OTP via email
+    $subject = 'Your Verification Code';
+    $contentHtml = "<h2>Your OTP is: <b>$otp</b></h2><p>Valid for 5 minutes.</p>";
+    $contentText = "Your OTP is: $otp. Valid for 5 minutes.";
+    $result = portal_send_mail($email, $email, $subject, $contentHtml, $contentText);
 
-} catch (Exception $e) {
+    if ($result['success']) {
+        echo json_encode(['success' => true, 'message' => 'OTP sent.']);
+    } else {
+        sendJson(false, 'Failed to send OTP. Please try again.');
+    }
+
+} catch (Throwable $e) {
     // Log the actual error internally if needed
     sendJson(false, "Database error occurred.");
 }

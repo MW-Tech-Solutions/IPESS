@@ -2,198 +2,286 @@
 require_once 'db.php'; 
 
 $application_id = $_SESSION['application_id'] ?? 0;
-$app_status = 'Dept. Review';
 $app_current_status = '';
-$submission_status = 'PENDING';
-$doc_status = 'IN PROGRESS';
-$academic_status = 'PENDING';
-$ref_status = 'PENDING';
-$final_status = 'PENDING';
+$app_status = '';
 $db_app_number = '';
+$is_admitted = false;
 
+// ─── Define the 6 canonical stages ───────────────────────────────────────────
+$all_stages = [
+    'Application Submitted',
+    'Documents Verification',
+    'Referee Report',
+    'Departmental Review',
+    'PG Review',
+    'Final Decisions',
+];
+
+// ─── Helper: Normalise old stage labels to new ones ──────────────────────────
+function normalise_stage_label(string $label): string {
+    $map = [
+        'Documents Verified'  => 'Documents Verification',
+        'Referee Reports'     => 'Referee Report',
+        'Academic Review'     => 'Departmental Review',
+        'Final Decision'      => 'Final Decisions',
+    ];
+    return $map[$label] ?? $label;
+}
+
+// ─── Fetch application base data ─────────────────────────────────────────────
 try {
     $stmt = $pdo->prepare("SELECT application_number, status, current_status FROM applications WHERE application_id = ?");
     $stmt->execute([$application_id]);
     $app_data = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($app_data) {
-        $db_app_number = $app_data['application_number'];
-        $db_status = $app_data['status'];
+        $db_app_number     = $app_data['application_number'] ?? '';
+        $app_status        = $app_data['status'] ?? '';
         $app_current_status = $app_data['current_status'] ?? '';
-        
-        $app_status = ($db_status == 'Submitted') ? 'Dept. Review' : $db_status;
     }
-} catch (PDOException $e) {
-}
+} catch (PDOException $e) {}
 
-$doc_total = 0;
+// ─── Fetch progress rows from DB ─────────────────────────────────────────────
+$progress_map = [];
+try {
+    $stmt_prog = $pdo->prepare("SELECT stage, stage_status, stage_updated_at FROM application_progress WHERE application_id = ?");
+    $stmt_prog->execute([$application_id]);
+    foreach ($stmt_prog->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $normalised_stage = normalise_stage_label($row['stage']);
+        $progress_map[$normalised_stage] = [
+            'status' => $row['stage_status'],
+            'date'   => $row['stage_updated_at'],
+        ];
+    }
+} catch (PDOException $e) {}
+
+// ─── Fallback: calculate statuses from application fields ────────────────────
+
+// "Application Submitted"
+$submission_ok = ($app_status !== '' && strtolower($app_status) !== 'draft' && strtolower($app_status) !== 'pending' && $db_app_number !== '');
+
+// "Documents Verification"
+$doc_total    = 0;
 $doc_verified = 0;
 try {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM documents WHERE application_id = ?");
     $stmt->execute([$application_id]);
     $doc_total = (int) $stmt->fetchColumn();
 
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*) 
-        FROM documents d 
-        JOIN document_verification dv ON dv.upload_id = d.doc_id
-        WHERE d.application_id = ? AND dv.verification_status = 'Verified'
-    ");
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM documents d JOIN document_verification dv ON dv.upload_id = d.doc_id WHERE d.application_id = ? AND dv.verification_status = 'Verified'");
     $stmt->execute([$application_id]);
     $doc_verified = (int) $stmt->fetchColumn();
-} catch (PDOException $e) {
-}
+} catch (PDOException $e) {}
+$docs_ok = ($doc_total > 0 && $doc_verified >= $doc_total);
 
-if ($doc_total > 0 && $doc_verified >= $doc_total) {
-    $doc_status = 'COMPLETED';
-}
-
+// "Referee Report"
+$ref_raw = null;
 try {
     $stmt = $pdo->prepare("SELECT verified_status FROM referee_uploads WHERE application_id = ? ORDER BY submitted_at DESC LIMIT 1");
     $stmt->execute([$application_id]);
-    $ref_row = $stmt->fetchColumn();
-    if ($ref_row) {
-        $ref_status = ($ref_row === 'Verified') ? 'COMPLETED' : 'IN PROGRESS';
+    $ref_raw = $stmt->fetchColumn();
+} catch (PDOException $e) {}
+$referee_ok = ($ref_raw === 'Verified');
+
+// Statuses that indicate departmental / PG review stages reached
+$dept_statuses = ['UNDER_DEPT_REVIEW', 'DEPT_APPROVED', 'REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED', 'SUBMITTED'];
+$pg_statuses   = ['REVIEWER_APPROVED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED', 'DEPT_APPROVED'];
+$final_statuses = ['ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
+
+$dept_ok  = in_array($app_current_status, $dept_statuses, true);
+$pg_ok    = in_array($app_current_status, $pg_statuses, true);
+$final_ok = in_array($app_current_status, $final_statuses, true) || in_array(strtolower($app_status), ['admitted', 'rejected'], true);
+
+// ─── Build final stage progress array ────────────────────────────────────────
+// Priority: DB row > calculated fallback
+function resolve_stage_status(string $stage, array $progress_map, bool $fallback_done, bool $fallback_approved = false): array {
+    if (isset($progress_map[$stage])) {
+        $db_status = $progress_map[$stage]['status'];
+        // Map DB enum values to display codes
+        if ($db_status === 'Completed' || $db_status === 'COMPLETED') return ['code' => 'COMPLETED', 'date' => $progress_map[$stage]['date']];
+        if ($db_status === 'In Progress' || $db_status === 'IN_PROGRESS') return ['code' => 'IN PROGRESS', 'date' => $progress_map[$stage]['date']];
+        return ['code' => 'PENDING', 'date' => null];
     }
-} catch (PDOException $e) {
+    // Fallback
+    if ($fallback_approved) return ['code' => 'APPROVED', 'date' => null];
+    if ($fallback_done)     return ['code' => 'COMPLETED', 'date' => null];
+    return ['code' => 'PENDING', 'date' => null];
 }
 
-if (in_array($app_current_status, ['UNDER_DEPT_REVIEW','DEPT_APPROVED','REVIEWER_ASSIGNED','UNDER_REVIEWER_REVIEW','REVIEWER_APPROVED','REVIEWER_REJECTED','ADMIN_FINAL_REVIEW','ADMISSION_APPROVED','ADMISSION_REJECTED','SUBMITTED'], true)) {
-    $academic_status = 'IN PROGRESS';
-}
-if (in_array($app_current_status, ['REVIEWER_APPROVED','ADMIN_FINAL_REVIEW','ADMISSION_APPROVED','ADMISSION_REJECTED','SUBMITTED','DEPT_APPROVED'], true)) {
-    $academic_status = 'COMPLETED';
+$is_admitted_status = (stripos($app_status, 'admit') !== false || $app_current_status === 'ADMISSION_APPROVED');
+$is_rejected_status = (stripos($app_status, 'reject') !== false || $app_current_status === 'ADMISSION_REJECTED');
+$is_admitted = $is_admitted_status;
+
+// Check if final decision has been overridden in progress_map with Approved/Rejected values
+$final_override = 'PENDING';
+if (isset($progress_map['Final Decisions'])) {
+    $fd = strtoupper($progress_map['Final Decisions']['status']);
+    $final_override = in_array($fd, ['APPROVED', 'REJECTED', 'COMPLETED', 'IN PROGRESS']) ? $fd : 'PENDING';
 }
 
-if (in_array($app_current_status, ['ADMISSION_APPROVED','ADMISSION_REJECTED'], true) || in_array(strtolower($app_status), ['admitted','rejected'], true)) {
-    $final_status = (stripos($app_status, 'reject') !== false || $app_current_status === 'ADMISSION_REJECTED') ? 'REJECTED' : 'APPROVED';
-}
-
-$submittedLike = strtolower($app_status);
-if ($submittedLike !== 'draft' && $submittedLike !== 'pending' && $db_app_number !== '') {
-    $submission_status = 'COMPLETED';
-}
-
-$ui_config = [
-    'Dept. Review' => ['color' => 'primary', 'bg' => 'primary', 'icon' => 'bi-hourglass-split', 'msg' => 'Your documents are being reviewed.'],
-    'Admitted' => ['color' => 'success', 'bg' => 'success', 'icon' => 'bi-award-fill', 'msg' => 'Congratulations! You have been admitted.'],
-    'Rejected' => ['color' => 'danger', 'bg' => 'danger', 'icon' => 'bi-x-circle', 'msg' => 'Application not successful.']
+$history_stages = [
+    'Application Submitted' => resolve_stage_status('Application Submitted', $progress_map, $submission_ok),
+    'Documents Verification' => resolve_stage_status('Documents Verification', $progress_map, $docs_ok),
+    'Referee Report'         => resolve_stage_status('Referee Report', $progress_map, $referee_ok),
+    'Departmental Review'    => resolve_stage_status('Departmental Review', $progress_map, $dept_ok, false),
+    'PG Review'              => resolve_stage_status('PG Review', $progress_map, $pg_ok, false),
+    'Final Decisions'        => ['code' => $final_override !== 'PENDING' ? $final_override : ($is_admitted_status ? 'APPROVED' : ($is_rejected_status ? 'REJECTED' : 'PENDING')), 'date' => $progress_map['Final Decisions']['date'] ?? null],
 ];
 
-$ui = $ui_config[$app_status] ?? $ui_config['Dept. Review'];
+// ─── UI config based on overall app status ───────────────────────────────────
+$ui = ['color' => 'primary', 'bg' => 'primary', 'icon' => 'bi-hourglass-split', 'title' => 'Under Review', 'msg' => 'Your application is currently being processed.'];
+if ($is_admitted_status) {
+    $ui = ['color' => 'success', 'bg' => 'success', 'icon' => 'bi-award-fill', 'title' => 'Admitted', 'msg' => 'Congratulations! Your admission has been approved.'];
+} elseif ($is_rejected_status) {
+    $ui = ['color' => 'danger', 'bg' => 'danger', 'icon' => 'bi-x-circle', 'title' => 'Not Successful', 'msg' => 'We regret to inform you that this application was not successful.'];
+} elseif (strtolower($app_status) === 'submitted') {
+    $ui = ['color' => 'primary', 'bg' => 'primary', 'icon' => 'bi-send-check-fill', 'title' => 'Submitted – Under Review', 'msg' => 'Your application has been submitted and is under review.'];
+}
 ?>
 
 <style>
-    .status-header { background: #f8f9fa; border-radius: 12px; padding: 25px; border-left: 5px solid var(--bs-<?php echo $ui['color']; ?>); }
-    .timeline-step { text-align: center; position: relative; flex: 1; }
-    .step-dot { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; background: #eee; color: #aaa; }
-    .step-dot.active { background: var(--bs-primary); color: #fff; }
-    .step-dot.completed { background: #198754; color: #fff; }
-    .step-dot.rejected { background: #dc3545; color: #fff; }
+    .status-header { background: #fff; border: 1px solid #e9ecef; border-radius: 14px; padding: 22px 24px; border-left: 6px solid var(--bs-<?php echo $ui['color']; ?>); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    
+    /* ── Tracking timeline ── */
+    .tracking-pipeline { display: flex; align-items: flex-start; justify-content: space-between; position: relative; padding: 0; }
+    .tracking-pipeline::before { content: ''; position: absolute; top: 20px; left: 20px; right: 20px; height: 2px; background: #e9ecef; z-index: 0; }
+    .pipeline-step { display: flex; flex-direction: column; align-items: center; text-align: center; flex: 1; position: relative; z-index: 1; min-width: 90px; }
+    .pipeline-dot { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: all .25s ease; flex-shrink: 0; margin-bottom: 10px; }
+    .pipeline-dot.pending     { background: #f8f9fa; color: #ced4da; border: 2px solid #e9ecef; }
+    .pipeline-dot.processing  { background: #fff; color: #0d6efd; border: 2px solid #0d6efd; box-shadow: 0 0 0 4px rgba(13,110,253,.12); }
+    .pipeline-dot.completed   { background: #198754; color: #fff; border: 2px solid #198754; }
+    .pipeline-dot.approved    { background: #198754; color: #fff; border: 2px solid #198754; }
+    .pipeline-dot.rejected    { background: #dc3545; color: #fff; border: 2px solid #dc3545; }
+    .pipeline-label { font-size: 11px; font-weight: 700; color: #6c757d; line-height: 1.3; max-width: 90px; }
+    .pipeline-label.active  { color: #0d6efd; }
+    .pipeline-label.done    { color: #198754; }
+    .pipeline-label.failed  { color: #dc3545; }
+    .pipeline-badge { font-size: 9px; margin-top: 4px; }
+    .pipeline-date  { font-size: 9px; color: #adb5bd; margin-top: 2px; }
+
+    @media (max-width: 767px) {
+        .tracking-pipeline { flex-direction: column; align-items: flex-start; }
+        .tracking-pipeline::before { top: 21px; left: 20px; width: 2px; height: calc(100% - 42px); right: auto; }
+        .pipeline-step { flex-direction: row; align-items: flex-start; text-align: left; margin-bottom: 22px; min-width: 0; flex: none; width: 100%; }
+        .pipeline-dot  { margin-bottom: 0; margin-right: 14px; flex-shrink: 0; }
+        .pipeline-label { max-width: none; }
+    }
 </style>
 
-<div class="animate__animated animate__fadeIn">
+<div class="animate__animated animate__fadeIn pb-5">
 
-    <div class="status-header mb-4 shadow-sm d-flex align-items-center justify-content-between flex-wrap gap-3">
-        <div class="d-flex align-items-center">
-            <div class="rounded-circle bg-<?php echo $ui['bg']; ?> bg-opacity-10 p-3 me-3 text-<?php echo $ui['color']; ?>">
-                <i class="bi <?php echo $ui['icon']; ?> fs-2"></i>
+    <!-- Status Header -->
+    <div class="status-header mb-4 d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 text-center text-md-start">
+        <div class="d-flex flex-column flex-md-row align-items-center">
+            <div class="rounded-circle bg-<?php echo $ui['bg']; ?> bg-opacity-10 p-3 mb-3 mb-md-0 me-md-3 text-<?php echo $ui['color']; ?>">
+                <i class="bi <?php echo $ui['icon']; ?> fs-1"></i>
             </div>
             <div>
-                <h4 class="fw-bold mb-1 text-<?php echo $ui['color']; ?>"><?php echo ($app_status == 'Dept. Review') ? 'Under Review' : $app_status; ?></h4>
+                <h6 class="text-uppercase text-muted mb-1" style="font-size: 11px; letter-spacing: 1px;">Current Status</h6>
+                <h3 class="fw-bold mb-1 text-<?php echo $ui['color']; ?>"><?php echo htmlspecialchars($ui['title']); ?></h3>
                 <p class="mb-0 text-muted small"><?php echo $ui['msg']; ?></p>
             </div>
         </div>
         
-        <?php if($app_status == 'Admitted'): ?>
-            <a class="btn btn-success fw-bold px-4 py-2 shadow-sm"
+        <?php if ($is_admitted): ?>
+            <a class="btn btn-success fw-bold w-100 w-md-auto px-4 py-3 shadow-sm rounded-pill"
                href="#"
-               onclick="printSlipBackground('../../helpers/admission-letter.php?app_no=<?php echo urlencode($db_app_number); ?>'); return false;">
+               onclick="printSlipBackground('helpers/admission-letter.php?app_no=<?php echo urlencode($db_app_number); ?>'); return false;">
                 <i class="bi bi-download me-2"></i> Download Admission Letter
             </a>
             <iframe id="printFrame" style="display:none;"></iframe>
         <?php endif; ?>
     </div>
 
+    <!-- Application Number & Slip -->
     <div class="row g-3 mb-5">
-        <div class="col-md-6">
-            <div class="p-3 border rounded-3 bg-white h-100">
-                <small class="text-uppercase text-muted fw-bold" style="font-size: 11px;">Reference ID</small>
-                <div class="fw-bold fs-5">PG/2025/<?php echo str_pad($application_id, 4, '0', STR_PAD_LEFT); ?></div>
+        <div class="col-12 col-md-6">
+            <div class="p-4 border rounded-3 bg-white h-100 shadow-sm d-flex flex-column justify-content-center">
+                <small class="text-uppercase text-muted fw-bold" style="font-size: 11px;">Application Number</small>
+                <div class="fw-bold fs-3 font-monospace mt-1 text-dark text-break"><?php echo htmlspecialchars($db_app_number ?: 'Generating…'); ?></div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="p-3 border rounded-3 bg-white h-100 d-flex justify-content-between align-items-center">
+        <div class="col-12 col-md-6">
+            <div class="p-4 border rounded-3 bg-white h-100 shadow-sm d-flex flex-column justify-content-between">
                 <div>
-                    <small class="text-uppercase text-muted fw-bold" style="font-size: 11px;">Application Slip</small>
-                    <div class="fw-bold fs-5">Ready</div>
+                    <small class="text-uppercase text-muted fw-bold" style="font-size: 11px;">Application Document Actions</small>
+                    <div class="fw-bold fs-5 mt-1 text-dark">Manage Slip & Form</div>
+                    <small class="text-muted" style="font-size: 11px;">View your completed application form or download/print the acknowledgment slip.</small>
                 </div>
-                <a href="#"
-                   onclick="printSlipBackground('success.php?app_no=<?php echo urlencode($db_app_number); ?>'); return false;"
-                   class="btn btn-sm btn-outline-dark rounded-pill">
-                   Download
-                </a>
+                <div class="d-flex gap-2 mt-3">
+                    <a href="success.php?app_no=<?php echo urlencode(encrypt_app_number($db_app_number)); ?>&view=1" target="_blank" class="btn btn-outline-primary flex-fill py-2 fw-semibold">
+                        <i class="bi bi-eye me-1"></i> View Form
+                    </a>
+                    <a href="success.php?app_no=<?php echo urlencode(encrypt_app_number($db_app_number)); ?>" target="_blank" class="btn btn-primary flex-fill py-2 fw-semibold shadow-sm">
+                        <i class="bi bi-download me-1"></i> Download Slip
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
-    <h6 class="fw-bold text-muted border-bottom pb-2 mb-4">TRACKING HISTORY</h6>
-    <div class="d-flex justify-content-between position-relative flex-wrap gap-3">
-        <div class="position-absolute top-0 start-0 w-100 bg-light d-none d-md-block" style="height: 2px; top: 20px; z-index: 0;"></div>
+    <!-- 6-Step Tracking History -->
+    <h6 class="fw-bold text-muted border-bottom pb-2 mb-4">APPLICATION TRACKING HISTORY</h6>
 
-        <?php 
-        $history_steps = [
-            ['label' => 'Application Submitted', 'status' => $submission_status],
-            ['label' => 'Documents Verified', 'status' => $doc_status],
-            ['label' => 'Academic Review', 'status' => $academic_status],
-            ['label' => 'Referee Reports', 'status' => $ref_status],
-            ['label' => 'Final Decision', 'status' => $final_status],
-        ];
+    <div class="tracking-pipeline mb-5">
+    <?php
+    $step_num = 0;
+    foreach ($history_stages as $stage_name => $stage_info):
+        $step_num++;
+        $code = strtoupper($stage_info['code']);
+        $date = $stage_info['date'] ?? null;
 
-        foreach($history_steps as $step): 
-            $state = 'pending';
-            $icon = 'bi-circle';
-            $status_display = 'PENDING';
+        $dot_class    = 'pending';
+        $icon_class   = 'bi-circle';
+        $label_class  = '';
+        $badge_html   = '<span class="badge bg-light text-secondary border pipeline-badge">PENDING</span>';
 
-            if ($step['status'] === 'IN PROGRESS') {
-                $state = 'active';
-                $icon = 'bi-arrow-repeat';
-                $status_display = 'IN PROGRESS';
-            } elseif ($step['status'] === 'COMPLETED') {
-                $state = 'completed';
-                $icon = 'bi-check-lg';
-                $status_display = 'COMPLETED';
-            } elseif ($step['status'] === 'APPROVED') {
-                $state = 'completed';
-                $icon = 'bi-check-circle';
-                $status_display = 'APPROVED';
-            } elseif ($step['status'] === 'REJECTED') {
-                $state = 'rejected';
-                $icon = 'bi-x-circle';
-                $status_display = 'REJECTED';
-            }
-        ?>
-            <div class="timeline-step" style="z-index: 1; min-width: 160px;">
-                <div class="step-dot <?php echo $state; ?>">
-                    <i class="bi <?php echo $icon; ?>"></i>
-                </div>
-                <div class="small fw-bold mt-2 <?php echo ($state == 'active') ? 'text-primary' : 'text-dark'; ?>">
-                    <?php echo $step['label']; ?>
-                </div>
-                <div class="small text-muted" style="font-size: 10px;">
-                    <?php echo $status_display; ?>
-                </div>
+        if ($code === 'COMPLETED') {
+            $dot_class   = 'completed';
+            $icon_class  = 'bi-check-lg';
+            $label_class = 'done';
+            $badge_html  = '<span class="badge bg-success bg-opacity-10 text-success border border-success pipeline-badge">COMPLETED</span>';
+        } elseif ($code === 'APPROVED') {
+            $dot_class   = 'approved';
+            $icon_class  = 'bi-check-circle-fill';
+            $label_class = 'done';
+            $badge_html  = '<span class="badge bg-success bg-opacity-10 text-success border border-success pipeline-badge">APPROVED</span>';
+        } elseif ($code === 'REJECTED') {
+            $dot_class   = 'rejected';
+            $icon_class  = 'bi-x-circle-fill';
+            $label_class = 'failed';
+            $badge_html  = '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger pipeline-badge">REJECTED</span>';
+        } elseif ($code === 'IN PROGRESS') {
+            $dot_class   = 'processing';
+            $icon_class  = 'bi-arrow-repeat';
+            $label_class = 'active';
+            $badge_html  = '<span class="badge bg-primary bg-opacity-10 text-primary border border-primary pipeline-badge">IN PROGRESS</span>';
+        }
+    ?>
+        <div class="pipeline-step">
+            <div class="pipeline-dot <?php echo $dot_class; ?>">
+                <i class="bi <?php echo $icon_class; ?>"></i>
             </div>
-        <?php endforeach; ?>
+            <div class="pipeline-label <?php echo $label_class; ?>">
+                <?php echo htmlspecialchars($stage_name); ?>
+                <div><?php echo $badge_html; ?></div>
+                <?php if ($date): ?>
+                    <div class="pipeline-date"><?php echo date('d M y', strtotime($date)); ?></div>
+                <?php endif; ?>
+            </div>
+        </div>
+    <?php endforeach; ?>
     </div>
+
 </div>
 
+<!-- PDF Toast -->
 <div class="position-fixed bottom-0 start-50 translate-middle-x p-3" style="z-index: 9999; width: 90%; max-width: 400px;">
     <div id="pdfToast" class="toast align-items-center text-white bg-dark border-0 w-100" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
             <div class="toast-body">
                 <div class="spinner-border spinner-border-sm me-2 text-primary" role="status"></div>
-                Generating document...
+                Generating document…
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
@@ -206,11 +294,9 @@ function printSlipBackground(url) {
     if (typeof bootstrap !== 'undefined') {
         const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
         toast.show();
-
-        const frame = document.getElementById('printFrame');
+        const frame = document.getElementById('printFrame') || document.getElementById('printFrameSlip');
         frame.src = url;
-
-        frame.onload = function() {
+        frame.onload = function () {
             try {
                 frame.contentWindow.focus();
                 frame.contentWindow.print();

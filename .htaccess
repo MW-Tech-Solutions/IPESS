@@ -1,0 +1,12 @@
+RewriteEngine On
+
+# Case-insensitive /admin → /ADMIN redirect (for Bluehost Production)
+RewriteCond %{REQUEST_URI} ^/admin(/.*)?$ [NC]
+RewriteCond %{REQUEST_URI} !^/ADMIN
+RewriteRule ^admin(/.*)?$ ADMIN$1 [L,R=301]
+
+# Case-insensitive /admin → /ADMIN redirect (for Localhost Development)
+RewriteCond %{REQUEST_URI} ^/JOSTUM/admin(/.*)?$ [NC]
+RewriteCond %{REQUEST_URI} !^/JOSTUM/ADMIN
+RewriteRule ^admin(/.*)?$ ADMIN$1 [L,R=301]
+

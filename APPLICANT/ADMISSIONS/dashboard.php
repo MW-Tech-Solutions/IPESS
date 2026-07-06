@@ -1,6 +1,10 @@
 <?php
-session_start();
-require 'db.php';
+ob_start();
+require_once __DIR__ . '/../../app/bootstrap.php';
+require_once __DIR__ . '/../../includes/permissions.php';
+enforce_session_timeout(300, 'APPLICANT/ADMISSIONS/login.php');
+
+require_role(['STUDENT'], 'APPLICANT/ADMISSIONS/login.php');
 
 function time_elapsed_string($datetime, $full = false) {
     $now = new DateTime;
@@ -46,6 +50,7 @@ $stmt = $pdo->prepare("
     SELECT 
         a.application_id, 
         a.status, 
+        a.current_status,
         a.current_step as db_step, 
         d.file_path as passport 
     FROM applications a 
@@ -65,7 +70,7 @@ if ($app_data) {
     $_SESSION['application_id'] = $app_data['application_id'];
     $_SESSION['passport_path'] = $app_data['passport'];
 
-    if ($app_data['status'] === 'Submitted') {
+    if (!can_edit_application($app_data['current_status'] ?? 'DRAFT')) {
         $current_step = 10;
     } else {
         $current_step = isset($_GET['step']) ? (int)$_GET['step'] : (int)$app_data['db_step'];
@@ -74,26 +79,216 @@ if ($app_data) {
     $current_step = isset($_GET['step']) ? (int)$_GET['step'] : 1;
 }
 
+if (!isset($_SESSION['form_data']) && isset($_SESSION['application_id'])) {
+    $app_id = $_SESSION['application_id'];
+    $_SESSION['form_data'] = [];
+
+    // Load Step 1: Personal Info
+    $stmt = $pdo->prepare("SELECT * FROM personal_details WHERE application_id = ?");
+    $stmt->execute([$app_id]);
+    $p = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($p) {
+        $_SESSION['form_data']['step_1'] = [
+            'surname' => $p['surname'],
+            'firstName' => $p['first_name'],
+            'otherName' => $p['other_name'],
+            'dob' => $p['dob'],
+            'sex' => $p['sex'],
+            'nationality' => $p['nationality'],
+            'state' => $p['state_origin'],
+            'lga' => $p['lga'],
+            'phone' => $p['phone'],
+            'address' => $p['address'],
+            'email' => $_SESSION['user_email'] ?? ''
+        ];
+    }
+
+    // Load Step 2: Programme Info
+    $stmt = $pdo->prepare("
+        SELECT 
+            pc.*,
+            f.faculty_name,
+            d.dept_name,
+            dt.degree_name,
+            c.course_title,
+            sm.mode_name
+        FROM programme_choices pc
+        LEFT JOIN faculties f ON pc.faculty = f.faculty_id
+        LEFT JOIN departments d ON pc.department = d.dept_id
+        LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
+        LEFT JOIN courses c ON pc.course = c.course_id
+        LEFT JOIN study_modes sm ON pc.mode_of_study = sm.mode_id
+        WHERE pc.application_id = ?
+    ");
+    $stmt->execute([$app_id]);
+    $pc = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($pc) {
+        $course_title = $pc['course_title'] ?? '';
+        $course_clean = preg_replace('/^(PGD|MSC)\s+/i', '', $course_title);
+
+        $_SESSION['form_data']['step_2'] = [
+            'faculty' => $pc['faculty_name'] ?? '',
+            'department' => $pc['dept_name'] ?? '',
+            'degree_type' => ($pc['degree_name'] == 'Msc') ? 'MSc' : ($pc['degree_name'] ?? ''),
+            'course' => $course_clean,
+            'mode' => $pc['mode_name'] ?? ''
+        ];
+    }
+
+    // Load Step 3: Academic History & O-Levels
+    $stmt = $pdo->prepare("SELECT * FROM higher_education WHERE application_id = ?");
+    $stmt->execute([$app_id]);
+    $edu = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($edu) {
+        $_SESSION['form_data']['step_3'] = [
+            'highest_qualification' => $edu['highest_qualification'],
+            'course_study' => $edu['course_study'],
+            'institution' => $edu['institution'],
+            'grad_year' => $edu['grad_year'],
+            'cgpa' => $edu['cgpa'],
+            'mode_study' => $edu['mode_study']
+        ];
+    }
+
+    // Load O-Level Sittings
+    $stmt = $pdo->prepare("SELECT * FROM olevel_exams WHERE application_id = ? ORDER BY sitting_number ASC");
+    $stmt->execute([$app_id]);
+    $exams = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($exams as $exam) {
+        $sitNum = $exam['sitting_number'];
+        $prefix = "ssce" . $sitNum;
+        
+        $_SESSION['form_data']['step_3'][$prefix . '_school'] = $exam['school_name'];
+        $_SESSION['form_data']['step_3'][$prefix . '_exam_number'] = $exam['exam_number'];
+        $_SESSION['form_data']['step_3'][$prefix . '_year'] = $exam['exam_year'];
+        
+        $type = $exam['exam_type'];
+        if (in_array($type, ['WAEC', 'NECO', 'NABTEB', 'GCE'])) {
+            $_SESSION['form_data']['step_3'][$prefix . '_type'] = $type;
+            $_SESSION['form_data']['step_3'][$prefix . '_type_other'] = '';
+        } else {
+            $_SESSION['form_data']['step_3'][$prefix . '_type'] = 'Others';
+            $_SESSION['form_data']['step_3'][$prefix . '_type_other'] = $type;
+        }
+
+        // Fetch subjects & grades
+        $stmt_res = $pdo->prepare("SELECT * FROM olevel_results WHERE exam_id = ?");
+        $stmt_res->execute([$exam['id']]);
+        $res = $stmt_res->fetchAll(PDO::FETCH_ASSOC);
+        
+        $_SESSION['form_data']['step_3'][$prefix . '_subjects'] = [];
+        $_SESSION['form_data']['step_3'][$prefix . '_grades'] = [];
+        foreach ($res as $r) {
+            $_SESSION['form_data']['step_3'][$prefix . '_subjects'][] = $r['subject_name'];
+            $_SESSION['form_data']['step_3'][$prefix . '_grades'][] = $r['grade'];
+        }
+    }
+
+    // Load Step 4: NYSC Info
+    $stmt = $pdo->prepare("SELECT * FROM nysc_details WHERE application_id = ?");
+    $stmt->execute([$app_id]);
+    $nysc = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($nysc) {
+        $_SESSION['form_data']['step_4'] = [
+            'nysc_status' => $nysc['nysc_status'],
+            'nysc_number' => $nysc['certificate_number'],
+            'nysc_year' => $nysc['completion_year']
+        ];
+    }
+
+    // Load Step 5: Work Experience
+    $stmt = $pdo->prepare("SELECT * FROM work_experience WHERE application_id = ?");
+    $stmt->execute([$app_id]);
+    $w = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($w) {
+        $_SESSION['form_data']['step_5'] = [
+            'emp_status' => $w['employment_status'],
+            'employer' => $w['employer'],
+            'job_title' => $w['job_title'],
+            'years_experience' => $w['years_experience']
+        ];
+    }
+
+    // Load Step 6: Research Details
+    $stmt = $pdo->prepare("SELECT * FROM research_details WHERE application_id = ?");
+    $stmt->execute([$app_id]);
+    $r = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($r) {
+        $_SESSION['form_data']['step_6'] = [
+            'proposed_research_area' => $r['research_area'],
+            'reason_for_choosing_programme' => $r['reason_for_choosing'],
+            'statement_of_purpose' => $r['statement_of_purpose'],
+            'career_objectives' => $r['career_objectives']
+        ];
+    }
+
+    // Load Step 7: Referees
+    $stmt = $pdo->prepare("SELECT * FROM referees WHERE application_id = ?");
+    $stmt->execute([$app_id]);
+    $refs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if ($refs) {
+        $_SESSION['form_data']['step_7'] = [
+            'ref_name' => [],
+            'ref_title' => [],
+            'ref_org' => [],
+            'ref_email' => [],
+            'ref_phone' => []
+        ];
+        foreach ($refs as $ref) {
+            $_SESSION['form_data']['step_7']['ref_name'][] = $ref['full_name'];
+            $_SESSION['form_data']['step_7']['ref_title'][] = $ref['title'];
+            $_SESSION['form_data']['step_7']['ref_org'][] = $ref['organization'];
+            $_SESSION['form_data']['step_7']['ref_email'][] = $ref['email'];
+            $_SESSION['form_data']['step_7']['ref_phone'][] = $ref['phone'];
+        }
+    }
+
+    // Load Step 8: Documents
+    $stmt = $pdo->prepare("SELECT * FROM documents WHERE application_id = ?");
+    $stmt->execute([$app_id]);
+    $docs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if ($docs) {
+        $_SESSION['form_data']['step_8'] = [];
+        foreach ($docs as $doc) {
+            $_SESSION['form_data']['step_8'][$doc['document_type'] . '_file'] = $doc['file_path'];
+        }
+    }
+}
+
+function can_access_academics_portal(?array $app): bool {
+    if (!$app) {
+        return false;
+    }
+    $status = strtolower((string) ($app['status'] ?? ''));
+    $current = strtolower((string) ($app['current_status'] ?? ''));
+    return $status === 'admitted' || in_array($current, ['admission_approved', 'admission_admitted'], true);
+}
+
+ $canAccessAcademics = can_access_academics_portal($app_data ?: null);
+
 function resolve_passport_path(?string $path): string {
     if (!$path) {
-        return '';
+        return app_url('asset/homepage/new_jostum_logo.png');
     }
+
+    $path = trim((string) $path);
+    if ($path === '') {
+        return app_url('asset/homepage/new_jostum_logo.png');
+    }
+
     if (preg_match('#^https?://#i', $path)) {
         return $path;
     }
-    $path = ltrim($path, '/');
-    $local = __DIR__ . '/' . $path;
-    if (file_exists($local)) {
-        return $path;
+
+    if (preg_match('#^(localhost|127\.0\.0\.1)(:\d+)?/#i', $path)) {
+        return app_url($path);
     }
-    $alt = __DIR__ . '/../../' . $path;
-    if (file_exists($alt)) {
-        return '../' . $path;
-    }
-    return $path;
+
+    $normalized = ltrim(str_replace('\\', '/', $path), '/');
+    return app_url($normalized);
 }
 
-$passportSrc = resolve_passport_path($_SESSION['passport_path'] ?? '') ?: 'assets/img/default-avatar.png';
+$passportSrc = resolve_passport_path($_SESSION['passport_path'] ?? '');
 
 if ($current_step > 10) $current_step = 10;
 $notifications = [];
@@ -113,7 +308,7 @@ if (isset($_SESSION['application_id'])) {
         ");
         $stmtNotif->execute([$_SESSION['application_id']]);
         $notifications = $stmtNotif->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
     }
 }
 
@@ -176,11 +371,17 @@ function render_notification_list($notifications) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PG Provisional Admission</title>
+    <link rel="icon" type="image/png" href="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>">
+    <title>Applicant Dashboard - IPESS FUAM</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
-        :root { --primary-blue: #1a4388; --bg-gray: #f8f9fa; }
+        :root { --primary-blue: #d11b27; --bg-gray: #f8f9fa; }
+        .btn-primary { background-color: #d11b27 !important; border-color: #d11b27 !important; }
+        .btn-primary:hover { background-color: #a81520 !important; border-color: #a81520 !important; }
+        .text-primary { color: #d11b27 !important; }
+        .btn-outline-primary { color: #d11b27 !important; border-color: #d11b27 !important; }
+        .btn-outline-primary:hover { background-color: #d11b27 !important; color: #fff !important; }
         body { background-color: var(--bg-gray); font-family: 'Inter', sans-serif; font-size: 14px; }
         
         .mobile-header { background: #fff; padding: 10px 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 1020; }
@@ -192,7 +393,9 @@ function render_notification_list($notifications) {
         .mobile-header .passport-photo { width: 45px; height: 45px;object-fit: cover;} 
 
         .nav-link { color: #555; border-radius: 8px; margin-bottom: 5px; padding: 12px; transition: 0.2s; }
-        .nav-link.active { background: var(--primary-blue); color: #fff !important; }
+        .nav-link.active,
+        .nav-pills .nav-link.active,
+        .nav-pills .show > .nav-link { background-color: #d11b27 !important; color: #fff !important; border-color: #d11b27 !important; }
         .nav-link.completed { color: #198754; background: #e8f5e9; }
         .locked-nav { pointer-events: none !important; opacity: 0.7; cursor: default !important; }
 
@@ -281,13 +484,21 @@ function render_notification_list($notifications) {
         </div>
     </div>
 </header>
+<?php if ($canAccessAcademics): ?>
+<div class="d-lg-none px-3 pb-2">
+    <div class="btn-group btn-group-sm w-100" role="group" aria-label="Portal switcher">
+        <a class="btn btn-primary" href="<?php echo htmlspecialchars(app_url('APPLICANT/ADMISSIONS/dashboard.php'), ENT_QUOTES, 'UTF-8'); ?>">Admission</a>
+        <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars(app_url('APPLICANT/ACADEMICS/student-portal/index.php#dashboard'), ENT_QUOTES, 'UTF-8'); ?>">Academics</a>
+    </div>
+</div>
+<?php endif; ?>
 
 <div class="container-fluid">
     <div class="row">
         <nav class="col-lg-3 col-xl-2 desktop-sidebar sticky-top bg-white p-3 border-end">
             <div class="d-flex align-items-center mb-4 px-3">
-                <i class="bi bi-mortarboard-fill fs-3 text-primary me-2"></i>
-                <span class="fs-5 fw-bold text-dark">PG Portal</span>
+                <img src="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="IPESS Logo" style="width:42px;height:42px;object-fit:contain;border-radius:50%;margin-right:10px;">
+                <span class="fs-5 fw-bold text-dark">IPESS Portal</span>
             </div>
             <div class="nav flex-column nav-pills">
                 <?php foreach ($nav_steps as $key => $val): 
@@ -315,6 +526,12 @@ function render_notification_list($notifications) {
                 </div>
                 
                 <div class="d-flex align-items-center gap-4">
+                    <?php if ($canAccessAcademics): ?>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Portal switcher">
+                            <a class="btn btn-primary" href="<?php echo htmlspecialchars(app_url('APPLICANT/ADMISSIONS/dashboard.php'), ENT_QUOTES, 'UTF-8'); ?>">Admission</a>
+                            <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars(app_url('APPLICANT/ACADEMICS/student-portal/index.php#dashboard'), ENT_QUOTES, 'UTF-8'); ?>">Academics</a>
+                        </div>
+                    <?php endif; ?>
                     <div class="dropdown">
                         <button class="btn btn-light rounded-circle position-relative shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="width: 45px; height: 45px;">
                             <i class="bi bi-bell text-secondary"></i>
@@ -376,7 +593,13 @@ function render_notification_list($notifications) {
 
 <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileMenu" style="width: 280px;">
     <div class="offcanvas-header border-bottom">
-        <h5 class="offcanvas-title fw-bold text-primary">Application Steps</h5>
+        <div class="d-flex align-items-center gap-2">
+            <img src="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="IPESS Logo" style="width:38px;height:38px;object-fit:contain;border-radius:50%;">
+            <div>
+                <h5 class="offcanvas-title fw-bold mb-0" style="color:#d11b27;font-size:0.95rem;">IPESS Portal</h5>
+                <small class="text-muted" style="font-size:0.72rem;">Application Steps</small>
+            </div>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
     </div>
     <div class="offcanvas-body">
@@ -585,3 +808,4 @@ function toggleNotificationAudio(event, btn) {
 </script>
 </body>
 </html>
+

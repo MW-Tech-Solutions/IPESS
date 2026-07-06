@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 ini_set('display_errors',1);
 ini_set('display_startup_errors',1);
 error_reporting(E_ALL);
@@ -61,7 +61,7 @@ try {
     $hasReferenceNumber = false;
     try {
         $hasReferenceNumber = (bool) $pdo->query("SHOW COLUMNS FROM applications LIKE 'reference_number'")->fetch(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
+    } catch (Throwable $e) {
         $hasReferenceNumber = false;
     }
 
@@ -101,7 +101,7 @@ try {
     $deptList = [];
     try {
         $deptList = $pdo->query("SELECT dept_id, dept_name FROM departments ORDER BY dept_name ASC")->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
+    } catch (Throwable $e) {
     }
 
     // 3. Fetch Documents
@@ -131,7 +131,7 @@ try {
         return $filePath;
     }
 
-} catch (PDOException $e) {
+} catch (Throwable $e) {
     die("Error fetching application details: " . $e->getMessage());
 }
 ?>
@@ -486,7 +486,7 @@ try {
                                 <span class="small fw-medium"><?php echo htmlspecialchars($appNumber); ?></span>
                             </div>
                             
-                            <span class="d-none d-sm-inline mx-3 text-secondary opacity-50">•</span>
+                            <span class="d-none d-sm-inline mx-3 text-secondary opacity-50">â€¢</span>
                             
                             <div class="d-flex align-items-center">
                                 <i class="bi bi-envelope me-2 text-primary"></i>
@@ -682,7 +682,7 @@ try {
                                 $stmt_res = $pdo->prepare("SELECT * FROM olevel_results WHERE exam_id = ?");
                                 $stmt_res->execute([$exam['id']]);
                                 $exam_results = $stmt_res->fetchAll(PDO::FETCH_ASSOC);
-                            } catch (Exception $e) { $exam_results = []; }
+                            } catch (Throwable $e) { $exam_results = []; }
                         ?>
                         <div class="col-md-6">
                             <div class="border rounded p-3 bg-light h-100">
@@ -949,3 +949,4 @@ document.querySelectorAll('[data-doc-url]').forEach(btn => {
 </script>
 </body>
 </html>
+

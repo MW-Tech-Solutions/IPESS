@@ -83,12 +83,12 @@ function verify_referee_submission(PDO $pdo, int $referee_id, int $actor_id, str
 
     if ($app_id && $status === 'Verified') {
         if (table_exists($pdo, 'application_progress')) {
-            $stmtCheck = $pdo->prepare("SELECT progress_id FROM application_progress WHERE application_id = ? AND stage = 'Referee Reports'");
+            $stmtCheck = $pdo->prepare("SELECT progress_id FROM application_progress WHERE application_id = ? AND stage = 'Referee Report'");
             $stmtCheck->execute([$app_id]);
             if ($stmtCheck->fetch()) {
-                $pdo->prepare("UPDATE application_progress SET stage_status = 'Completed', stage_updated_at = NOW() WHERE application_id = ? AND stage = 'Referee Reports'")->execute([$app_id]);
+                $pdo->prepare("UPDATE application_progress SET stage_status = 'Completed', stage_updated_at = NOW() WHERE application_id = ? AND stage = 'Referee Report'")->execute([$app_id]);
             } else {
-                $pdo->prepare("INSERT INTO application_progress (application_id, stage, stage_status, stage_updated_at) VALUES (?, 'Referee Reports', 'Completed', NOW())")->execute([$app_id]);
+                $pdo->prepare("INSERT INTO application_progress (application_id, stage, stage_status, stage_updated_at) VALUES (?, 'Referee Report', 'Completed', NOW())")->execute([$app_id]);
             }
         }
     }

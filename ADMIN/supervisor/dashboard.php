@@ -1,11 +1,4 @@
 <?php
-/*
-session_start();
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'SUPERVISOR') {
-    header('Location: /login.php');
-    exit;
-}
-*/
 $pageTitle = 'Supervisor Dashboard';
 $pageSubtitle = 'Track student progress, approvals, and upcoming milestones.';
 

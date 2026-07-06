@@ -1,12 +1,7 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-require_once __DIR__ . '/../../../../config/urls.php';
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'STUDENT') {
-    redirect_to('APPLICANT/ADMISSIONS/login.php');
-}
-require_once __DIR__ . '/../../../../ADMIN/includes/db.php';
+require_once __DIR__ . '/../../../../app/bootstrap.php';
+enforce_session_timeout(300, 'APPLICANT/ADMISSIONS/login.php');
+require_role(['STUDENT'], 'APPLICANT/ADMISSIONS/login.php');
 
 $studentCanAccessAcademics = false;
 try {
@@ -29,18 +24,11 @@ try {
 }
 
 if (!$studentCanAccessAcademics) {
-    redirect_to('dashboard.php');
+    redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
     exit;
 }
 $_SESSION['student_can_access_academics'] = true;
 
-$timeoutSeconds = 300;
-if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > $timeoutSeconds) {
-    session_unset();
-    session_destroy();
-    redirect_to('APPLICANT/ADMISSIONS/login.php?timeout=1');
-}
-$_SESSION['last_activity'] = time();
 if (!isset($page_title) || $page_title === '') {
     $page_title = 'JOSTUM PG Portal';
 }
@@ -50,7 +38,7 @@ if (!isset($page_title) || $page_title === '') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
+    <link rel="icon" type="image/jpeg" href="<?php echo htmlspecialchars(app_url('ADMIN/images/logo.jpeg'), ENT_QUOTES, 'UTF-8'); ?>">
 <title><?php echo htmlspecialchars($page_title, ENT_QUOTES, 'UTF-8'); ?></title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
