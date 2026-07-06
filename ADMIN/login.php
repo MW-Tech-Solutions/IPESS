@@ -11,9 +11,10 @@ if (isset($_GET['reset']) && $_GET['reset'] === '1') {
 
 // Check if already logged in
 if (isset($_SESSION['user_id'])) {
-    $role = $_SESSION['role'] ?? '';
+    $role = normalize_role($_SESSION['role'] ?? '');
     $dashboard = dashboard_for_role($role);
     if ($dashboard !== 'ADMIN/login.php' && $dashboard !== '/ADMIN/login.php' && $dashboard !== '') {
+        session_write_close();
         admin_redirect_by_role($role);
     }
 }
@@ -191,6 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 unset($_SESSION['pending_admin_login']);
 
+                session_write_close();
                 admin_redirect_by_role($_SESSION['role']);
             }
         }

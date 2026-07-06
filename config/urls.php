@@ -77,6 +77,11 @@ function app_absolute_url(string $path = ''): string
 
 function redirect_to(string $path, int $code = 302): void
 {
+    // Flush session data before redirect to prevent session loss on fast redirects
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+
     $url = app_absolute_url($path);
     if (!headers_sent()) {
         header('Location: ' . $url, true, $code);
