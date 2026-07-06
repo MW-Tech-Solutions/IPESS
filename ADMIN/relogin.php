@@ -41,9 +41,20 @@ function admin_redirect_by_role(string $role): void {
 function user_login_query(PDO $pdo, string $email): ?array {
     $passwordColumn = 'password_hash';
     try {
-        $hasPasswordHash = (bool) $pdo->query("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'password_hash'")->fetchColumn();
+        $hasPasswordHash = false;
+        try {
+            $pdo->query("SELECT password_hash FROM users LIMIT 0");
+            $hasPasswordHash = true;
+        } catch (Throwable $e) {}
+        
         $passwordColumn = $hasPasswordHash ? 'password_hash' : 'password';
-        $hasRole = (bool) $pdo->query("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'role'")->fetchColumn();
+        
+        $hasRole = false;
+        try {
+            $pdo->query("SELECT role FROM users LIMIT 0");
+            $hasRole = true;
+        } catch (Throwable $e) {}
+
         if ($hasRole) {
             $stmt = $pdo->prepare("SELECT user_id, {$passwordColumn} AS password_hash, role, full_name FROM users WHERE email = :email LIMIT 1");
             $stmt->execute([':email' => $email]);

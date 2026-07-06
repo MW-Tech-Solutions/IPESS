@@ -36,9 +36,12 @@ function get_user_column_flags(PDO $pdo): array {
     $columns = ['role', 'role_id', 'password_hash', 'totp_secret', 'totp_enabled'];
     $flags = array_fill_keys($columns, false);
     foreach ($columns as $col) {
-        $stmt = $pdo->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = ?");
-        $stmt->execute([$col]);
-        $flags[$col] = (bool) $stmt->fetchColumn();
+        try {
+            $pdo->query("SELECT `{$col}` FROM users LIMIT 0");
+            $flags[$col] = true;
+        } catch (Throwable $e) {
+            $flags[$col] = false;
+        }
     }
     $cache = $flags;
     return $flags;
@@ -46,19 +49,33 @@ function get_user_column_flags(PDO $pdo): array {
 
 function ensure_totp_columns(PDO $pdo): void {
     try {
-        $hasSecret = $pdo->query("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'totp_secret'")->fetchColumn();
+        $hasSecret = false;
+        try {
+            $pdo->query("SELECT totp_secret FROM users LIMIT 0");
+            $hasSecret = true;
+        } catch (Throwable $e) {}
         if (!$hasSecret) {
             $pdo->exec("ALTER TABLE users ADD COLUMN totp_secret VARCHAR(64) NULL");
         }
-        $hasEnabled = $pdo->query("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'totp_enabled'")->fetchColumn();
+
+        $hasEnabled = false;
+        try {
+            $pdo->query("SELECT totp_enabled FROM users LIMIT 0");
+            $hasEnabled = true;
+        } catch (Throwable $e) {}
         if (!$hasEnabled) {
             $pdo->exec("ALTER TABLE users ADD COLUMN totp_enabled TINYINT(1) DEFAULT 0");
         }
-        $hasVerified = $pdo->query("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'totp_verified_at'")->fetchColumn();
+
+        $hasVerified = false;
+        try {
+            $pdo->query("SELECT totp_verified_at FROM users LIMIT 0");
+            $hasVerified = true;
+        } catch (Throwable $e) {}
         if (!$hasVerified) {
             $pdo->exec("ALTER TABLE users ADD COLUMN totp_verified_at DATETIME DEFAULT NULL");
         }
-    } catch (PDOException $e) {
+    } catch (Throwable $e) {
         // Ignore if schema updates are not permitted.
     }
 }
