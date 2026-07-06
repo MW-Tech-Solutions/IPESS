@@ -77,6 +77,25 @@ if (!function_exists('has_permission')) {
     function has_permission(string $permission, ?string $role = null): bool
     {
         $role = normalize_role($role ?? current_user_role());
+
+        // Always allow super admins and ICT admins full control
+        if (in_array($role, ['SUPER_ADMIN', 'ICT_ADMIN'], true)) {
+            return true;
+        }
+
+        // Try checking database permissions first
+        try {
+            require_once JOSTUM_ROOT . '/app/config/database.php';
+            $pdo = db();
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM role_permissions WHERE role_key = ? AND permission_key = ?");
+            $stmt->execute([$role, $permission]);
+            if ((int) $stmt->fetchColumn() > 0) {
+                return true;
+            }
+        } catch (Throwable $e) {
+            // Fall back to hardcoded arrays if the table isn't created or has issues
+        }
+
         $permissions = [
             'manage_system' => ['SUPER_ADMIN', 'ICT_ADMIN'],
             'manage_portal_content' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN'],
@@ -86,6 +105,9 @@ if (!function_exists('has_permission')) {
             'manage_academics' => ['SUPER_ADMIN', 'PG_SCHOOL_OFFICER', 'FACULTY_OFFICER', 'DEPARTMENT_ADMIN', 'HOD'],
             'manage_supervision' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD', 'SUPERVISOR'],
             'review_applications' => ['SUPER_ADMIN', 'REVIEWER', 'PG_SCHOOL_OFFICER'],
+            'view_applications' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER', 'REVIEWER', 'REGISTRY'],
+            'download_applications' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER'],
+            'download_documents' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER'],
             'student_portal' => ['STUDENT'],
         ];
 
@@ -93,10 +115,31 @@ if (!function_exists('has_permission')) {
     }
 }
 
+if (!function_exists('require_role_or_permission')) {
+    function require_role_or_permission(array $roles, string $permission, string $loginPath = 'login.php'): void
+    {
+        require_login($loginPath);
+        $allowed = array_map('normalize_role', $roles);
+        $currentRole = current_user_role();
+        if (in_array($currentRole, $allowed, true) || has_permission($permission)) {
+            return;
+        }
+        http_response_code(403);
+        exit('403 Forbidden');
+    }
+}
+
 if (!function_exists('dashboard_for_role')) {
     function dashboard_for_role(?string $role = null): string
     {
-        return match (normalize_role($role ?? current_user_role())) {
+        $role = normalize_role($role ?? current_user_role());
+        
+        // Custom roles checking
+        if (has_permission('view_applications', $role)) {
+            return 'ADMIN/admin/dashboard.php';
+        }
+
+        return match ($role) {
             'SUPER_ADMIN', 'ICT_ADMIN' => 'ADMIN/super-admin/dashboard.php',
             'PORTAL_ADMIN' => 'ADMIN/portal-admin/dashboard.php',
             'REGISTRY' => 'modules/registry/dashboard.php',

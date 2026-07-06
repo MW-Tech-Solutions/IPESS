@@ -324,7 +324,7 @@ try {
             <div class="logo-container">
                 <img src="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="IPESS FUAM Logo" class="uni-logo">
             </div>
-            <h1 class="login-title">IPESS FUAM Create Account</h1>
+            <h1 class="login-title">IPESS JOSTUM <h5> Create Account</h5></h1>
         </header>
 
         <div class="form-area">

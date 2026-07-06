@@ -8,8 +8,66 @@ if (!$pdo) {
     exit;
 }
 
-$entity = $_GET['entity'] ?? $_POST['entity'] ?? '';
+// Ensure the table exists dynamically
+function ensure_role_permissions_table(PDO $pdo): void {
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS role_permissions (
+            role_key VARCHAR(50) NOT NULL,
+            permission_key VARCHAR(100) NOT NULL,
+            PRIMARY KEY (role_key, permission_key)
+        )");
+    } catch (Throwable $e) {}
+}
+ensure_role_permissions_table($pdo);
+
 $action = $_GET['action'] ?? $_POST['action'] ?? 'list';
+
+if ($action === 'get_permissions') {
+    $roleKey = strtoupper(trim($_GET['role_key'] ?? ''));
+    if ($roleKey === '') {
+        echo json_encode(['success' => false, 'message' => 'Role key is required.']);
+        exit;
+    }
+    try {
+        $stmt = $pdo->prepare("SELECT permission_key FROM role_permissions WHERE role_key = ?");
+        $stmt->execute([$roleKey]);
+        $permissions = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        echo json_encode(['success' => true, 'data' => $permissions]);
+    } catch (Throwable $e) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+if ($action === 'save_permissions') {
+    $roleKey = strtoupper(trim($_POST['role_key'] ?? ''));
+    $permissions = $_POST['permissions'] ?? [];
+    if ($roleKey === '') {
+        echo json_encode(['success' => false, 'message' => 'Role key is required.']);
+        exit;
+    }
+    
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare("DELETE FROM role_permissions WHERE role_key = ?");
+        $stmt->execute([$roleKey]);
+        
+        if (!empty($permissions) && is_array($permissions)) {
+            $stmt = $pdo->prepare("INSERT INTO role_permissions (role_key, permission_key) VALUES (?, ?)");
+            foreach ($permissions as $perm) {
+                $stmt->execute([$roleKey, trim($perm)]);
+            }
+        }
+        $pdo->commit();
+        echo json_encode(['success' => true]);
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+$entity = $_GET['entity'] ?? $_POST['entity'] ?? '';
 
 $allowedEntities = ['roles', 'faculties', 'departments', 'degree_types', 'courses', 'capacities'];
 if (!in_array($entity, $allowedEntities, true)) {

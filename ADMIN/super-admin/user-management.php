@@ -1,11 +1,8 @@
 <?php
-/*
-session_start();
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'SUPER_ADMIN') {
-    header('Location: /login.php');
-    exit;
-}
-*/
+require_once __DIR__ . '/../../app/bootstrap.php';
+enforce_session_timeout(900, 'ADMIN/login.php');
+require_role(['SUPER_ADMIN', 'ICT_ADMIN'], 'ADMIN/login.php');
+
 $pageTitle = 'User Management';
 $pageSubtitle = 'Manage staff and administrative accounts across the system.';
 

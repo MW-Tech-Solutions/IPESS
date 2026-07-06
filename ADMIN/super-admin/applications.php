@@ -1,11 +1,8 @@
 <?php
-/*
-session_start();
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'SUPER_ADMIN') {
-    header('Location: /login.php');
-    exit;
-}
-*/
+require_once __DIR__ . '/../../app/bootstrap.php';
+enforce_session_timeout(900, 'ADMIN/login.php');
+require_role(['SUPER_ADMIN', 'ICT_ADMIN'], 'ADMIN/login.php');
+
 $pageTitle = 'Applications';
 $pageSubtitle = 'Control admissions volume, filter by faculty, and resolve pending reviews.';
 
@@ -212,23 +209,32 @@ require_once 'includes/topbar.php';
 </section>
 
 <section class="panel">
-    <div class="panel-header">
+    <div class="panel-header d-flex justify-content-between align-items-center">
         <div>
             <h3 class="panel-title">Application Pipeline</h3>
             <div class="panel-muted">Showing <?php echo number_format($totalRows); ?> applications.</div>
         </div>
+        <div id="bulkActionsContainer" style="display: none;">
+            <button class="btn btn-outline-primary btn-sm" id="btnBulkDownload">
+                <i class="fas fa-file-archive me-1"></i> Bulk Download Selected (<span id="selectedCount">0</span>)
+            </button>
+        </div>
     </div>
     <div class="panel-body">
         <div class="table-responsive">
-            <table class="table align-middle mb-0">
+            <table class="table align-middle mb-0" id="applicationsTable">
                 <thead>
                     <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="checkAllApps">
+                        </th>
                         <th>Applicant</th>
                         <th>Application No.</th>
                         <th>Programme</th>
                         <th>Faculty</th>
                         <th>Status</th>
                         <th>Submitted</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -244,18 +250,34 @@ require_once 'includes/topbar.php';
                                 $statusClass = 'status-danger';
                             }
                             ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars(trim(($app['first_name'] ?? '') . ' ' . ($app['surname'] ?? ''))); ?></td>
-                                <td><?php echo htmlspecialchars($app['application_number'] ?? 'N/A'); ?></td>
+                            <tr data-id="<?php echo (int) $app['application_id']; ?>">
+                                <td>
+                                    <input type="checkbox" class="form-check-input app-checkbox" value="<?php echo (int) $app['application_id']; ?>">
+                                </td>
+                                <td>
+                                    <strong><?php echo htmlspecialchars(trim(($app['first_name'] ?? '') . ' ' . ($app['surname'] ?? ''))); ?></strong>
+                                </td>
+                                <td><code><?php echo htmlspecialchars($app['application_number'] ?? 'N/A'); ?></code></td>
                                 <td><?php echo htmlspecialchars($app['course_title'] ?? $app['degree_name'] ?? 'Pending'); ?></td>
                                 <td><?php echo htmlspecialchars($app['faculty_name'] ?? 'Unassigned'); ?></td>
                                 <td><span class="status-chip <?php echo $statusClass; ?>"><?php echo htmlspecialchars($app['status'] ?? 'Draft'); ?></span></td>
                                 <td><?php echo $app['submitted_at'] ? date('M d, Y', strtotime($app['submitted_at'])) : 'Not submitted'; ?></td>
+                                <td class="text-end">
+                                    <a class="btn btn-outline-primary btn-sm me-1" href="/ADMIN/view.php?app_no=<?php echo urlencode($app['application_number'] ?? ''); ?>" target="_blank">
+                                        <i class="fas fa-eye me-1"></i> View
+                                    </a>
+                                    <a class="btn btn-light btn-sm" href="api/download-documents.php?app_id=<?php echo (int) $app['application_id']; ?>">
+                                        <i class="fas fa-download me-1"></i> ZIP
+                                    </a>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="6" class="text-center text-muted">No applications match these filters.</td>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="fas fa-folder-open fa-2x mb-2 d-block text-black-50"></i>
+                                No applications match these filters.
+                            </td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -281,5 +303,54 @@ require_once 'includes/topbar.php';
         <?php endif; ?>
     </div>
 </section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const checkAllApps = document.getElementById('checkAllApps');
+    const appCheckboxes = document.querySelectorAll('.app-checkbox');
+    const bulkActionsContainer = document.getElementById('bulkActionsContainer');
+    const selectedCount = document.getElementById('selectedCount');
+    const btnBulkDownload = document.getElementById('btnBulkDownload');
+
+    function updateBulkActionsBar() {
+        const checkedBoxes = document.querySelectorAll('.app-checkbox:checked');
+        const count = checkedBoxes.length;
+        
+        if (count > 0) {
+            bulkActionsContainer.style.display = 'block';
+            selectedCount.innerText = count;
+        } else {
+            bulkActionsContainer.style.display = 'none';
+        }
+    }
+
+    if (checkAllApps) {
+        checkAllApps.addEventListener('change', function () {
+            appCheckboxes.forEach(cb => cb.checked = checkAllApps.checked);
+            updateBulkActionsBar();
+        });
+    }
+
+    appCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function () {
+            const allChecked = Array.from(appCheckboxes).every(el => el.checked);
+            if (checkAllApps) checkAllApps.checked = allChecked;
+            updateBulkActionsBar();
+        });
+    });
+
+    if (btnBulkDownload) {
+        btnBulkDownload.addEventListener('click', function () {
+            const checkedBoxes = document.querySelectorAll('.app-checkbox:checked');
+            const ids = Array.from(checkedBoxes).map(cb => cb.value);
+            
+            if (ids.length > 0) {
+                // Redirect to download endpoint with comma-separated IDs
+                window.location.href = 'api/download-documents.php?app_ids=' + ids.join(',');
+            }
+        });
+    }
+});
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

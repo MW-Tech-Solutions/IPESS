@@ -1,6 +1,10 @@
 <?php
-$pageTitle = 'Reports';
-$pageSubtitle = 'Generate, download, and manage institutional reports.';
+require_once __DIR__ . '/../../app/bootstrap.php';
+enforce_session_timeout(900, 'ADMIN/login.php');
+require_role(['SUPER_ADMIN', 'ICT_ADMIN'], 'ADMIN/login.php');
+
+$pageTitle = 'IPESS Reports';
+$pageSubtitle = 'Generate, download, and manage IPESS institutional reports.';
 
 require_once 'includes/header.php';
 require_once 'includes/sidebar.php';
@@ -9,8 +13,8 @@ require_once 'includes/topbar.php';
 
 <section class="page-hero">
     <div>
-        <h1>Reports & Exports</h1>
-        <p class="panel-muted">Generate PDF or Excel reports and track their history.</p>
+        <h1>IPESS Reports & Exports</h1>
+        <p class="panel-muted">Generate PDF or Excel reports for IPESS and track their history.</p>
     </div>
     <div class="hero-actions">
         <button class="btn btn-light" id="refreshReports">Refresh</button>

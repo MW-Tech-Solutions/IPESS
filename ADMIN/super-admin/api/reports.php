@@ -362,11 +362,19 @@ function buildReportHtml(array $reportData): string {
     $generated = (string) ($reportData['generated'] ?? date('M d, Y H:i'));
     $reportType = (string) ($reportData['report_type'] ?? 'Report');
     $logoDataUri = '';
-    $logoPath = __DIR__ . '/../../images/logo.jpeg';
+    $logoPath = __DIR__ . '/../../images/ipess_logo.png';
     if (is_file($logoPath)) {
         $raw = @file_get_contents($logoPath);
         if ($raw !== false) {
-            $logoDataUri = 'data:image/jpeg;base64,' . base64_encode($raw);
+            $logoDataUri = 'data:image/png;base64,' . base64_encode($raw);
+        }
+    } else {
+        $fallbackPath = __DIR__ . '/../../images/logo.jpeg';
+        if (is_file($fallbackPath)) {
+            $raw = @file_get_contents($fallbackPath);
+            if ($raw !== false) {
+                $logoDataUri = 'data:image/jpeg;base64,' . base64_encode($raw);
+            }
         }
     }
     $sectionsHtml = '';
@@ -426,7 +434,7 @@ function buildReportHtml(array $reportData): string {
                 </td>
                 <td class='title-wrap'>
                     <h1>Joseph Sarwuan Tarka University, Makurdi</h1>
-                    <div class='meta'>Postgraduate School Report</div>
+                    <div class='meta'>IPESS Postgraduate School Report</div>
                     <div class='meta'>Report: {$reportType} | Generated: {$generated}</div>
                 </td>
                 <td class='logo-cell'></td>
