@@ -56,11 +56,14 @@ if (!in_array($action, ['set_stage', 'add_stage', 'remove_stage'], true)) {
 
 $valid_statuses = ['Pending', 'In Progress', 'Completed', 'Approved', 'Rejected'];
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 function table_exists_local(PDO $pdo, string $table): bool {
-    $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
-    $stmt->execute([$table]);
-    return (bool) $stmt->fetch();
+    try {
+        $sanitizedTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $pdo->query("SELECT 1 FROM `{$sanitizedTable}` LIMIT 0");
+        return true;
+    } catch (Throwable $e) {
+        return false;
+    }
 }
 
 function log_audit(PDO $pdo, int $admin_id, int $app_id, string $action, string $detail): void {

@@ -106,9 +106,13 @@ try {
     $uploaded_documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     function table_exists_local(PDO $pdo, string $table): bool {
-        $stmt = $pdo->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?");
-        $stmt->execute([$table]);
-        return (bool) $stmt->fetchColumn();
+        try {
+            $sanitizedTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+            $pdo->query("SELECT 1 FROM `{$sanitizedTable}` LIMIT 0");
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     function documents_verified(PDO $pdo, int $applicationId): bool {

@@ -6,13 +6,10 @@ require_once __DIR__ . '/../../../../ADMIN/includes/db.php';
 
 function table_exists_local(PDO $pdo, string $table): bool
 {
-    if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
-        return false;
-    }
     try {
-        $stmt = $pdo->prepare('SHOW TABLES LIKE ?');
-        $stmt->execute([$table]);
-        return (bool) $stmt->fetchColumn();
+        $sanitizedTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $pdo->query("SELECT 1 FROM `{$sanitizedTable}` LIMIT 0");
+        return true;
     } catch (Throwable $e) {
         return false;
     }
@@ -20,13 +17,11 @@ function table_exists_local(PDO $pdo, string $table): bool
 
 function column_exists_local(PDO $pdo, string $table, string $column): bool
 {
-    if (!preg_match('/^[A-Za-z0-9_]+$/', $table) || !preg_match('/^[A-Za-z0-9_]+$/', $column)) {
-        return false;
-    }
     try {
-        $stmt = $pdo->prepare("SHOW COLUMNS FROM `{$table}` LIKE ?");
-        $stmt->execute([$column]);
-        return (bool) $stmt->fetchColumn();
+        $sanitizedTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $sanitizedColumn = preg_replace('/[^a-zA-Z0-9_]/', '', $column);
+        $pdo->query("SELECT `{$sanitizedColumn}` FROM `{$sanitizedTable}` LIMIT 0");
+        return true;
     } catch (Throwable $e) {
         return false;
     }
