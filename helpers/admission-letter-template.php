@@ -3,9 +3,9 @@
 function admission_letter_column_exists(PDO $pdo, string $table, string $column): bool {
     try {
         $sanitizedTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-        $stmt = $pdo->prepare("SHOW COLUMNS FROM `{$sanitizedTable}` LIKE ?");
-        $stmt->execute([$column]);
-        return (bool) $stmt->fetchColumn();
+        $sanitizedColumn = preg_replace('/[^a-zA-Z0-9_]/', '', $column);
+        $pdo->query("SELECT `{$sanitizedColumn}` FROM `{$sanitizedTable}` LIMIT 0");
+        return true;
     } catch (Throwable $e) {
         return false;
     }

@@ -35,9 +35,9 @@ function workflow_status_map(): array {
 
 function table_exists(PDO $pdo, string $table): bool {
     try {
-        $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
-        $stmt->execute([$table]);
-        return (bool) $stmt->fetchColumn();
+        $sanitizedTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $pdo->query("SELECT 1 FROM `{$sanitizedTable}` LIMIT 0");
+        return true;
     } catch (Throwable $e) {
         return false;
     }
@@ -45,11 +45,10 @@ function table_exists(PDO $pdo, string $table): bool {
 
 function column_exists(PDO $pdo, string $table, string $column): bool {
     try {
-        // Table name is sanitized against alphanumeric and underscores to prevent SQL injection
         $sanitizedTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
-        $stmt = $pdo->prepare("SHOW COLUMNS FROM `{$sanitizedTable}` LIKE ?");
-        $stmt->execute([$column]);
-        return (bool) $stmt->fetchColumn();
+        $sanitizedColumn = preg_replace('/[^a-zA-Z0-9_]/', '', $column);
+        $pdo->query("SELECT `{$sanitizedColumn}` FROM `{$sanitizedTable}` LIMIT 0");
+        return true;
     } catch (Throwable $e) {
         return false;
     }
