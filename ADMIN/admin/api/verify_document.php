@@ -102,8 +102,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $countStmt->execute([$applicationId]);
                 $counts = $countStmt->fetch(PDO::FETCH_ASSOC);
                 if ($counts && (int) $counts['total_docs'] > 0 && (int) $counts['total_docs'] === (int) $counts['verified_docs']) {
+                    // Update progress stage
+                    $progressQuery = "
+                        INSERT INTO application_progress 
+                            (application_id, stage, stage_status, stage_updated_at) 
+                        VALUES 
+                            (:app_id, 'Documents Verification', 'Completed', NOW())
+                        ON DUPLICATE KEY UPDATE 
+                            stage_status = 'Completed',
+                            stage_updated_at = NOW()
+                    ";
+                    $progStmt = $pdo->prepare($progressQuery);
+                    $progStmt->execute([':app_id' => $applicationId]);
+
+                    // Ensure completion percentage is 100
                     $upd = $pdo->prepare("UPDATE applications SET completion_percentage = 100 WHERE application_id = ? AND (completion_percentage IS NULL OR completion_percentage < 100)");
                     $upd->execute([$applicationId]);
+
+                    // If status was ACTION_REQUIRED_DOCS, return it to SUBMITTED
+                    $statusStmt = $pdo->prepare("SELECT current_status FROM applications WHERE application_id = ?");
+                    $statusStmt->execute([$applicationId]);
+                    $currStatus = $statusStmt->fetchColumn();
+                    if ($currStatus === 'ACTION_REQUIRED_DOCS') {
+                        update_application_status($pdo, $applicationId, 'SUBMITTED', [
+                            'actor_id' => $user_id,
+                            'actor_role' => $_SESSION['role'] ?? 'ADMIN',
+                            'note' => 'All documents verified. Application status restored to Submitted.'
+                        ]);
+                    }
+                }
+                
+                // Recalculate/update completion helper
+                if (file_exists(__DIR__ . '/../../../includes/completion_service.php')) {
+                    require_once __DIR__ . '/../../../includes/completion_service.php';
+                    update_completion($pdo, $applicationId);
                 }
             }
         }

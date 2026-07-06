@@ -79,36 +79,42 @@
             <div class="sidebar-section">
                 <div class="sidebar-label">Admissions</div>
                 <ul class="sidebar-nav">
+                    <!-- Stage 1: Application Submitted -->
                     <li>
                         <a class="<?php echo $currentPage === 'application-management.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/application-management.php'); ?>">
                             <i class="fas fa-file-alt"></i>
                             <span>Application Management</span>
                         </a>
                     </li>
+                    <!-- Stage 2: Documents Verification -->
                     <li>
                         <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/document-verification.php'); ?>">
                             <i class="fas fa-check-circle"></i>
                             <span>Document Verification</span>
                         </a>
                     </li>
-                    <li>
-                        <a class="<?php echo $currentPage === 'academic-review.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/academic-review.php'); ?>">
-                            <i class="fas fa-book-open"></i>
-                            <span>Academic Review</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a class="<?php echo $currentPage === 'assigned-applications.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/reviewer/assigned-applications.php'); ?>">
-                            <i class="fas fa-user-shield"></i>
-                            <span>PG Review</span>
-                        </a>
-                    </li>
+                    <!-- Stage 3: Referee Report -->
                     <li>
                         <a class="<?php echo $currentPage === 'referees.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/referees.php'); ?>">
                             <i class="fas fa-user-check"></i>
                             <span>Referees</span>
                         </a>
                     </li>
+                    <!-- Stage 4: Departmental Review -->
+                    <li>
+                        <a class="<?php echo $currentPage === 'academic-review.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/academic-review.php'); ?>">
+                            <i class="fas fa-book-open"></i>
+                            <span>Academic Review</span>
+                        </a>
+                    </li>
+                    <!-- Stage 5: PG Review -->
+                    <li>
+                        <a class="<?php echo $currentPage === 'assigned-applications.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/reviewer/assigned-applications.php'); ?>">
+                            <i class="fas fa-user-shield"></i>
+                            <span>PG Review</span>
+                        </a>
+                    </li>
+                    <!-- Stage 6: Final Decisions -->
                     <li>
                         <a class="<?php echo $currentPage === 'admission-decisions.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/admission-decisions.php'); ?>">
                             <i class="fas fa-gavel"></i>

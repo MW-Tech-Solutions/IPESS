@@ -106,7 +106,13 @@ try {
     $referees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // 3. Fetch Documents
-    $stmt = $pdo->prepare("SELECT * FROM documents WHERE application_id = ? ORDER BY uploaded_at DESC");
+    $stmt = $pdo->prepare("
+        SELECT d.*, COALESCE(dv.verification_status, 'Pending') as verification_status, dv.admin_remark 
+        FROM documents d 
+        LEFT JOIN document_verification dv ON d.doc_id = dv.upload_id 
+        WHERE d.application_id = ? 
+        ORDER BY d.uploaded_at DESC
+    ");
     $stmt->execute([$appId]);
     $uploaded_documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -979,6 +985,14 @@ require_once __DIR__ . '/includes/topbar.php';
                 $fileIcon   = getFileIcon($filename);
                 $uploadDate = date('M d', strtotime($doc['uploaded_at']));
                 $filePath = htmlspecialchars(app_url($doc['file_path']));
+                $status     = $doc['verification_status'] ?? 'Pending';
+                $statusClass = 'bg-warning text-dark';
+                if ($status === 'Verified') {
+                    $statusClass = 'bg-success text-white';
+                } elseif ($status === 'Re-upload Required' || $status === 'Rejected') {
+                    $statusClass = 'bg-danger text-white';
+                    $status = 'Rejected';
+                }
             ?>
 
             <button
@@ -992,6 +1006,7 @@ require_once __DIR__ . '/includes/topbar.php';
                 <div class="doc-info w-100">
                     <div class="d-flex justify-content-between">
                         <h6 class="mb-0"><?php echo htmlspecialchars($docTitle); ?></h6>
+                        <span class="badge <?php echo $statusClass; ?> ms-auto" style="font-size: 10px; padding: 4px 8px;"><?php echo htmlspecialchars($status); ?></span>
                     </div>
 
                     <div class="d-flex justify-content-between mt-1">

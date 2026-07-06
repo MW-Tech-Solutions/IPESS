@@ -1,3 +1,10 @@
+<?php
+require_once __DIR__ . '/../../app/bootstrap.php';
+if (in_array(normalize_role(current_user_role()), ['SUPER_ADMIN', 'ICT_ADMIN'], true)) {
+    require_once __DIR__ . '/../super-admin/includes/sidebar.php';
+    return;
+}
+?>
 <nav class="sidebar" id="sidebar">
 
     <div class="sidebar-header">

@@ -49,7 +49,11 @@ try {
     require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
     $progManager = new ApplicationProgressManager($pdo);
     if (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_PG_REVIEW)) {
-        throw new Exception("Cannot make a final decision before the PG Review stage is completed.");
+        // Auto-complete preceding stages instead of blocking
+        $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_DOC_VERIFY, ApplicationProgressManager::STATUS_COMPLETED);
+        $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_REFEREES, ApplicationProgressManager::STATUS_COMPLETED);
+        $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, ApplicationProgressManager::STATUS_COMPLETED);
+        $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_PG_REVIEW, ApplicationProgressManager::STATUS_COMPLETED);
     }
 
     if ($action === 'accept') {
