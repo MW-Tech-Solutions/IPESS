@@ -663,18 +663,14 @@ $totalPages = ceil($totalApplicants / 1);
         const iframe = document.getElementById('modal_doc_viewer');
         const placeholder = document.querySelector('#modalDocumentContainer .document-placeholder');
         
-        iframe.style.display = 'none';
-        placeholder.style.display = 'block';
-
-        if (filePath) {
-            iframe.src = filePath;
-            iframe.onload = function() {
-                placeholder.style.display = 'none';
-                iframe.style.display = 'block';
-            };
+        if (iframe) {
+            iframe.src = filePath || 'about:blank';
+            iframe.style.display = filePath ? 'block' : 'none';
+        }
+        if (placeholder) {
+            placeholder.style.display = 'none';
         }
 
-       
         document.querySelectorAll('.verification-checklist input').forEach(cb => cb.checked = false);
         document.getElementById('modalVerificationComments').value = '';
 
@@ -685,14 +681,14 @@ $totalPages = ceil($totalApplicants / 1);
     function submitVerificationFromModal() {
         if (!currentModalDocId) return;
 
-        const checkboxes = document.querySelectorAll('#verificationModal .verification-checklist input[type="checkbox"]');
-        let checkedCount = 0;
-        checkboxes.forEach(cb => { if(cb.checked) checkedCount++; });
-
+        const checks = document.querySelectorAll('#verificationModal .verification-checklist input:checked');
+        if (checks.length < 4) {
+            alert('Please complete all verification checks before submitting.');
+            return;
+        }
 
         const comments = document.getElementById('modalVerificationComments').value;
-        
-        updateDocumentStatus(currentModalDocId, 'Verified', comments, checkedCount);
+        updateDocumentStatus(currentModalDocId, 'Verified', comments, checks.length);
     }
 
     function openRejectionModalFromVerify() {

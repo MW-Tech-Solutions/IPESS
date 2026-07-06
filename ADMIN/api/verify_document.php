@@ -19,6 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$doc_id || !$status) {
         $response['message'] = 'Invalid input.';
     } else {
+        if ($status === 'Rejected') {
+            $status = 'Re-upload Required';
+        }
         try {
             $pdo->beginTransaction();
 
