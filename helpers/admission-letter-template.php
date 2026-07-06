@@ -1,9 +1,14 @@
 <?php
 
 function admission_letter_column_exists(PDO $pdo, string $table, string $column): bool {
-    $stmt = $pdo->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?");
-    $stmt->execute([$table, $column]);
-    return (bool) $stmt->fetchColumn();
+    try {
+        $sanitizedTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `{$sanitizedTable}` LIKE ?");
+        $stmt->execute([$column]);
+        return (bool) $stmt->fetchColumn();
+    } catch (Throwable $e) {
+        return false;
+    }
 }
 
 function admission_letter_fetch(PDO $pdo, string $appNumber, ?int $userId = null): ?array {

@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../../app/bootstrap.php';
 require_once __DIR__ . '/../../../includes/status_engine.php';
 require_once __DIR__ . '/../../../ADMIN/includes/mailer.php';
 enforce_session_timeout(900, 'ADMIN/login.php');
-require_role(['PG_SCHOOL_OFFICER', 'ADMISSIONS_OFFICER', 'PORTAL_ADMIN', 'SUPER_ADMIN'], 'ADMIN/login.php');
+require_role(['PG_SCHOOL_OFFICER', 'ADMISSIONS_OFFICER', 'PORTAL_ADMIN', 'SUPER_ADMIN', 'ICT_ADMIN'], 'ADMIN/login.php');
 
 $wantsJson = !empty($_POST['ajax']);
 if ($wantsJson) {
@@ -69,7 +69,7 @@ try {
         }
         $_SESSION['success_message'] = 'Application rejected.';
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     if ($wantsJson) {
         echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         exit();

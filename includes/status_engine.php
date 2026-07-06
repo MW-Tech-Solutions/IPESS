@@ -34,15 +34,25 @@ function workflow_status_map(): array {
 }
 
 function table_exists(PDO $pdo, string $table): bool {
-    $stmt = $pdo->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?");
-    $stmt->execute([$table]);
-    return (bool) $stmt->fetchColumn();
+    try {
+        $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
+        $stmt->execute([$table]);
+        return (bool) $stmt->fetchColumn();
+    } catch (Throwable $e) {
+        return false;
+    }
 }
 
 function column_exists(PDO $pdo, string $table, string $column): bool {
-    $stmt = $pdo->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?");
-    $stmt->execute([$table, $column]);
-    return (bool) $stmt->fetchColumn();
+    try {
+        // Table name is sanitized against alphanumeric and underscores to prevent SQL injection
+        $sanitizedTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `{$sanitizedTable}` LIKE ?");
+        $stmt->execute([$column]);
+        return (bool) $stmt->fetchColumn();
+    } catch (Throwable $e) {
+        return false;
+    }
 }
 
 function log_application_history(PDO $pdo, int $application_id, ?string $from_status, string $to_status, ?int $actor_id, ?string $actor_role, ?string $note = null): void {
@@ -84,15 +94,23 @@ function log_audit(PDO $pdo, string $event, ?int $user_id, string $details): voi
 
 function notify_user(PDO $pdo, int $user_id, string $title, string $message, string $type = 'info'): void {
     // Primary notifications table
-    if (table_exists($pdo, 'notifications')) {
-        $stmt = $pdo->prepare("INSERT INTO notifications (user_id, title, message, type, created_at) VALUES (?, ?, ?, ?, NOW())");
-        $stmt->execute([$user_id, $title, $message, $type]);
+    try {
+        if (table_exists($pdo, 'notifications')) {
+            $stmt = $pdo->prepare("INSERT INTO notifications (user_id, title, message, type, created_at) VALUES (?, ?, ?, ?, NOW())");
+            $stmt->execute([$user_id, $title, $message, $type]);
+        }
+    } catch (Throwable $e) {
+        error_log("Failed to insert primary notification: " . $e->getMessage());
     }
 
     // Backfill to applicant_notifications for existing UI
-    if (table_exists($pdo, 'applicant_notifications')) {
-        $stmt = $pdo->prepare("INSERT INTO applicant_notifications (application_id, notification_title, notification_message, is_read, created_at) VALUES ((SELECT application_id FROM applications WHERE user_id = ? ORDER BY application_id DESC LIMIT 1), ?, ?, 0, NOW())");
-        $stmt->execute([$user_id, $title, $message]);
+    try {
+        if (table_exists($pdo, 'applicant_notifications')) {
+            $stmt = $pdo->prepare("INSERT INTO applicant_notifications (application_id, notification_title, notification_message, is_read, created_at) VALUES ((SELECT application_id FROM applications WHERE user_id = ? ORDER BY application_id DESC LIMIT 1), ?, ?, 0, NOW())");
+            $stmt->execute([$user_id, $title, $message]);
+        }
+    } catch (Throwable $e) {
+        error_log("Failed to insert applicant notification backfill: " . $e->getMessage());
     }
 }
 
@@ -213,7 +231,7 @@ function update_application_status(PDO $pdo, int $application_id, string $new_st
                 $setStageProgress($application_id, 'Final Decisions', 'Rejected');
             }
         }
-    } catch (Exception $progressEx) {
+    } catch (Throwable $progressEx) {
         error_log('Error updating stage progress: ' . $progressEx->getMessage());
     }
 
