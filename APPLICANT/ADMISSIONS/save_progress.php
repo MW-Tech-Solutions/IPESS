@@ -375,7 +375,7 @@ try {
                     </p>
 
                     <div style='text-align: center;'>
-                        <a href='" . app_url('APPLICANT/ADMISSIONS/login.php') . "' style='background-color: #007bff; color: #ffffff; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-size: 15px; font-weight: bold; display: inline-block;'>
+                        <a href='" . app_url('APPLICANT/ADMISSIONS/login.php') . "' style='background-color: #6EB533; color: #ffffff; padding: 15px 25px; text-decoration: none; border-radius: 5px; font-size: 15px; font-weight: bold; display: inline-block;'>
                             Login to Track Admission Status 
                         </a>
                         </div>

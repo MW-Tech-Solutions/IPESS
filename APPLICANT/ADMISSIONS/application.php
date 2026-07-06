@@ -8,7 +8,22 @@
 <title>IPESS FUAM Postgraduate Application Form</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        /* JOSTUM brand green — override Bootstrap primary */
+        :root { --bs-primary: #6EB533; --bs-primary-rgb: 110,181,51; --bs-link-color: #6EB533; }
+        .btn-primary { background-color:#6EB533; border-color:#6EB533; }
+        .btn-primary:hover { background-color:#5a9e28; border-color:#5a9e28; }
+        .btn-outline-primary { color:#6EB533; border-color:#6EB533; }
+        .btn-outline-primary:hover { background-color:#6EB533; color:#fff; }
+        .text-primary { color:#6EB533 !important; }
+        .bg-primary { background-color:#6EB533 !important; }
+        .border-primary { border-color:#6EB533 !important; }
+        .form-control:focus,.form-select:focus { border-color:#6EB533; box-shadow:0 0 0 .25rem rgba(110,181,51,.25); }
+        .nav-pills .nav-link.active { background-color:#6EB533; }
+        .progress-bar { background-color:#6EB533; }
+    </style>
     
+
     <style>
         body {
             background-color: #f1f4f8;
@@ -51,9 +66,9 @@
             font-size: 14px;
         }
         .step-indicator li.active .step-icon {
-            background: #0d6efd;
+            background: #6EB533;
             color: #fff;
-            border-color: #0d6efd;
+            border-color: #6EB533;
         }
         .step-indicator li.completed .step-icon {
             background: #198754;
@@ -90,10 +105,10 @@
         .section-header {
             background-color: #f8f9fa;
             padding: 10px 15px;
-            border-left: 4px solid #0d6efd;
+            border-left: 4px solid #6EB533;
             margin-bottom: 20px;
             font-weight: 700;
-            color: #0d6efd;
+            color: #6EB533;
         }
 
         .referee-card {

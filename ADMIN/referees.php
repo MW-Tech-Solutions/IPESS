@@ -9,6 +9,7 @@ require_once 'db.php';
 require_once __DIR__ . '/../includes/referee_service.php';
 require_once __DIR__ . '/../includes/status_engine.php';
 require_once __DIR__ . '/../includes/completion_service.php';
+require_once __DIR__ . '/../config/urls.php';
 
 // --- UNIFIED POST HANDLER (Notify, Verify, Acknowledge) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -87,8 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($data) {
                 $applicantName = $data['first_name'] . ' ' . $data['surname'];
                 $request = create_referee_request($pdo, $refId, (int) $data['application_id'], $_SESSION['user_id'] ?? null);
-                $protocol = function_exists('is_secure_connection') ? (is_secure_connection() ? "https://" : "http://") : ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://");
-                $vLink = $protocol . $_SERVER['HTTP_HOST'] . "/referee_verify.php?token=" . urlencode($request['token']);
+                $vLink = app_absolute_url("referee_verify.php?token=" . urlencode($request['token']));
 
                 $sent = send_referee_request_email($pdo, $refId, $vLink);
                 $_SESSION['message'] = $sent ? "Notification sent successfully." : "Mail Error: unable to send.";
@@ -223,7 +223,7 @@ require_once 'includes/topbar.php'; // Opens .main-content
 
 <style>
     /* Local Styles Only */
-    .document-item.selected { background-color: #f0f7ff; border-left: 4px solid #0d6efd !important; }
+    .document-item.selected { background-color: #f2fce9; border-left: 4px solid #6EB533 !important; }
     .document-item:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.2s; }
 </style>
 

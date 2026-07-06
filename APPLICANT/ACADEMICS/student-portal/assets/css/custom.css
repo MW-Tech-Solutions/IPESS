@@ -478,3 +478,48 @@ body {
         border-bottom: 1px solid var(--jostum-border);
     }
 }
+
+/* ------------------------------------------------------
+   Bootstrap 5 – Override primary color to JOSTUM green
+   ------------------------------------------------------ */
+:root {
+    --bs-primary: #6EB533;
+    --bs-primary-rgb: 110, 181, 51;
+    --bs-link-color: #6EB533;
+    --bs-link-color-rgb: 110, 181, 51;
+    --bs-link-hover-color: #5a9e28;
+}
+
+.btn-primary {
+    background-color: #6EB533;
+    border-color: #6EB533;
+    color: #fff;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: #5a9e28;
+    border-color: #5a9e28;
+    color: #fff;
+}
+.btn-outline-primary {
+    color: #6EB533;
+    border-color: #6EB533;
+}
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+    background-color: #6EB533;
+    border-color: #6EB533;
+    color: #fff;
+}
+.text-primary { color: #6EB533 !important; }
+.bg-primary   { background-color: #6EB533 !important; }
+.border-primary { border-color: #6EB533 !important; }
+.badge.bg-primary { background-color: #6EB533 !important; }
+.form-check-input:checked { background-color: #6EB533; border-color: #6EB533; }
+.form-control:focus, .form-select:focus {
+    border-color: #6EB533;
+    box-shadow: 0 0 0 0.25rem rgba(110, 181, 51, 0.25);
+}
+.nav-link.active, .nav-pills .nav-link.active { background-color: #6EB533; }
+.page-link { color: #6EB533; }
+.page-item.active .page-link { background-color: #6EB533; border-color: #6EB533; }
+a { color: #6EB533; }
+a:hover { color: #5a9e28; }

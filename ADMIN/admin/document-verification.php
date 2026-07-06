@@ -755,8 +755,8 @@ function openRejectionModalFromVerify() {
     const style = document.createElement('style');
     style.textContent = `
         .document-item.selected {
-            background-color: #f0f8ff;
-            border-color: #0d6efd !important;
+            background-color: #f2fce9;
+            border-color: #6EB533 !important;
         }
         .text-sm {
             font-size: 0.875rem;

@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../../../app/bootstrap.php';
 enforce_session_timeout(900, 'ADMIN/login.php');
-require_role(['REVIEWER', 'SUPER_ADMIN'], 'ADMIN/login.php');
+require_role(['REVIEWER', 'SUPER_ADMIN', 'PG_SCHOOL_OFFICER'], 'ADMIN/login.php');
 ?>
 <!DOCTYPE html>
 <html lang="en">

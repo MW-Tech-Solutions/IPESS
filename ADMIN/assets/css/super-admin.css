@@ -1,9 +1,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+3:wght@400;500;600;700&display=swap");
 
 :root {
-    --uam-green: #0b5b3f;
-    --uam-green-dark: #063b29;
-    --uam-green-soft: #147a57;
+    --uam-green: #6EB533;
+    --uam-green-dark: #5a9e28;
+    --uam-green-soft: #7fc93c;
     --uam-gold: #d4af37;
     --uam-cream: #f6f2e7;
     --uam-sand: #efe6d3;
@@ -577,3 +577,20 @@ h1, h2, h3, h4, h5, h6 {
         display: inline-flex;
     }
 }
+
+/* -- Bootstrap primary override for JOSTUM brand green -- */
+:root {
+    --bs-primary: #6EB533;
+    --bs-primary-rgb: 110, 181, 51;
+    --bs-link-color: #6EB533;
+    --bs-link-hover-color: #5a9e28;
+}
+.btn-primary           { background-color:#6EB533 !important; border-color:#6EB533 !important; color:#fff !important; }
+.btn-primary:hover     { background-color:#5a9e28 !important; border-color:#5a9e28 !important; }
+.btn-outline-primary   { color:#6EB533 !important; border-color:#6EB533 !important; }
+.btn-outline-primary:hover { background-color:#6EB533 !important; color:#fff !important; }
+.text-primary          { color:#6EB533 !important; }
+.bg-primary            { background-color:#6EB533 !important; }
+.border-primary        { border-color:#6EB533 !important; }
+.form-control:focus,.form-select:focus { border-color:#6EB533; box-shadow:0 0 0 .25rem rgba(110,181,51,.25); }
+.page-item.active .page-link { background-color:#6EB533; border-color:#6EB533; }

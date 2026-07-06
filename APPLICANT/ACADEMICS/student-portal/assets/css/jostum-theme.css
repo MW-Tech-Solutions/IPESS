@@ -1,6 +1,6 @@
 :root {
-  --jostum-primary: #3498db;
-  --jostum-primary-600: #258cd1;
+  --jostum-primary: #6EB533;
+  --jostum-primary-600: #5a9e28;
   --jostum-secondary: #27ae60;
   --jostum-secondary-600: #229955;
   --jostum-bg: #f2f2f2;
@@ -13,7 +13,7 @@
   --jostum-warning: #f39c12;
   --jostum-info: #3498db;
   --jostum-link: #494949;
-  --jostum-link-hover: #3498db;
+  --jostum-link-hover: #6EB533;
   --jostum-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   --jostum-shadow-strong: 0 2px 5px rgba(0, 0, 0, 0.15);
   --jostum-radius: 4px;
@@ -363,3 +363,48 @@ a:focus {
     display: block;
   }
 }
+
+/* ------------------------------------------------------
+   Bootstrap 5 – Override primary color to JOSTUM green
+   ------------------------------------------------------ */
+:root {
+    --bs-primary: #6EB533;
+    --bs-primary-rgb: 110, 181, 51;
+    --bs-link-color: #6EB533;
+    --bs-link-color-rgb: 110, 181, 51;
+    --bs-link-hover-color: #5a9e28;
+}
+
+.btn-primary {
+    background-color: #6EB533;
+    border-color: #6EB533;
+    color: #fff;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: #5a9e28;
+    border-color: #5a9e28;
+    color: #fff;
+}
+.btn-outline-primary {
+    color: #6EB533;
+    border-color: #6EB533;
+}
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+    background-color: #6EB533;
+    border-color: #6EB533;
+    color: #fff;
+}
+.text-primary { color: #6EB533 !important; }
+.bg-primary   { background-color: #6EB533 !important; }
+.border-primary { border-color: #6EB533 !important; }
+.badge.bg-primary { background-color: #6EB533 !important; }
+.form-check-input:checked { background-color: #6EB533; border-color: #6EB533; }
+.form-control:focus, .form-select:focus {
+    border-color: #6EB533;
+    box-shadow: 0 0 0 0.25rem rgba(110, 181, 51, 0.25);
+}
+.nav-link.active, .nav-pills .nav-link.active { background-color: #6EB533; }
+.page-link { color: #6EB533; }
+.page-item.active .page-link { background-color: #6EB533; border-color: #6EB533; }
+a { color: #6EB533; }
+a:hover { color: #5a9e28; }

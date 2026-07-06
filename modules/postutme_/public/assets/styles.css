@@ -1550,3 +1550,20 @@ main:has(.gateway-shell) + .portal-footer {
         margin-bottom: .08rem;
     }
 }
+
+/* -- Bootstrap primary override for JOSTUM brand green -- */
+:root {
+    --bs-primary: #6EB533;
+    --bs-primary-rgb: 110, 181, 51;
+    --bs-link-color: #6EB533;
+    --bs-link-hover-color: #5a9e28;
+}
+.btn-primary           { background-color:#6EB533 !important; border-color:#6EB533 !important; color:#fff !important; }
+.btn-primary:hover     { background-color:#5a9e28 !important; border-color:#5a9e28 !important; }
+.btn-outline-primary   { color:#6EB533 !important; border-color:#6EB533 !important; }
+.btn-outline-primary:hover { background-color:#6EB533 !important; color:#fff !important; }
+.text-primary          { color:#6EB533 !important; }
+.bg-primary            { background-color:#6EB533 !important; }
+.border-primary        { border-color:#6EB533 !important; }
+.form-control:focus,.form-select:focus { border-color:#6EB533; box-shadow:0 0 0 .25rem rgba(110,181,51,.25); }
+.page-item.active .page-link { background-color:#6EB533; border-color:#6EB533; }

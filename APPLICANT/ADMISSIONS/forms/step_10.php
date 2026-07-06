@@ -148,12 +148,12 @@ if ($is_admitted_status) {
     .pipeline-step { display: flex; flex-direction: column; align-items: center; text-align: center; flex: 1; position: relative; z-index: 1; min-width: 90px; }
     .pipeline-dot { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: all .25s ease; flex-shrink: 0; margin-bottom: 10px; }
     .pipeline-dot.pending     { background: #f8f9fa; color: #ced4da; border: 2px solid #e9ecef; }
-    .pipeline-dot.processing  { background: #fff; color: #0d6efd; border: 2px solid #0d6efd; box-shadow: 0 0 0 4px rgba(13,110,253,.12); }
+    .pipeline-dot.processing  { background: #fff; color: #6EB533; border: 2px solid #6EB533; box-shadow: 0 0 0 4px rgba(110,181,51,.12); }
     .pipeline-dot.completed   { background: #198754; color: #fff; border: 2px solid #198754; }
     .pipeline-dot.approved    { background: #198754; color: #fff; border: 2px solid #198754; }
     .pipeline-dot.rejected    { background: #dc3545; color: #fff; border: 2px solid #dc3545; }
     .pipeline-label { font-size: 11px; font-weight: 700; color: #6c757d; line-height: 1.3; max-width: 90px; }
-    .pipeline-label.active  { color: #0d6efd; }
+    .pipeline-label.active  { color: #6EB533; }
     .pipeline-label.done    { color: #198754; }
     .pipeline-label.failed  { color: #dc3545; }
     .pipeline-badge { font-size: 9px; margin-top: 4px; }

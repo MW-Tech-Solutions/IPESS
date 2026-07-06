@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 require_once __DIR__ . '/db.php';
 header('Content-Type: application/json');
@@ -19,19 +19,19 @@ try {
     $subject = "Application Received - ID: $appId";
     $contentHtml = "
         <div style='font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px;'>
-            <h2 style='color: #0d6efd; text-align: center;'>Application Confirmation</h2>
+            <h2 style='color: #6EB533; text-align: center;'>Application Confirmation</h2>
             <p>Dear $firstName $surname,</p>
             <p>Your postgraduate application has been received successfully.</p>
             
-            <div style='background: #e7f1ff; border: 1px dashed #0d6efd; padding: 20px; text-align: center; margin: 20px 0;'>
+            <div style='background: #f2fce9; border: 1px dashed #6EB533; padding: 20px; text-align: center; margin: 20px 0;'>
                 <span style='font-size: 12px; text-transform: uppercase; color: #666; letter-spacing: 1px;'>Your Application ID</span><br>
-                <strong style='font-size: 28px; color: #0d6efd;'>$appId</strong>
+                <strong style='font-size: 28px; color: #6EB533;'>$appId</strong>
             </div>
 
             <p>Please keep this ID safe. You will need it to login to the portal and track your admission status.</p>
             
             <div style='text-align: center; margin: 30px 0;'>
-                <a href='" . app_url('APPLICANT/ADMISSIONS/login.php') . "' style='background-color: #0d6efd; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Login to Status Portal</a>
+                <a href='" . app_url('APPLICANT/ADMISSIONS/login.php') . "' style='background-color: #6EB533; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Login to Status Portal</a>
             </div>
 
             <p style='font-size: 12px; color: #888; border-top: 1px solid #eee; pt-10px;'>

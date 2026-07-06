@@ -41,7 +41,7 @@ function send_referee_request_for_row(PDO $pdo, array $data): array {
         VALUES (?, ?, ?, 'Requested', ?, NOW(), ?)
     ")->execute([$data['referee_id'], $data['application_id'], $token, $_SESSION['user_id'] ?? null, $expires]);
 
-    $verifyLink = app_url('referee_verify.php?token=' . $token);
+    $verifyLink = app_absolute_url('referee_verify.php?token=' . $token);
     $subject = 'Referee Verification Request';
     $content = sprintf(
         '<p>Dear %s,</p>
@@ -482,7 +482,7 @@ try {
                 VALUES (?, ?, ?, 'Requested', ?, NOW(), ?)
             ")->execute([$data['referee_id'], $data['application_id'], $token, $_SESSION['user_id'] ?? null, $expires]);
 
-            $verifyLink = app_url('referee_verify.php?token=' . $token);
+            $verifyLink = app_absolute_url('referee_verify.php?token=' . $token);
 
             $subject = 'Referee Verification Request';
             $content = sprintf(

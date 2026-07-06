@@ -13,6 +13,7 @@ session_start();
     <title>Verify Your Email - PG Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>:root{--bs-primary:#6EB533;--bs-primary-rgb:110,181,51}.btn-primary{background-color:#6EB533;border-color:#6EB533}.btn-primary:hover{background-color:#5a9e28;border-color:#5a9e28}.text-primary{color:#6EB533!important}</style>
     <style>
         body { background-color: #f1f4f8; display: flex; align-items: center; min-height: 100vh; }
         .verification-card { 
@@ -23,7 +24,7 @@ session_start();
             width: 45px; height: 55px; font-size: 24px; font-weight: bold;
             text-align: center; border: 2px solid #dee2e6; border-radius: 8px; margin: 0 5px;
         }
-        .otp-input-group input:focus { border-color: #0d6efd; outline: none; box-shadow: 0 0 8px rgba(13,110,253,0.25); }
+        .otp-input-group input:focus { border-color: #6EB533; outline: none; box-shadow: 0 0 8px rgba(110,181,51,0.25); }
     </style>
 </head>
 <body>

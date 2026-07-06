@@ -98,6 +98,12 @@
                         </a>
                     </li>
                     <li>
+                        <a class="<?php echo $currentPage === 'assigned-applications.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/reviewer/assigned-applications.php'); ?>">
+                            <i class="fas fa-user-shield"></i>
+                            <span>PG Review</span>
+                        </a>
+                    </li>
+                    <li>
                         <a class="<?php echo $currentPage === 'referees.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/referees.php'); ?>">
                             <i class="fas fa-user-check"></i>
                             <span>Referees</span>

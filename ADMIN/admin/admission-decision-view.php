@@ -34,7 +34,7 @@ try {
         FROM applications a
         LEFT JOIN users u ON a.user_id = u.user_id
         LEFT JOIN personal_details p ON a.application_id = p.application_id
-        LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
+        LEFT JOIN programme_choices pc ON a.application_id = pc.application_id AND pc.faculty > 0
         LEFT JOIN nysc_details n ON a.application_id = n.application_id
         LEFT JOIN work_experience w ON a.application_id = w.application_id
         LEFT JOIN research_details r ON a.application_id = r.application_id

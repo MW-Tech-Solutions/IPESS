@@ -185,7 +185,7 @@ try {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="ADMIN/assets/css/style.css">
     <style>
-        :root { --primary-color: #0d6efd; --bg-color: #f4f7f6; }
+        :root { --primary-color: #6EB533; --bg-color: #f4f7f6; }
         body { background-color: var(--bg-color); font-family: inherit; }
         .verify-container { max-width: 650px; margin: 60px auto; }
         .card { border: none; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.08); overflow: hidden; }

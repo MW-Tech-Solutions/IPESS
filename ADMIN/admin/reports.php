@@ -179,20 +179,18 @@ $savedReports = [
             <button class="btn btn-primary btn-sm" onclick="generateReport()">
                 <i class="fas fa-plus"></i> Generate Report
             </button>
-            <button class="btn btn-success btn-sm" onclick="exportReport()">
-                <i class="fas fa-download"></i> Export
-            </button>
             <div class="dropdown">
-                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <i class="fas fa-calendar"></i> Date Range
+                <button class="btn btn-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="fas fa-download"></i> Download CSV
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#" onclick="setDateRange('today')">Today</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="setDateRange('week')">This Week</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="setDateRange('month')">This Month</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="setDateRange('year')">This Year</a></li>
+                    <li><a class="dropdown-item" href="export-students.php?status=all"><i class="fas fa-users text-primary me-2"></i>All Students</a></li>
                     <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item" href="#" onclick="setDateRange('custom')">Custom Range</a></li>
+                    <li><a class="dropdown-item" href="export-students.php?status=Admitted"><i class="fas fa-check-circle text-success me-2"></i>Admitted Students</a></li>
+                    <li><a class="dropdown-item" href="export-students.php?status=Rejected"><i class="fas fa-times-circle text-danger me-2"></i>Rejected Students</a></li>
+                    <li><a class="dropdown-item" href="export-students.php?status=Submitted"><i class="fas fa-hourglass-half text-warning me-2"></i>Pending Students</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="export-students.php?type=summary"><i class="fas fa-table text-info me-2"></i>Programme Summary</a></li>
                 </ul>
             </div>
         </div>
@@ -303,6 +301,62 @@ $savedReports = [
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Downloads Section -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-file-download me-2"></i>Download Student Lists</h5>
+            <small class="text-muted">Export data as CSV (opens directly in Excel)</small>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <a href="export-students.php?status=all" class="btn btn-primary w-100 py-3">
+                        <i class="fas fa-users fa-2x d-block mb-2"></i>
+                        <strong>All Students</strong><br>
+                        <small><?= number_format($totalApplications) ?> records</small>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="export-students.php?status=Admitted" class="btn btn-success w-100 py-3">
+                        <i class="fas fa-check-circle fa-2x d-block mb-2"></i>
+                        <strong>Admitted</strong><br>
+                        <small><?= number_format($approvedAdmissions) ?> records</small>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <?php
+                    $rejectedCount = $pdo->query("SELECT COUNT(*) FROM applications WHERE status = 'Rejected'")->fetchColumn();
+                    ?>
+                    <a href="export-students.php?status=Rejected" class="btn btn-danger w-100 py-3">
+                        <i class="fas fa-times-circle fa-2x d-block mb-2"></i>
+                        <strong>Rejected</strong><br>
+                        <small><?= number_format($rejectedCount) ?> records</small>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <?php
+                    $pendingCount = $pdo->query("SELECT COUNT(*) FROM applications WHERE status = 'Submitted'")->fetchColumn();
+                    ?>
+                    <a href="export-students.php?status=Submitted" class="btn btn-warning w-100 py-3">
+                        <i class="fas fa-hourglass-half fa-2x d-block mb-2"></i>
+                        <strong>Pending</strong><br>
+                        <small><?= number_format($pendingCount) ?> records</small>
+                    </a>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <a href="export-students.php?type=summary" class="btn btn-outline-info">
+                        <i class="fas fa-table me-2"></i>Download Programme Summary (CSV)
+                    </a>
+                    <a href="export-decisions.php" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-gavel me-2"></i>Download Admission Decisions (CSV)
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -456,8 +510,8 @@ document.addEventListener('DOMContentLoaded', function() {
             datasets: [{
                 label: 'Applications',
                 data: monthlyApps,
-                borderColor: '#0d6efd',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                borderColor: '#6EB533',
+                backgroundColor: 'rgba(110, 181, 51, 0.1)',
                 tension: 0.4
             }, {
                 label: 'Approved',
@@ -482,7 +536,7 @@ document.addEventListener('DOMContentLoaded', function() {
             labels: programmeLabels,
             datasets: [{
                 data: programmeValues,
-                backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6c757d']
+                backgroundColor: ['#6EB533', '#198754', '#ffc107', '#dc3545', '#6c757d']
             }]
         },
         options: {

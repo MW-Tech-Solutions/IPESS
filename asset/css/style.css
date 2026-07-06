@@ -9,7 +9,7 @@
     --sidebar-bg: #0f172a;
     --sidebar-text: #cbd5e1;
     --sidebar-hover: #334155;
-    --sidebar-active: #2563eb;
+    --sidebar-active: #6EB533;
     --text-primary: #1e293b;
     --text-secondary: #64748b;
     --text-muted: #94a3b8;
@@ -18,7 +18,7 @@
     --success: #10b981;
     --warning: #f59e0b;
     --danger: #ef4444;
-    --info: #3b82f6;
+    --info: #6EB533;
 }
 
 /* Global Reset and Typography */
@@ -334,7 +334,7 @@ body {
     font-size: 1.5rem;
 }
 
-.kpi-icon.primary { background-color: rgba(37, 99, 235, 0.1); color: var(--sidebar-active); }
+.kpi-icon.primary { background-color: rgba(110, 181, 51, 0.1); color: var(--sidebar-active); }
 .kpi-icon.success { background-color: rgba(16, 185, 129, 0.1); color: var(--success); }
 .kpi-icon.warning { background-color: rgba(245, 158, 11, 0.1); color: var(--warning); }
 .kpi-icon.danger { background-color: rgba(239, 68, 68, 0.1); color: var(--danger); }
@@ -454,7 +454,7 @@ body {
 .badge-success { background-color: rgba(16, 185, 129, 0.1); color: var(--success); }
 .badge-warning { background-color: rgba(245, 158, 11, 0.1); color: var(--warning); }
 .badge-danger { background-color: rgba(239, 68, 68, 0.1); color: var(--danger); }
-.badge-info { background-color: rgba(59, 130, 246, 0.1); color: var(--info); }
+.badge-info { background-color: rgba(110, 181, 51, 0.1); color: var(--info); }
 
 /* Tabs */
 .nav-tabs {
@@ -527,7 +527,7 @@ body {
 
 .form-control:focus {
     border-color: var(--sidebar-active);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 3px rgba(110, 181, 51, 0.1);
 }
 
 .form-label {
@@ -740,3 +740,48 @@ body {
         padding: 0 !important;
     }
 }
+
+/* ------------------------------------------------------
+   Bootstrap 5 – Override primary color to JOSTUM green
+   ------------------------------------------------------ */
+:root {
+    --bs-primary: #6EB533;
+    --bs-primary-rgb: 110, 181, 51;
+    --bs-link-color: #6EB533;
+    --bs-link-color-rgb: 110, 181, 51;
+    --bs-link-hover-color: #5a9e28;
+}
+
+.btn-primary {
+    background-color: #6EB533;
+    border-color: #6EB533;
+    color: #fff;
+}
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: #5a9e28;
+    border-color: #5a9e28;
+    color: #fff;
+}
+.btn-outline-primary {
+    color: #6EB533;
+    border-color: #6EB533;
+}
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+    background-color: #6EB533;
+    border-color: #6EB533;
+    color: #fff;
+}
+.text-primary { color: #6EB533 !important; }
+.bg-primary   { background-color: #6EB533 !important; }
+.border-primary { border-color: #6EB533 !important; }
+.badge.bg-primary { background-color: #6EB533 !important; }
+.form-check-input:checked { background-color: #6EB533; border-color: #6EB533; }
+.form-control:focus, .form-select:focus {
+    border-color: #6EB533;
+    box-shadow: 0 0 0 0.25rem rgba(110, 181, 51, 0.25);
+}
+.nav-link.active, .nav-pills .nav-link.active { background-color: #6EB533; }
+.page-link { color: #6EB533; }
+.page-item.active .page-link { background-color: #6EB533; border-color: #6EB533; }
+a { color: #6EB533; }
+a:hover { color: #5a9e28; }

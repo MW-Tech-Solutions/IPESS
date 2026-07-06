@@ -206,6 +206,7 @@ try {
             LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
             LEFT JOIN courses c ON pc.course = c.course_id
             WHERE pc.faculty = ? AND pc.department = ? AND pc.degree_type = ? AND pc.course = ?
+            GROUP BY a.application_id
             ORDER BY p.surname ASC
         ");
         $stmt->execute([$facultyId, $departmentId, $programmeId, $courseId]);
