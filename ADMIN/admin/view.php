@@ -1093,7 +1093,7 @@ document.querySelectorAll('.decision-form').forEach(form => {
         const formData = new FormData(this);
         formData.append('ajax', '1');
 
-        fetch(this.action, {
+        fetch(this.getAttribute('action') || './includes/application_actions.php', {
             method: 'POST',
             body: formData
         })

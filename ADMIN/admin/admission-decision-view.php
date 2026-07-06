@@ -786,7 +786,7 @@ document.querySelectorAll('.decision-form').forEach(form => {
         const formData = new FormData(this);
         formData.append('ajax', '1');
 
-        fetch(this.action, {
+        fetch(this.getAttribute('action') || 'includes/process_decision.php', {
             method: 'POST',
             body: formData
         })
