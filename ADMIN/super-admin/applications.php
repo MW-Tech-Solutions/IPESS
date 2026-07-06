@@ -68,10 +68,10 @@ if ($pdo) {
     $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
 
     $countSql = "
-        SELECT COUNT(*)
+        SELECT COUNT(DISTINCT a.application_id)
         FROM applications a
         LEFT JOIN personal_details p ON p.application_id = a.application_id
-        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
+        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id AND pc.faculty > 0
         LEFT JOIN faculties f ON f.faculty_id = pc.faculty
         LEFT JOIN departments d ON d.dept_id = pc.department
         LEFT JOIN degree_types dt ON dt.degree_id = pc.degree_type
@@ -89,13 +89,14 @@ if ($pdo) {
                f.faculty_name, d.dept_name, dt.degree_name, sm.mode_name, c.course_title
         FROM applications a
         LEFT JOIN personal_details p ON p.application_id = a.application_id
-        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
+        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id AND pc.faculty > 0
         LEFT JOIN faculties f ON f.faculty_id = pc.faculty
         LEFT JOIN departments d ON d.dept_id = pc.department
         LEFT JOIN degree_types dt ON dt.degree_id = pc.degree_type
         LEFT JOIN study_modes sm ON sm.mode_id = pc.mode_of_study
         LEFT JOIN courses c ON c.course_id = pc.course
         $whereSql
+        GROUP BY a.application_id
         ORDER BY a.submitted_at DESC, a.application_id DESC
         LIMIT $limit OFFSET $offset
     ";

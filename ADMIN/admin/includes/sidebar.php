@@ -87,12 +87,6 @@ try {
                     <span>Reports</span>
                 </a>
             </li>
-            <li>
-                <a href="../../modules/postutme/admin/dashboard.php">
-                    <i class="fas fa-clipboard-list"></i>
-                    <span>POST-UTME Screening</span>
-                </a>
-            </li>
         </ul>
     </div>
     <div class="sidebar-footer">

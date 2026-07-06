@@ -69,7 +69,15 @@ $baseJoins = "
     FROM applications a
     JOIN personal_details pd ON a.application_id = pd.application_id
     JOIN documents d ON a.application_id = d.application_id
-    LEFT JOIN document_verification dv ON d.doc_id = dv.upload_id
+    LEFT JOIN (
+        SELECT dv1.upload_id, dv1.verification_status, dv1.admin_remark, dv1.verified_by, dv1.verified_at
+        FROM document_verification dv1
+        JOIN (
+            SELECT MAX(verification_id) as max_id 
+            FROM document_verification 
+            GROUP BY upload_id
+        ) dv2 ON dv1.verification_id = dv2.max_id
+    ) dv ON d.doc_id = dv.upload_id
 ";
 
 $whereClauses = [];
@@ -538,24 +546,17 @@ function openVerificationModal(docId, filePath, docTitle) {
 
     // 2. Load File into Iframe
     const iframe = document.getElementById('modal_doc_viewer');
-    const placeholder = document.querySelector('.document-placeholder');
-    
-    // Reset display
-    iframe.style.display = 'none';
-    placeholder.style.display = 'block';
-
-    // Set source
-    if (filePath) {
-        iframe.src = filePath;
-        iframe.onload = function() {
-            placeholder.style.display = 'none';
-            iframe.style.display = 'block';
-        };
+    if (iframe) {
+        iframe.src = filePath || 'about:blank';
+        iframe.style.display = filePath ? 'block' : 'none';
     }
 
     // 3. Reset Form Inputs
-    document.querySelectorAll('.verification-checklist input').forEach(cb => cb.checked = false);
-    document.getElementById('modalVerificationComments').value = '';
+    document.querySelectorAll('#verificationModal .verification-checklist input').forEach(cb => cb.checked = false);
+    const commentsEl = document.getElementById('modalVerificationComments');
+    if (commentsEl) {
+        commentsEl.value = '';
+    }
 
     // 4. Show Modal
     const myModal = new bootstrap.Modal(document.getElementById('verificationModal'));
@@ -578,11 +579,11 @@ function submitVerificationFromModal() {
 }
 
 function openRejectionModalFromVerify() {
-    
-    
     const verifyModalEl = document.getElementById('verificationModal');
     const verifyModal = bootstrap.Modal.getInstance(verifyModalEl);
-    verifyModal.hide();
+    if (verifyModal) {
+        verifyModal.hide();
+    }
 
     selectedDocId = currentModalDocId; 
 
@@ -603,25 +604,21 @@ function openRejectionModalFromVerify() {
         });
         element.classList.add('selected');
 
-        const documentViewer = document.getElementById('documentViewer');
-        const verificationPanel = document.getElementById('verificationPanel');
         const docViewerIframe = document.getElementById('doc_viewer_iframe');
         const placeholder = document.querySelector('.document-placeholder');
 
         if (filePath) {
             docViewerIframe.src = filePath;
             docViewerIframe.style.display = 'block';
-            placeholder.style.display = 'none';
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
         } else {
             docViewerIframe.style.display = 'none';
-            placeholder.style.display = 'block';
+            if (placeholder) {
+                placeholder.style.display = 'block';
+            }
         }
-        
-        verificationPanel.style.display = 'block';
-
-        // Reset inputs
-        document.querySelectorAll('.verification-checklist input').forEach(cb => cb.checked = false);
-        document.getElementById('verificationComments').value = '';
     }
 
     function submitVerification() {
@@ -629,15 +626,14 @@ function openRejectionModalFromVerify() {
             alert('Please select a document first.');
             return;
         }
-
-        const checks = document.querySelectorAll('.verification-checklist input:checked');
-        if (checks.length < 4) {
-            alert('Please complete all verification checks before submitting.');
-            return;
+        // Verification happens via the modal workflow
+        const docItem = document.querySelector(`.document-item[data-doc-id="${selectedDocId}"]`);
+        if (docItem) {
+            const titleEl = docItem.querySelector('strong');
+            const docTitle = titleEl ? titleEl.textContent : 'Document';
+            const filePath = docItem.dataset.filePath;
+            openVerificationModal(selectedDocId, filePath, docTitle);
         }
-
-        const comments = document.getElementById('verificationComments').value;
-        updateDocumentStatus(selectedDocId, 'Verified', comments);
     }
 
     function submitRejection() {

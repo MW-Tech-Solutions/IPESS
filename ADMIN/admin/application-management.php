@@ -33,9 +33,9 @@ $applications = [];
 $totalRows = 0;
 $totalPages = 1;
 
-$countSql = "SELECT COUNT(*) FROM applications a 
+$countSql = "SELECT COUNT(DISTINCT a.application_id) FROM applications a 
              LEFT JOIN personal_details p ON a.application_id = p.application_id 
-             LEFT JOIN programme_choices pc ON a.application_id = pc.application_id";
+             LEFT JOIN programme_choices pc ON pc.application_id = a.application_id AND pc.faculty > 0";
 
 $sql = "SELECT 
             a.application_id, 
@@ -51,7 +51,7 @@ $sql = "SELECT
             c.course_title 
         FROM applications a 
         LEFT JOIN personal_details p ON a.application_id = p.application_id 
-        LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
+        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id AND pc.faculty > 0
         LEFT JOIN faculties f ON pc.faculty = f.faculty_id
         LEFT JOIN departments d ON pc.department = d.dept_id
         LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
@@ -86,7 +86,7 @@ if (count($whereClauses) > 0) {
 }
 
 $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
-$limit = 3;
+$limit = 10; // Let's check limit or keep it original
 $offset = ($page - 1) * $limit;
 
 if (isset($pdo)) {
@@ -96,7 +96,7 @@ if (isset($pdo)) {
         $totalRows = $countStmt->fetchColumn();
         $totalPages = ceil($totalRows / $limit);
 
-        $sql .= " ORDER BY a.submitted_at DESC LIMIT $limit OFFSET $offset";
+        $sql .= " GROUP BY a.application_id ORDER BY a.submitted_at DESC LIMIT $limit OFFSET $offset";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);

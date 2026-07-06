@@ -109,12 +109,6 @@
                             <span>Admission Decisions</span>
                         </a>
                     </li>
-                    <!-- <li>
-                        <a href="<?php echo app_url('modules/postutme/admin/dashboard.php'); ?>">
-                            <i class="fas fa-clipboard-list"></i>
-                            <span>POST-UTME Screening</span>
-                        </a>
-                    </li> -->
                 </ul>
             </div>
             <div class="sidebar-section">

@@ -38,7 +38,7 @@ try {
         FROM applications a
         LEFT JOIN users u ON a.user_id = u.user_id
         LEFT JOIN personal_details p ON a.application_id = p.application_id
-        LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
+        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id AND pc.faculty > 0
         LEFT JOIN nysc_details n ON a.application_id = n.application_id
         LEFT JOIN work_experience w ON a.application_id = w.application_id
         LEFT JOIN research_details r ON a.application_id = r.application_id
@@ -529,7 +529,7 @@ require_once __DIR__ . '/includes/topbar.php';
                     <input type="hidden" name="app_no" value="<?php echo htmlspecialchars($appNumber); ?>">
                     <input type="hidden" name="embed" value="<?php echo $isEmbed ? '1' : '0'; ?>">
                     <input type="hidden" name="action" value="accept">
-                    <button type="submit" class="btn btn-outline-success px-4 submit-btn" <?php echo ($app['current_status'] !== 'DRAFT') ? 'disabled style="pointer-events: none; opacity: 0.6;"' : ''; ?>>
+                    <button type="submit" class="btn btn-outline-success px-4 submit-btn" <?php echo ($app['status'] === 'Admitted' || $app['status'] === 'Rejected') ? 'disabled style="pointer-events: none; opacity: 0.6;"' : ''; ?>>
                         <span class="btn-text"><i class="bi bi-check-circle me-2"></i>Accept Application</span>
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                     </button>
@@ -539,7 +539,7 @@ require_once __DIR__ . '/includes/topbar.php';
                     <input type="hidden" name="app_no" value="<?php echo htmlspecialchars($appNumber); ?>">
                     <input type="hidden" name="embed" value="<?php echo $isEmbed ? '1' : '0'; ?>">
                     <input type="hidden" name="action" value="reject">
-                    <button type="submit" class="btn btn-outline-danger px-4 submit-btn" <?php echo ($app['current_status'] !== 'DRAFT') ? 'disabled style="pointer-events: none; opacity: 0.6;"' : ''; ?>>
+                    <button type="submit" class="btn btn-outline-danger px-4 submit-btn" <?php echo ($app['status'] === 'Admitted' || $app['status'] === 'Rejected') ? 'disabled style="pointer-events: none; opacity: 0.6;"' : ''; ?>>
                         <span class="btn-text"><i class="bi bi-x-circle me-2"></i>Reject Application</span>
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                     </button>
