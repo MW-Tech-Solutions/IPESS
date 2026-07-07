@@ -27,8 +27,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($appId) {
                 require_once __DIR__ . '/../classes/ApplicationProgressManager.php';
                 $progManager = new ApplicationProgressManager($pdo);
-                if (!$progManager->isStageCompleted((int) $appId, ApplicationProgressManager::STAGE_DOC_VERIFY)) {
-                    $_SESSION['message'] = "Cannot verify referee reports before Documents Verification is completed.";
+                $missingStage = null;
+                if (!$progManager->canAdvanceToStage((int) $appId, ApplicationProgressManager::STAGE_REFEREES, $missingStage)) {
+                    $_SESSION['message'] = "Cannot verify referee reports before the '{$missingStage}' stage is completed.";
                     $_SESSION['msg_type'] = "danger";
                     header("Location: referees.php?page=" . $currentPageNum);
                     exit;

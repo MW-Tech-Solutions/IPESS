@@ -381,6 +381,14 @@ try {
             exit;
         }
 
+        require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+        $progManager = new ApplicationProgressManager($pdo);
+        $missingStage = null;
+        if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, $missingStage)) {
+            echo json_encode(['success' => false, 'message' => "Cannot process Academic Review before the '{$missingStage}' stage is completed."]);
+            exit;
+        }
+
         update_application_status($pdo, $appId, 'SUBMITTED', [
             'actor_id' => $_SESSION['user_id'] ?? null,
             'actor_role' => $_SESSION['role'] ?? 'ADMIN',
@@ -402,6 +410,14 @@ try {
         $appId = (int) ($_POST['application_id'] ?? 0);
         if ($appId <= 0) {
             echo json_encode(['success' => false, 'message' => 'Invalid application.']);
+            exit;
+        }
+
+        require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+        $progManager = new ApplicationProgressManager($pdo);
+        $missingStage = null;
+        if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, $missingStage)) {
+            echo json_encode(['success' => false, 'message' => "Cannot process Academic Review before the '{$missingStage}' stage is completed."]);
             exit;
         }
 
@@ -429,10 +445,17 @@ try {
             echo json_encode(['success' => false, 'message' => 'Invalid bulk action.']);
             exit;
         }
+        require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+        $progManager = new ApplicationProgressManager($pdo);
         foreach ($ids as $id) {
             $appId = (int) $id;
             if ($appId <= 0) {
                 continue;
+            }
+            $missingStage = null;
+            if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, $missingStage)) {
+                echo json_encode(['success' => false, 'message' => "Application ID {$appId} cannot perform Departmental Review before the '{$missingStage}' stage is completed."]);
+                exit;
             }
             if ($bulkAction === 'mark_reviewed') {
                 update_application_status($pdo, $appId, 'UNDER_DEPT_REVIEW', [

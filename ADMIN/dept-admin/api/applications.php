@@ -133,8 +133,9 @@ if ($action === 'update' || $action === 'bulk') {
         $appId = (int) $appRow['application_id'];
         require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
         $progManager = new ApplicationProgressManager($pdo);
-        if (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_REFEREES)) {
-            echo json_encode(['success' => false, 'message' => 'Cannot perform Departmental Review before Referee Report is completed for application ' . $item['app_code']]);
+        $missingStage = null;
+        if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, $missingStage)) {
+            echo json_encode(['success' => false, 'message' => "Cannot perform Departmental Review before the '{$missingStage}' stage is completed."]);
             exit;
         }
 

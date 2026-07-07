@@ -119,7 +119,26 @@ class ApplicationProgressManager {
     public function isStageCompleted(int $appId, string $stageName): bool {
         $history = $this->getAllProgress($appId);
         $status = strtoupper(trim($history[$stageName]['status'] ?? ''));
-        return in_array($status, ['COMPLETED', 'APPROVED'], true);
+        return in_array($status, ['COMPLETED', 'APPROVED', 'REJECTED'], true);
+    }
+
+    public function canAdvanceToStage(int $appId, string $stageName, &$missingStage = null): bool {
+        $history = $this->getAllProgress($appId);
+        if (empty($history)) {
+            $this->initializeApplication($appId);
+            $history = $this->getAllProgress($appId);
+        }
+        foreach (self::ALL_STAGES as $stage) {
+            if ($stage === $stageName) {
+                break;
+            }
+            $status = strtoupper(trim($history[$stage]['status'] ?? ''));
+            if (!in_array($status, ['COMPLETED', 'APPROVED', 'REJECTED'], true)) {
+                $missingStage = $stage;
+                return false;
+            }
+        }
+        return true;
     }
 }
 ?>

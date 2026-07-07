@@ -535,8 +535,11 @@ require_once __DIR__ . '/includes/topbar.php';
                     <input type="hidden" name="app_no" value="<?php echo htmlspecialchars($appNumber); ?>">
                     <input type="hidden" name="embed" value="<?php echo $isEmbed ? '1' : '0'; ?>">
                     <input type="hidden" name="action" value="accept">
-                    <button type="submit" class="btn btn-outline-success px-4 submit-btn" <?php echo ($app['status'] === 'Admitted' || $app['status'] === 'Rejected') ? 'disabled style="pointer-events: none; opacity: 0.6;"' : ''; ?>>
-                        <span class="btn-text"><i class="bi bi-check-circle me-2"></i>Accept Application</span>
+                    <?php 
+                        $isAccepted = (in_array(strtolower($app['status'] ?? ''), ['submitted', 'admitted', 'rejected'], true));
+                    ?>
+                    <button type="submit" class="btn btn-outline-success px-4 submit-btn" <?php echo $isAccepted ? 'disabled style="pointer-events: none; opacity: 0.6;"' : ''; ?>>
+                        <span class="btn-text"><i class="bi bi-check-circle me-2"></i><?php echo (strtolower($app['status'] ?? '') === 'submitted') ? 'Submission Accepted' : 'Accept Submission'; ?></span>
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                     </button>
                 </form>

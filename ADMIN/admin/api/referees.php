@@ -613,8 +613,9 @@ try {
         if ($appId > 0) {
             require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
             $progManager = new ApplicationProgressManager($pdo);
-            if (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_DOC_VERIFY)) {
-                echo json_encode(['success' => false, 'message' => 'Cannot verify referee reports before Documents Verification is completed.']);
+            $missingStage = null;
+            if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_REFEREES, $missingStage)) {
+                echo json_encode(['success' => false, 'message' => "Cannot verify referee reports before the '{$missingStage}' stage is completed."]);
                 exit;
             }
         }

@@ -25,6 +25,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo->beginTransaction();
 
+            require_once __DIR__ . '/../../classes/ApplicationProgressManager.php';
+            $progManager = new ApplicationProgressManager($pdo);
+            $appStmt = $pdo->prepare("SELECT application_id FROM documents WHERE doc_id = ?");
+            $appStmt->execute([$doc_id]);
+            $applicationId = (int) $appStmt->fetchColumn();
+            $missingStage = null;
+            if ($applicationId > 0 && !$progManager->canAdvanceToStage($applicationId, ApplicationProgressManager::STAGE_DOC_VERIFY, $missingStage)) {
+                $response['message'] = "Cannot verify documents before the '{$missingStage}' stage is completed.";
+                echo json_encode($response);
+                exit;
+            }
+
             $query = "
                 INSERT INTO document_verification 
                     (upload_id, verification_status, admin_remark, score, verified_by, verified_at) 

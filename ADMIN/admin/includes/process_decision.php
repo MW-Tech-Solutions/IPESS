@@ -88,12 +88,9 @@ try {
     if (in_array($decision, ['admit', 'approve', 'reject'], true)) {
         require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
         $progManager = new ApplicationProgressManager($pdo);
-        if (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_PG_REVIEW)) {
-            // Auto-complete preceding stages instead of blocking
-            $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_DOC_VERIFY, ApplicationProgressManager::STATUS_COMPLETED);
-            $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_REFEREES, ApplicationProgressManager::STATUS_COMPLETED);
-            $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, ApplicationProgressManager::STATUS_COMPLETED);
-            $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_PG_REVIEW, ApplicationProgressManager::STATUS_COMPLETED);
+        $missingStage = null;
+        if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_DECISION, $missingStage)) {
+            throw new Exception("Cannot make a final decision before the '{$missingStage}' stage is completed.");
         }
     }
 

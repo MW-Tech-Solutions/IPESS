@@ -45,94 +45,36 @@ try {
     $userEmail = $row['email'];
     $appUserId = (int) ($row['user_id'] ?? 0);
 
-    // Verify PG Review stage completion
     require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
     $progManager = new ApplicationProgressManager($pdo);
-    if (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_PG_REVIEW)) {
-        // Auto-complete preceding stages instead of blocking
-        $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_DOC_VERIFY, ApplicationProgressManager::STATUS_COMPLETED);
-        $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_REFEREES, ApplicationProgressManager::STATUS_COMPLETED);
-        $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, ApplicationProgressManager::STATUS_COMPLETED);
-        $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_PG_REVIEW, ApplicationProgressManager::STATUS_COMPLETED);
-    }
+    $progManager->initializeApplication($appId);
 
     if ($action === 'accept') {
-        update_application_status($pdo, $appId, 'ADMISSION_APPROVED', [
+        update_application_status($pdo, $appId, 'SUBMITTED', [
             'actor_id' => $_SESSION['user_id'] ?? null,
             'actor_role' => $_SESSION['role'] ?? 'ADMIN',
-            'note' => 'Admission approved'
+            'note' => 'Application submission accepted'
         ]);
 
+        $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_SUBMITTED, ApplicationProgressManager::STATUS_COMPLETED);
+        $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_DOC_VERIFY, ApplicationProgressManager::STATUS_IN_PROGRESS);
+
         if ($appUserId > 0) {
-            notify_user($pdo, $appUserId, 'Admission Approved', 'Congratulations! Your admission has been approved.');
+            notify_user($pdo, $appUserId, 'Application Accepted', 'Your postgraduate application has been accepted and is now under verification.');
         }
 
-        $subject = "Congratulations! Admission Offer - JOSTUM PG";
+        $subject = "Application Submission Received - JOSTUM PG";
         $body = "<p>Dear <strong>{$fullName}</strong>,</p>
-                <p>We are pleased to inform you that you have been offered admission into the Postgraduate programme at
-                <strong>Joseph Sarwuan Tarka University, Makurdi (JOSTUM)</strong>.</p>
+                <p>We are pleased to inform you that your Postgraduate application has been successfully accepted into our review process.</p>
                 <p><strong>Application Number:</strong> {$appNumber}</p>
-                <p>Your official admission letter is attached to this email as a PDF document.</p>
-                <p>Regards,<br>Admission Officer, PG School</p>";
-
-        // Generate Admission Letter PDF
-        require_once __DIR__ . '/../../../config/urls.php';
-        require_once __DIR__ . '/../../../helpers/admission-letter-template.php';
-
-        $attachmentPath = '';
-        $attachmentName = '';
-
-        try {
-            $applicant = admission_letter_fetch($pdo, $appNumber, null);
-            if ($applicant) {
-                $html = render_admission_letter_html($applicant, [
-                    'include_print_button' => false,
-                    'for_pdf' => true
-                ]);
-
-                $autoload = __DIR__ . '/../../vendor/autoload.php';
-                if (file_exists($autoload)) {
-                    require_once $autoload;
-                }
-
-                if (class_exists(\Dompdf\Dompdf::class)) {
-                    $options = new \Dompdf\Options();
-                    $options->set('isRemoteEnabled', true);
-                    $options->set('defaultFont', 'DejaVu Sans');
-                    $dompdf = new \Dompdf\Dompdf($options);
-                    $dompdf->loadHtml($html);
-                    $dompdf->setPaper('A4', 'portrait');
-                    $dompdf->render();
-                    $pdf = $dompdf->output();
-
-                    $safeName = preg_replace('/[^A-Za-z0-9_]+/', '_', $fullName);
-                    $safeName = trim($safeName, '_');
-                    $attachmentName = 'Admission_Letter_' . ($safeName !== '' ? $safeName : 'Student') . '_' . $appNumber . '.pdf';
-                    $attachmentPath = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . uniqid('admission_letter_', true) . '.pdf';
-                    file_put_contents($attachmentPath, $pdf);
-                }
-            }
-        } catch (Throwable $pdfEx) {
-            error_log("Failed to generate PDF: " . $pdfEx->getMessage());
-        }
-
-        $ctaMeta = [];
-        if ($attachmentPath !== '' && file_exists($attachmentPath)) {
-            $ctaMeta['attachments'] = [[
-                'path' => $attachmentPath,
-                'name' => $attachmentName !== '' ? $attachmentName : 'Admission_Letter.pdf'
-            ]];
-        }
+                <p>Your documents are currently undergoing verification. We will update you as the review progresses.</p>
+                <p>Regards,<br>Admissions Team, PG School</p>";
 
         if (!empty($userEmail)) {
-            portal_send_mail($userEmail, $fullName, $subject, $body, '', $ctaMeta);
+            portal_send_mail($userEmail, $fullName, $subject, $body, '');
         }
 
-        if ($attachmentPath !== '' && file_exists($attachmentPath)) {
-            @unlink($attachmentPath);
-        }
-
-        $_SESSION['success_message'] = 'Application accepted (Admitted).';
+        $_SESSION['success_message'] = 'Application submission accepted and moved to Document Verification stage.';
     }
 
     if ($action === 'reject') {

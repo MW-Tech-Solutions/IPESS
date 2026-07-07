@@ -80,8 +80,9 @@ if ($action === 'update_status') {
 
     require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
     $progManager = new ApplicationProgressManager($pdo);
-    if (!$progManager->isStageCompleted($assignmentId, ApplicationProgressManager::STAGE_DEPT_REVIEW)) {
-        echo json_encode(['success' => false, 'message' => 'Cannot perform PG Review before Departmental Review is completed.']);
+    $missingStage = null;
+    if (!$progManager->canAdvanceToStage($assignmentId, ApplicationProgressManager::STAGE_PG_REVIEW, $missingStage)) {
+        echo json_encode(['success' => false, 'message' => "Cannot perform PG Review before the '{$missingStage}' stage is completed."]);
         exit;
     }
 
@@ -106,8 +107,9 @@ if ($action === 'bulk') {
     require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
     $progManager = new ApplicationProgressManager($pdo);
     foreach ($ids as $id) {
-        if (!$progManager->isStageCompleted((int) $id, ApplicationProgressManager::STAGE_DEPT_REVIEW)) {
-            echo json_encode(['success' => false, 'message' => 'Cannot perform PG Review on application ID ' . $id . ' before Departmental Review is completed.']);
+        $missingStage = null;
+        if (!$progManager->canAdvanceToStage((int) $id, ApplicationProgressManager::STAGE_PG_REVIEW, $missingStage)) {
+            echo json_encode(['success' => false, 'message' => 'Cannot perform PG Review on application ID ' . $id . " before the '{$missingStage}' stage is completed."]);
             exit;
         }
     }
