@@ -103,6 +103,10 @@ require_once 'includes/topbar.php';
                                         </div>
                                     </div>
                                 </div>
+                                <div class="mt-3 text-end" id="ref1ActionContainer" style="display:none;">
+                                    <button class="btn btn-sm btn-success me-1" id="ref1VerifyBtn" onclick="processRefereeAction(1, 'verify')"><i class="fas fa-check me-1"></i>Verify</button>
+                                    <button class="btn btn-sm btn-danger" id="ref1RejectBtn" onclick="processRefereeAction(1, 'reject')"><i class="fas fa-times me-1"></i>Reject</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -135,6 +139,10 @@ require_once 'includes/topbar.php';
                                             <iframe id="ref2WorkIdFrame" src="about:blank" class="w-100 h-100 border-0" style="display:none;"></iframe>
                                         </div>
                                     </div>
+                                </div>
+                                <div class="mt-3 text-end" id="ref2ActionContainer" style="display:none;">
+                                    <button class="btn btn-sm btn-success me-1" id="ref2VerifyBtn" onclick="processRefereeAction(2, 'verify')"><i class="fas fa-check me-1"></i>Verify</button>
+                                    <button class="btn btn-sm btn-danger" id="ref2RejectBtn" onclick="processRefereeAction(2, 'reject')"><i class="fas fa-times me-1"></i>Reject</button>
                                 </div>
                             </div>
                         </div>
@@ -425,6 +433,68 @@ function fillReferee(index, ref) {
     setText(`ref${index}WorkEmail`, ref.work_email);
     setPreviewDoc(`ref${index}Passport`, ref.passport_path);
     setPreviewDoc(`ref${index}WorkId`, ref.work_id_path);
+
+    const actionContainer = document.getElementById(`ref${index}ActionContainer`);
+    if (actionContainer) {
+        if (status === 'Submitted' && ref.referee_id) {
+            actionContainer.style.display = 'block';
+            actionContainer.dataset.refereeId = ref.referee_id;
+        } else {
+            actionContainer.style.display = 'none';
+        }
+    }
+}
+
+async function processRefereeAction(index, action) {
+    const actionContainer = document.getElementById(`ref${index}ActionContainer`);
+    const refId = actionContainer ? actionContainer.dataset.refereeId : '';
+    if (!refId) return;
+
+    let remarks = '';
+    if (action === 'reject') {
+        remarks = prompt('Enter reason for rejection:');
+        if (remarks === null) return; // cancelled
+        if (!remarks.trim()) {
+            alert('Rejection reason is required.');
+            return;
+        }
+    }
+
+    const formData = new FormData();
+    formData.append('action', action);
+    formData.append('referee_id', refId);
+    if (remarks) {
+        formData.append('remarks', remarks);
+    }
+
+    try {
+        const res = await fetch('api/referees.php', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`Referee ${action === 'verify' ? 'verified' : 'rejected'} successfully.`);
+            // Refresh modal and table
+            const footer = document.querySelector('#refereeModal .modal-footer');
+            const appId = footer ? footer.getAttribute('data-app-id') : '';
+            if (appId) {
+                // Hide modal, refresh list, reopen modal
+                const modalEl = document.getElementById('refereeModal');
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+                await loadReferees();
+                await viewSubmission(appId);
+            } else {
+                location.reload();
+            }
+        } else {
+            alert(data.message || 'Action failed.');
+        }
+    } catch (err) {
+        console.error(err);
+        alert('An error occurred.');
+    }
 }
 
 function setText(id, value) {

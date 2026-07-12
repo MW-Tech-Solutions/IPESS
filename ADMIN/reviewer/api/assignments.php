@@ -37,7 +37,43 @@ if ($action === 'list') {
         exit;
     }
 
-    $stmt = $pdo->prepare("\
+    $facultyId = (int) ($_GET['faculty_id'] ?? 0);
+    $departmentId = (int) ($_GET['department_id'] ?? 0);
+    $programmeId = $_GET['programme_id'] ?? '';
+    $courseId = $_GET['course_id'] ?? '';
+
+    $role = strtoupper(trim($_SESSION['role'] ?? ''));
+
+    if (in_array($role, ['SUPER_ADMIN', 'ICT_ADMIN', 'PG_ADMIN', 'ADMIN'], true)) {
+        $where = ["1 = 1"];
+        $params = [];
+    } else {
+        $where = ["a.assigned_reviewer_id = ?"];
+        $params = [$reviewerId];
+    }
+
+    $where[] = "a.current_status IN ('REVIEWER_ASSIGNED', 'DEPT_APPROVED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ACTION_REQUIRED_REVIEW')";
+
+    if ($facultyId > 0) {
+        $where[] = "pc.faculty = ?";
+        $params[] = $facultyId;
+    }
+    if ($departmentId > 0) {
+        $where[] = "pc.department = ?";
+        $params[] = $departmentId;
+    }
+    if ($programmeId !== '') {
+        $where[] = "c.degree_id = ?";
+        $params[] = $programmeId;
+    }
+    if ($courseId !== '') {
+        $where[] = "pc.course = ?";
+        $params[] = $courseId;
+    }
+
+    $whereSql = implode(' AND ', $where);
+
+    $stmt = $pdo->prepare("
         SELECT a.application_id, a.application_number, a.current_status, a.submitted_at,
                pd.first_name, pd.surname, c.course_title,
                (SELECT h.note FROM application_status_history h WHERE h.application_id = a.application_id AND h.actor_role = 'REVIEWER' ORDER BY h.created_at DESC LIMIT 1) AS reviewer_note
@@ -45,11 +81,10 @@ if ($action === 'list') {
         LEFT JOIN personal_details pd ON a.application_id = pd.application_id
         LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
         LEFT JOIN courses c ON pc.course = c.course_id
-        WHERE a.assigned_reviewer_id = ?
-          AND a.current_status IN ('REVIEWER_ASSIGNED', 'DEPT_APPROVED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ACTION_REQUIRED_REVIEW')
+        WHERE {$whereSql}
         ORDER BY a.submitted_at DESC
     ");
-    $stmt->execute([$reviewerId]);
+    $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $data = array_map(function ($row) {

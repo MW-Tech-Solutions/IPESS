@@ -213,14 +213,20 @@ try {
     <header>
         <div class="header-top">
             <div class="logo-box">
-                <img src="../images/jostum.jpeg" alt="JOSTUM Logo" class="uni-logo">
+                <img src="../ADMIN/images/ipess_logo.png" alt="IPESS Logo" class="uni-logo">
             </div>
             <div class="header-titles">
                 <h2>Joseph Sarwuan Tarka University, Makurdi</h2>
                 <p>Postgraduate School</p>
                 <div class="fw-bold mt-1 text-dark" style="font-size: 0.85rem;">Official Application Acknowledgment Slip</div>
             </div>
-            <div class="d-none d-md-block"></div>
+            <div class="passport-box text-end">
+                <?php if (!empty($passport['file_path'])): ?>
+                    <img src="<?php echo htmlspecialchars($passportPath); ?>" alt="User Passport" style="width: 90px; height: 110px; border: 1px solid #ddd; object-fit: cover;">
+                <?php else: ?>
+                    <div style="width: 90px; height: 110px; border: 1px dashed #ddd; display: inline-block; line-height: 110px; text-align: center; color: #aaa; font-size: 8pt;">No Photo</div>
+                <?php endif; ?>
+            </div>
         </div>
 
         <div class="header-ruler"></div>
@@ -229,11 +235,6 @@ try {
             <div class="meta-box">
                 <span>Application Number</span>
                 <strong><?php echo htmlspecialchars($appNumber); ?></strong>
-            </div>
-            <div class="passport-box d-flex justify-content-end">
-                <div class="passport-frame">
-                    <img src="<?php echo htmlspecialchars($passportPath); ?>" alt="User Passport" class="passport-img">
-                </div>
             </div>
         </div>
     </header>

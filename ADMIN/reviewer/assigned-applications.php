@@ -56,6 +56,35 @@ require_once 'includes/topbar.php';
     </div>
 </section>
 
+<section class="panel mb-3">
+    <div class="panel-header">
+        <div>
+            <h3 class="panel-title">Filter Assignments</h3>
+            <div class="panel-muted">Narrow down assignments by academic structure.</div>
+        </div>
+    </div>
+    <div class="panel-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Faculty</label>
+                <select class="form-select" id="filterFaculty"></select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Department</label>
+                <select class="form-select" id="filterDepartment" disabled></select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Programme</label>
+                <select class="form-select" id="filterProgramme" disabled></select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Course</label>
+                <select class="form-select" id="filterCourse" disabled></select>
+            </div>
+        </div>
+    </div>
+</section>
+
 <section class="panel">
     <div class="panel-header">
         <div>
@@ -160,7 +189,15 @@ require_once 'includes/topbar.php';
 <script>
 let assignments = [];
 
+const filters = {
+    faculty: document.getElementById('filterFaculty'),
+    department: document.getElementById('filterDepartment'),
+    programme: document.getElementById('filterProgramme'),
+    course: document.getElementById('filterCourse')
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+    loadFaculties();
     loadAssignments();
     const selectAll = document.getElementById('selectAll');
     if (selectAll) {
@@ -180,8 +217,97 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+function setOptions(selectEl, items, placeholder) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '';
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = placeholder;
+    selectEl.appendChild(defaultOption);
+    items.forEach(item => {
+        const opt = document.createElement('option');
+        opt.value = item.id;
+        opt.textContent = item.name;
+        selectEl.appendChild(opt);
+    });
+}
+
+async function fetchJson(url) {
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.data || data;
+}
+
+async function loadFaculties() {
+    const data = await fetchJson('../admin/api/academic-review.php?action=faculties');
+    setOptions(filters.faculty, data, 'Select Faculty');
+    if (filters.faculty) {
+        filters.faculty.disabled = false;
+        filters.faculty.addEventListener('change', onFacultyChange);
+    }
+}
+
+async function onFacultyChange() {
+    if (filters.department) filters.department.disabled = true;
+    if (filters.programme) filters.programme.disabled = true;
+    if (filters.course) filters.course.disabled = true;
+    
+    if (filters.department) filters.department.value = '';
+    if (filters.programme) filters.programme.value = '';
+    if (filters.course) filters.course.value = '';
+
+    loadAssignments();
+
+    if (!filters.faculty || !filters.faculty.value) return;
+    const data = await fetchJson(`../admin/api/academic-review.php?action=departments&faculty_id=${filters.faculty.value}`);
+    setOptions(filters.department, data, 'Select Department');
+    if (filters.department) {
+        filters.department.disabled = false;
+        filters.department.addEventListener('change', onDepartmentChange);
+    }
+}
+
+async function onDepartmentChange() {
+    if (filters.programme) filters.programme.disabled = true;
+    if (filters.course) filters.course.disabled = true;
+    
+    if (filters.programme) filters.programme.value = '';
+    if (filters.course) filters.course.value = '';
+
+    loadAssignments();
+
+    if (!filters.department || !filters.department.value) return;
+    const data = await fetchJson(`../admin/api/academic-review.php?action=programmes&faculty_id=${filters.faculty.value}&department_id=${filters.department.value}`);
+    setOptions(filters.programme, data, 'Select Programme');
+    if (filters.programme) {
+        filters.programme.disabled = false;
+        filters.programme.addEventListener('change', onProgrammeChange);
+    }
+}
+
+async function onProgrammeChange() {
+    if (filters.course) filters.course.disabled = true;
+    if (filters.course) filters.course.value = '';
+
+    loadAssignments();
+
+    if (!filters.programme || !filters.programme.value) return;
+    const data = await fetchJson(`../admin/api/academic-review.php?action=courses&faculty_id=${filters.faculty.value}&department_id=${filters.department.value}&programme_id=${filters.programme.value}`);
+    setOptions(filters.course, data, 'Select Course');
+    if (filters.course) {
+        filters.course.disabled = false;
+        filters.course.addEventListener('change', loadAssignments);
+    }
+}
+
 async function loadAssignments() {
-    const res = await fetch('api/assignments.php?action=list');
+    const faculty = filters.faculty ? filters.faculty.value : '';
+    const department = filters.department ? filters.department.value : '';
+    const programme = filters.programme ? filters.programme.value : '';
+    const course = filters.course ? filters.course.value : '';
+
+    const url = `api/assignments.php?action=list&faculty_id=${faculty}&department_id=${department}&programme_id=${programme}&course_id=${course}`;
+    const res = await fetch(url);
     const data = await res.json();
     if (!data.success) {
         alert(data.message || 'Unable to load assignments.');

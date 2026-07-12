@@ -106,7 +106,7 @@ try {
                 SELECT DISTINCT c.course_id AS id, c.course_title AS name
                 FROM programme_choices pc
                 JOIN courses c ON pc.course = c.course_id
-                WHERE pc.faculty = ? AND pc.department = ? AND pc.degree_type = ?
+                WHERE pc.faculty = ? AND pc.department = ? AND c.degree_id = ?
                 ORDER BY c.course_title ASC
             ");
             $stmt->execute([$facultyId, $departmentId, $programmeId]);
@@ -136,7 +136,7 @@ try {
         $params = [];
         if ($facultyId > 0) { $where[] = 'pc.faculty = ?'; $params[] = $facultyId; }
         if ($departmentId > 0) { $where[] = 'pc.department = ?'; $params[] = $departmentId; }
-        if ($programmeId !== '') { $where[] = 'pc.degree_type = ?'; $params[] = $programmeId; }
+        if ($programmeId !== '') { $where[] = 'c.degree_id = ?'; $params[] = $programmeId; }
         if ($courseId !== '') { $where[] = 'pc.course = ?'; $params[] = $courseId; }
 
         $filterSql = $where ? 'AND ' . implode(' AND ', $where) : '';
@@ -150,6 +150,7 @@ try {
                 SELECT COUNT(DISTINCT a.application_id)
                 FROM applications a
                 JOIN programme_choices pc ON a.application_id = pc.application_id
+                LEFT JOIN courses c ON pc.course = c.course_id
                 JOIN documents d ON d.application_id = a.application_id
                 WHERE 1=1 {$filterSql}
             ");
@@ -160,6 +161,7 @@ try {
                 SELECT COUNT(DISTINCT a.application_id)
                 FROM applications a
                 JOIN programme_choices pc ON a.application_id = pc.application_id
+                LEFT JOIN courses c ON pc.course = c.course_id
                 JOIN documents d ON d.application_id = a.application_id
                 JOIN document_verification dv ON dv.upload_id = d.doc_id
                 WHERE dv.verification_status = 'Verified'
@@ -205,7 +207,7 @@ try {
             JOIN programme_choices pc ON a.application_id = pc.application_id
             LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
             LEFT JOIN courses c ON pc.course = c.course_id
-            WHERE pc.faculty = ? AND pc.department = ? AND pc.degree_type = ? AND pc.course = ?
+            WHERE pc.faculty = ? AND pc.department = ? AND c.degree_id = ? AND pc.course = ?
             GROUP BY a.application_id
             ORDER BY p.surname ASC
         ");
@@ -389,17 +391,17 @@ try {
             exit;
         }
 
-        update_application_status($pdo, $appId, 'SUBMITTED', [
+        update_application_status($pdo, $appId, 'DEPT_APPROVED', [
             'actor_id' => $_SESSION['user_id'] ?? null,
             'actor_role' => $_SESSION['role'] ?? 'ADMIN',
-            'note' => 'Application accepted for processing'
+            'note' => 'Application approved by Department'
         ]);
 
         $stmt = $pdo->prepare("SELECT u.user_id FROM applications a JOIN users u ON a.user_id = u.user_id WHERE a.application_id = ? LIMIT 1");
         $stmt->execute([$appId]);
         $userId = (int) $stmt->fetchColumn();
         if ($userId > 0) {
-            notify_user($pdo, $userId, 'Submitted', 'Your application is currently being processed.');
+            notify_user($pdo, $userId, 'Department Approved', 'Your application has been approved by the department and forwarded to the PG School.');
         }
 
         echo json_encode(['success' => true]);
@@ -470,16 +472,16 @@ try {
                     'note' => 'Requested documents in Academic Review'
                 ]);
             } elseif ($bulkAction === 'accept_application') {
-                update_application_status($pdo, $appId, 'SUBMITTED', [
+                update_application_status($pdo, $appId, 'DEPT_APPROVED', [
                     'actor_id' => $_SESSION['user_id'] ?? null,
                     'actor_role' => $_SESSION['role'] ?? 'ADMIN',
-                    'note' => 'Application accepted for processing'
+                    'note' => 'Application approved by Department'
                 ]);
                 $stmt = $pdo->prepare("SELECT u.user_id, u.email, CONCAT(p.first_name, ' ', p.surname) AS name FROM applications a JOIN users u ON a.user_id = u.user_id JOIN personal_details p ON a.application_id = p.application_id WHERE a.application_id = ? LIMIT 1");
                 $stmt->execute([$appId]);
                 $row = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($row && !empty($row['user_id'])) {
-                    notify_user($pdo, (int) $row['user_id'], 'Submitted', 'Your application is currently being processed.');
+                    notify_user($pdo, (int) $row['user_id'], 'Department Approved', 'Your application has been approved by the department and forwarded to the PG School.');
                 }
             } elseif ($bulkAction === 'reject_application') {
                 update_application_status($pdo, $appId, 'ADMISSION_REJECTED', [

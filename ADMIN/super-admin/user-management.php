@@ -184,8 +184,9 @@ require_once 'includes/topbar.php';
                                         data-status="<?php echo htmlspecialchars($user['account_status']); ?>">
                                         Edit
                                     </button>
-                                    <button class="btn btn-light btn-sm send-reset" data-id="<?php echo (int) $user['user_id']; ?>">Send Reset</button>
-                                    <button class="btn btn-light btn-sm delete-user" data-id="<?php echo (int) $user['user_id']; ?>">Delete</button>
+                                     <button class="btn btn-outline-primary btn-sm edit-permissions" data-id="<?php echo (int) $user['user_id']; ?>" data-name="<?php echo htmlspecialchars($name ?: 'N/A'); ?>">Permissions</button>
+                                     <button class="btn btn-light btn-sm send-reset" data-id="<?php echo (int) $user['user_id']; ?>">Send Reset</button>
+                                     <button class="btn btn-light btn-sm delete-user" data-id="<?php echo (int) $user['user_id']; ?>">Delete</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -344,6 +345,31 @@ require_once 'includes/topbar.php';
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Permissions Overrides Modal -->
+<div class="modal fade" id="userPermissionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light border-bottom">
+                <div>
+                    <h5 class="modal-title fw-bold">User Permission Overrides</h5>
+                    <div class="text-muted small">Configure custom overrides for: <span id="permModalUserName" class="fw-bold">-</span></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4" style="max-height: 450px; overflow-y: auto;">
+                <input type="hidden" id="permModalUserId" value="">
+                <div id="permModalList" class="row g-2">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveUserPermissionOverrides()">Save Overrides</button>
+            </div>
         </div>
     </div>
 </div>
@@ -640,6 +666,119 @@ document.querySelectorAll('.unlock-user').forEach(button => {
             });
     });
 });
+
+document.querySelectorAll('.edit-permissions').forEach(button => {
+    button.addEventListener('click', async function() {
+        const userId = this.dataset.id;
+        const name = this.dataset.name;
+
+        document.getElementById('permModalUserId').value = userId;
+        document.getElementById('permModalUserName').textContent = name;
+
+        // Fetch overrides
+        const res = await fetch(`api/user-permissions.php?user_id=${userId}`);
+        const result = await res.json();
+        
+        if (!result.success) {
+            alert('Failed to load user permissions.');
+            return;
+        }
+
+        const overrides = result.data.overrides; // Object: { permission_key: 1/0 }
+        
+        const availablePermissions = [
+            { key: 'view_dashboard', label: 'View Dashboard' },
+            { key: 'view_applicants', label: 'View Applicants' },
+            { key: 'verify_applicants', label: 'Verify Credentials' },
+            { key: 'bulk_verify', label: 'Bulk Verification Actions' },
+            { key: 'download_documents', label: 'Download Credentials' },
+            { key: 'supervisor_management', label: 'Manage Supervisors' },
+            { key: 'assign_supervisor', label: 'Assign Supervisors' },
+            { key: 'change_supervisor', label: 'Change/Replace Supervisors' },
+            { key: 'remove_supervisor', label: 'Remove Supervisors' },
+            { key: 'bulk_supervisor_allocation', label: 'Bulk Supervisor Assignment' },
+            { key: 'faculty_review', label: 'Faculty Verification Stage' },
+            { key: 'department_review', label: 'Departmental Verification Stage' },
+            { key: 'pg_review', label: 'Postgraduate School Evaluation Stage' },
+            { key: 'ict_processing', label: 'ICT Admissions Registration Stage' },
+            { key: 'generate_matric_number', label: 'Generate Student Matriculation Numbers' },
+            { key: 'generate_student_number', label: 'Generate Student Numbers' },
+            { key: 'acceptance_letter', label: 'Activate/Deactivate Acceptance Letters' },
+            { key: 'admission_letter', label: 'Activate/Deactivate Admission Letters' },
+            { key: 'reports', label: 'Access System Reports' },
+            { key: 'export_pdf', label: 'Export Documents as PDF' },
+            { key: 'export_excel', label: 'Export Lists as Excel' },
+            { key: 'export_csv', label: 'Export Lists as CSV' },
+            { key: 'download_records', label: 'Download Records & Archives' },
+            { key: 'view_audit_logs', label: 'View Audit Logs' },
+            { key: 'user_management', label: 'Manage Accounts' },
+            { key: 'role_management', label: 'Manage Roles' },
+            { key: 'permission_management', label: 'Manage Modular Permissions' },
+            { key: 'settings', label: 'Configure System Settings' },
+            { key: 'workflow_configuration', label: 'Configure System Workflow Settings' }
+        ];
+
+        const container = document.getElementById('permModalList');
+        container.innerHTML = '';
+
+        availablePermissions.forEach(p => {
+            const hasOverride = overrides.hasOwnProperty(p.key);
+            const overrideVal = hasOverride ? parseInt(overrides[p.key]) : null;
+
+            const div = document.createElement('div');
+            div.className = 'col-md-6 mb-3 p-2 bg-light rounded border';
+            div.innerHTML = `
+                <div class="fw-bold mb-1" style="font-size: 0.85rem;">${p.label}</div>
+                <div class="d-flex gap-3" style="font-size: 0.75rem;">
+                    <div class="form-check">
+                        <input class="form-check-input perm-radio" type="radio" name="perm_${p.key}" id="inherit_${p.key}" value="inherit" ${!hasOverride ? 'checked' : ''}>
+                        <label class="form-check-label text-muted" for="inherit_${p.key}">Inherit</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input perm-radio text-success" type="radio" name="perm_${p.key}" id="grant_${p.key}" value="1" ${overrideVal === 1 ? 'checked' : ''}>
+                        <label class="form-check-label text-success fw-semibold" for="grant_${p.key}">Grant</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input perm-radio text-danger" type="radio" name="perm_${p.key}" id="deny_${p.key}" value="0" ${overrideVal === 0 ? 'checked' : ''}>
+                        <label class="form-check-label text-danger fw-semibold" for="deny_${p.key}">Deny</label>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+
+        const modal = new bootstrap.Modal(document.getElementById('userPermissionsModal'));
+        modal.show();
+    });
+});
+
+async function saveUserPermissionOverrides() {
+    const userId = document.getElementById('permModalUserId').value;
+    if (!userId) return;
+
+    const data = [];
+    document.querySelectorAll('.perm-radio:checked').forEach(radio => {
+        const key = radio.name.replace('perm_', '');
+        const val = radio.value;
+        if (val !== 'inherit') {
+            data.push({ permission_key: key, granted: parseInt(val) });
+        }
+    });
+
+    const form = new FormData();
+    form.append('user_id', userId);
+    form.append('overrides', JSON.stringify(data));
+
+    const res = await fetch('api/user-permissions.php', { method: 'POST', body: form });
+    const result = await res.json();
+
+    if (result.success) {
+        alert('User permission overrides saved successfully.');
+        location.reload();
+    } else {
+        alert(result.message || 'Failed to save overrides.');
+    }
+}
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

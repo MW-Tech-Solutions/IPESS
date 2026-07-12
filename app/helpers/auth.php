@@ -8,6 +8,10 @@ require_once JOSTUM_ROOT . '/config/urls.php';
 const JOSTUM_ROLES = [
     'SUPER_ADMIN',
     'ICT_ADMIN',
+    'ICT_SUPPORT',
+    'STUDENT_MANAGER',
+    'ACADEMIC_MANAGER',
+    'SUPERVISOR_MANAGER',
     'PORTAL_ADMIN',
     'REGISTRY',
     'ADMISSIONS_OFFICER',
@@ -18,6 +22,7 @@ const JOSTUM_ROLES = [
     'HOD',
     'SUPERVISOR',
     'REVIEWER',
+    'ICT_STAFF',
     'STUDENT',
 ];
 
@@ -74,7 +79,7 @@ if (!function_exists('require_role')) {
 }
 
 if (!function_exists('has_permission')) {
-    function has_permission(string $permission, ?string $role = null): bool
+    function has_permission(string $permission, ?string $role = null, ?int $userId = null): bool
     {
         $role = normalize_role($role ?? current_user_role());
 
@@ -83,10 +88,26 @@ if (!function_exists('has_permission')) {
             return true;
         }
 
-        // Try checking database permissions first
+        if ($userId === null && isset($_SESSION['user_id'])) {
+            $userId = (int) $_SESSION['user_id'];
+        }
+
+        // Try checking database overrides first
         try {
             require_once JOSTUM_ROOT . '/app/config/database.php';
             $pdo = db();
+            
+            // Check user override first!
+            if ($userId !== null && $userId > 0) {
+                $stmtOverride = $pdo->prepare("SELECT granted FROM user_permissions WHERE user_id = ? AND permission_key = ?");
+                $stmtOverride->execute([$userId, $permission]);
+                $override = $stmtOverride->fetch(PDO::FETCH_ASSOC);
+                if ($override !== false) {
+                    return (int) $override['granted'] === 1;
+                }
+            }
+
+            // Fall back to role permissions
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM role_permissions WHERE role_key = ? AND permission_key = ?");
             $stmt->execute([$role, $permission]);
             if ((int) $stmt->fetchColumn() > 0) {
@@ -105,10 +126,40 @@ if (!function_exists('has_permission')) {
             'manage_academics' => ['SUPER_ADMIN', 'PG_SCHOOL_OFFICER', 'FACULTY_OFFICER', 'DEPARTMENT_ADMIN', 'HOD'],
             'manage_supervision' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD', 'SUPERVISOR'],
             'review_applications' => ['SUPER_ADMIN', 'REVIEWER', 'PG_SCHOOL_OFFICER'],
-            'view_applications' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER', 'REVIEWER', 'REGISTRY'],
+            'view_applications' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER', 'REVIEWER', 'REGISTRY', 'ICTO', 'DEPARTMENT_ADMIN', 'HOD', 'FACULTY_OFFICER', 'ICT_STAFF'],
+            'view_applicants' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER', 'REVIEWER', 'REGISTRY', 'ICTO', 'DEPARTMENT_ADMIN', 'HOD', 'FACULTY_OFFICER', 'ICT_STAFF'],
             'download_applications' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER'],
-            'download_documents' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER'],
+            'download_documents' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER', 'ICTO'],
             'student_portal' => ['STUDENT'],
+            'verify_applicants' => ['SUPER_ADMIN', 'ICT_ADMIN', 'ICTO', 'DEPARTMENT_ADMIN', 'HOD', 'FACULTY_OFFICER', 'PG_SCHOOL_OFFICER'],
+            'bulk_verify' => ['SUPER_ADMIN', 'ICT_ADMIN', 'ICTO', 'DEPARTMENT_ADMIN', 'HOD', 'FACULTY_OFFICER', 'PG_SCHOOL_OFFICER'],
+            'supervisor_management' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD'],
+            'assign_supervisor' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD'],
+            'change_supervisor' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD'],
+            'remove_supervisor' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD'],
+            'bulk_supervisor_allocation' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD'],
+            'faculty_review' => ['SUPER_ADMIN', 'FACULTY_OFFICER'],
+            'department_review' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD'],
+            'pg_review' => ['SUPER_ADMIN', 'PG_SCHOOL_OFFICER'],
+            'ict_processing' => ['SUPER_ADMIN', 'ICT_STAFF'],
+            'generate_matric_number' => ['SUPER_ADMIN', 'ICT_STAFF'],
+            'generate_student_number' => ['SUPER_ADMIN', 'ICT_STAFF'],
+            'acceptance_letter' => ['SUPER_ADMIN', 'ICT_STAFF'],
+            'admission_letter' => ['SUPER_ADMIN', 'ICT_STAFF'],
+            'reports' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER', 'DEPARTMENT_ADMIN', 'HOD', 'FACULTY_OFFICER'],
+            'export_pdf' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD', 'PG_SCHOOL_OFFICER'],
+            'export_excel' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD', 'PG_SCHOOL_OFFICER'],
+            'export_csv' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD', 'PG_SCHOOL_OFFICER'],
+            'download_records' => ['SUPER_ADMIN', 'DEPARTMENT_ADMIN', 'HOD', 'PG_SCHOOL_OFFICER'],
+            'view_audit_logs' => ['SUPER_ADMIN', 'ICT_ADMIN'],
+            'view_dashboard' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER', 'REVIEWER', 'REGISTRY', 'ICTO', 'DEPARTMENT_ADMIN', 'HOD', 'FACULTY_OFFICER', 'ICT_STAFF', 'SUPERVISOR'],
+            'user_management' => ['SUPER_ADMIN', 'ICT_ADMIN'],
+            'role_management' => ['SUPER_ADMIN', 'ICT_ADMIN'],
+            'permission_management' => ['SUPER_ADMIN', 'ICT_ADMIN'],
+            'settings' => ['SUPER_ADMIN', 'ICT_ADMIN'],
+            'workflow_configuration' => ['SUPER_ADMIN', 'ICT_ADMIN'],
+            'notifications' => ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER', 'DEPARTMENT_ADMIN', 'HOD', 'FACULTY_OFFICER', 'ICT_STAFF'],
+            'logs' => ['SUPER_ADMIN', 'ICT_ADMIN'],
         ];
 
         return in_array($role, $permissions[$permission] ?? [], true);
@@ -134,22 +185,35 @@ if (!function_exists('dashboard_for_role')) {
     {
         $role = normalize_role($role ?? current_user_role());
         
-        // Custom roles checking
+        $dashboard = match ($role) {
+            'SUPER_ADMIN', 'ICT_ADMIN' => 'ADMIN/super-admin/dashboard.php',
+            // New modular staff roles — routed to super-admin panel
+            // (sidebar/pages are permission-gated so they only see what they can do)
+            'ICT_SUPPORT'        => 'ADMIN/super-admin/dashboard.php',
+            'STUDENT_MANAGER'    => 'ADMIN/super-admin/dashboard.php',
+            'ACADEMIC_MANAGER'   => 'ADMIN/super-admin/dashboard.php',
+            'SUPERVISOR_MANAGER' => 'ADMIN/super-admin/dashboard.php',
+            'PORTAL_ADMIN'       => 'ADMIN/portal-admin/dashboard.php',
+            'REGISTRY'           => 'modules/registry/dashboard.php',
+            'ICTO'               => 'ADMIN/icto/dashboard.php',
+            'FACULTY_OFFICER'    => 'ADMIN/faculty/dashboard.php',
+            'PG_SCHOOL_OFFICER'  => 'ADMIN/pg-admin/dashboard.php',
+            'ICT_STAFF'          => 'ADMIN/ict-staff/dashboard.php',
+            'DEPARTMENT_ADMIN', 'HOD' => 'ADMIN/dept-admin/dashboard.php',
+            'SUPERVISOR'         => 'ADMIN/supervisor/dashboard.php',
+            'REVIEWER'           => 'ADMIN/reviewer/dashboard.php',
+            'STUDENT'            => 'APPLICANT/ADMISSIONS/dashboard.php',
+            default              => null
+        };
+
+        if ($dashboard !== null) {
+            return $dashboard;
+        }
+
         if (has_permission('view_applications', $role)) {
             return 'ADMIN/admin/dashboard.php';
         }
 
-        return match ($role) {
-            'SUPER_ADMIN', 'ICT_ADMIN' => 'ADMIN/super-admin/dashboard.php',
-            'PORTAL_ADMIN' => 'ADMIN/portal-admin/dashboard.php',
-            'REGISTRY' => 'modules/registry/dashboard.php',
-            'ADMISSIONS_OFFICER', 'PG_SCHOOL_OFFICER' => 'ADMIN/admin/dashboard.php',
-            'BURSARY' => 'modules/bursary/dashboard.php',
-            'FACULTY_OFFICER', 'DEPARTMENT_ADMIN', 'HOD' => 'ADMIN/dept-admin/dashboard.php',
-            'SUPERVISOR' => 'ADMIN/supervisor/dashboard.php',
-            'REVIEWER' => 'ADMIN/reviewer/dashboard.php',
-            'STUDENT' => 'APPLICANT/ADMISSIONS/dashboard.php',
-            default => 'ADMIN/login.php',
-        };
+        return 'ADMIN/login.php';
     }
 }

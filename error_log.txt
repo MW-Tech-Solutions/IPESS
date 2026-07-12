@@ -1,3 +1,33 @@
 [2026-07-03 20:39:00] PHP Error (8192): htmlspecialchars(): Passing null to parameter #1 ($string) of type string is deprecated
 File: C:\xampp\htdocs\JOSTUM\ADMIN\admin\view.php on line 786
 
+[2026-07-07 19:10:35] PHP Error (2): Undefined variable $status
+File: C:\xampp\htdocs\JOSTUM\referee_verify.php on line 70
+
+[2026-07-07 19:11:48] PHP Error (2): Undefined variable $status
+File: C:\xampp\htdocs\JOSTUM\referee_verify.php on line 70
+
+[2026-07-12 12:43:59] PHP Error (2): require_once(C:\xampp\htdocs\JOSTUM\ADMIN\reviewer\includes/../../../../app/bootstrap.php): Failed to open stream: No such file or directory
+File: C:\xampp\htdocs\JOSTUM\ADMIN\reviewer\includes\sidebar.php on line 2
+
+[2026-07-12 12:43:59] Uncaught Exception: Failed opening required 'C:\xampp\htdocs\JOSTUM\ADMIN\reviewer\includes/../../../../app/bootstrap.php' (include_path='C:\xampp\php\PEAR')
+File: C:\xampp\htdocs\JOSTUM\ADMIN\reviewer\includes\sidebar.php on line 2
+Stack trace:
+#0 C:\xampp\htdocs\JOSTUM\ADMIN\reviewer\assigned-applications.php(13): require_once()
+#1 {main}
+
+[2026-07-12 12:46:11] PHP Error (2): require_once(C:\xampp\htdocs\JOSTUM\ADMIN\reviewer\includes/../../../../app/bootstrap.php): Failed to open stream: No such file or directory
+File: C:\xampp\htdocs\JOSTUM\ADMIN\reviewer\includes\sidebar.php on line 2
+
+[2026-07-12 12:46:11] Uncaught Exception: Failed opening required 'C:\xampp\htdocs\JOSTUM\ADMIN\reviewer\includes/../../../../app/bootstrap.php' (include_path='C:\xampp\php\PEAR')
+File: C:\xampp\htdocs\JOSTUM\ADMIN\reviewer\includes\sidebar.php on line 2
+Stack trace:
+#0 C:\xampp\htdocs\JOSTUM\ADMIN\reviewer\assigned-applications.php(13): require_once()
+#1 {main}
+
+[2026-07-12 14:28:10] PHP Error (2): Undefined variable $surname
+File: C:\xampp\htdocs\JOSTUM\helpers\admission-letter-template.php on line 264
+
+[2026-07-12 14:29:31] PHP Error (2): Undefined variable $surname
+File: C:\xampp\htdocs\JOSTUM\helpers\admission-letter-template.php on line 264
+

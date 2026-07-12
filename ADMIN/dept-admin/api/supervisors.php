@@ -19,7 +19,27 @@ function recalc_supervisor_load(PDO $pdo, int $supervisor_id): int {
 }
 
 if ($action === 'list') {
-    $stmt = $pdo->query("SELECT supervisor_id, full_name, title, specialization_keywords, max_capacity, current_students, status, email, phone, research_interests, notes FROM supervisors ORDER BY full_name");
+    $deptId = null;
+    if (isset($_SESSION['department_id']) || isset($_SESSION['dept_id'])) {
+        $deptId = $_SESSION['department_id'] ?? $_SESSION['dept_id'];
+    } else if (isset($_SESSION['user_id'])) {
+        try {
+            $stmt = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
+            $stmt->execute([$_SESSION['user_id']]);
+            $dVal = $stmt->fetchColumn();
+            if ($dVal !== false && $dVal !== null) {
+                $_SESSION['department_id'] = (int) $dVal;
+                $deptId = (int) $dVal;
+            }
+        } catch (Throwable $e) {}
+    }
+
+    if ($deptId) {
+        $stmt = $pdo->prepare("SELECT supervisor_id, full_name, title, specialization_keywords, max_capacity, current_students, status, email, phone, research_interests, notes FROM supervisors WHERE department_id = ? ORDER BY full_name");
+        $stmt->execute([$deptId]);
+    } else {
+        $stmt = $pdo->query("SELECT supervisor_id, full_name, title, specialization_keywords, max_capacity, current_students, status, email, phone, research_interests, notes FROM supervisors ORDER BY full_name");
+    }
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     echo json_encode(['success' => true, 'data' => $rows]);
     exit;

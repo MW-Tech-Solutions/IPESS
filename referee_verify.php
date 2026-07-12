@@ -8,6 +8,7 @@ require_once __DIR__ . '/config/urls.php';
 $message = "";
 $messageType = "";
 $showForm = false;
+$status = "";
 
 // 1. Validate the Request
 $refId = filter_input(INPUT_GET, 'rid', FILTER_VALIDATE_INT);
@@ -22,13 +23,14 @@ try {
     // UPDATED QUERY: Added JOIN to documents table for the photo
     if ($token) {
         $stmt = $pdo->prepare("
-            SELECT r.*, req.application_id, pd.first_name, pd.surname, acc.email as app_email, d.file_path as photo_path, req.token, req.expires_at, acc.user_id as applicant_user_id
+            SELECT r.*, req.application_id, pd.first_name, pd.surname, acc.email as app_email, d.file_path as photo_path, req.token, req.expires_at, acc.user_id as applicant_user_id, ru.verified_status
             FROM referee_requests req
             JOIN referees r ON r.referee_id = req.referee_id
             JOIN applications a ON r.application_id = a.application_id
             JOIN personal_details pd ON a.application_id = pd.application_id
             JOIN users acc ON a.user_id = acc.user_id
             LEFT JOIN documents d ON a.application_id = d.application_id AND d.document_type = 'passport'
+            LEFT JOIN referee_uploads ru ON r.referee_id = ru.referee_id
             WHERE req.token = ? AND (req.expires_at IS NULL OR req.expires_at >= NOW())
             LIMIT 1
         ");
@@ -39,12 +41,13 @@ try {
         }
     } else {
         $stmt = $pdo->prepare("
-            SELECT r.*, pd.first_name, pd.surname, acc.email as app_email, d.file_path as photo_path, acc.user_id as applicant_user_id
+            SELECT r.*, pd.first_name, pd.surname, acc.email as app_email, d.file_path as photo_path, acc.user_id as applicant_user_id, ru.verified_status
             FROM referees r
             JOIN applications a ON r.application_id = a.application_id
             JOIN personal_details pd ON a.application_id = pd.application_id
             JOIN users acc ON a.user_id = acc.user_id
             LEFT JOIN documents d ON a.application_id = d.application_id AND d.document_type = 'passport'
+            LEFT JOIN referee_uploads ru ON r.referee_id = ru.referee_id
             WHERE r.referee_id = ?
         ");
         $stmt->execute([$refId]);
@@ -67,6 +70,7 @@ try {
     $progManager = new ApplicationProgressManager($pdo);
     $appId = (int) $data['application_id'];
 
+    $status = $data['verified_status'] ?? '';
     if ($status === 'Verified') {
         $message = "You have already completed this verification process. Thank you!";
         $messageType = "success";
@@ -180,7 +184,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Referee Verification | JOSTUM PG</title>
+    <title>Referee Verification | IPESS Postgraduate</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="ADMIN/assets/css/style.css">
@@ -213,7 +217,7 @@ try {
     <div class="card">
         <div class="header-box">
             <i class="fas fa-shield-halved fa-3x mb-3"></i>
-            <h2 class="h4 mb-1">JOSTUM PG PORTAL</h2>
+            <h2 class="h4 mb-1">IPESS Postgraduate</h2>
             <p class="mb-0 opacity-75">Secure Referee Verification</p>
         </div>
         

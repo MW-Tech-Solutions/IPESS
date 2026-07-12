@@ -41,6 +41,21 @@ try {
     }
 } catch (PDOException $e) {}
 
+// ─── Fetch admission_processing letter statuses ───────────────────────────────
+$admission_letter_active   = false;
+$acceptance_letter_active  = false;
+$matric_number             = '';
+try {
+    $stmt_ap = $pdo->prepare("SELECT admission_letter_status, acceptance_letter_status, matric_number FROM admission_processing WHERE application_id = ? LIMIT 1");
+    $stmt_ap->execute([$application_id]);
+    $ap_row = $stmt_ap->fetch(PDO::FETCH_ASSOC);
+    if ($ap_row) {
+        $admission_letter_active  = ($ap_row['admission_letter_status']  === 'Active');
+        $acceptance_letter_active = ($ap_row['acceptance_letter_status'] === 'Active');
+        $matric_number = $ap_row['matric_number'] ?? '';
+    }
+} catch (PDOException $e) {}
+
 // ─── Fetch progress rows from DB ─────────────────────────────────────────────
 $progress_map = [];
 try {
@@ -85,7 +100,7 @@ $referee_ok = ($ref_raw === 'Verified');
 
 // Statuses that indicate departmental / PG review stages reached
 $dept_statuses = ['UNDER_DEPT_REVIEW', 'DEPT_APPROVED', 'REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED', 'SUBMITTED'];
-$pg_statuses   = ['REVIEWER_APPROVED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED', 'DEPT_APPROVED'];
+$pg_statuses   = ['REVIEWER_APPROVED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
 $final_statuses = ['ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
 
 $dept_ok  = in_array($app_current_status, $dept_statuses, true);
@@ -184,11 +199,27 @@ if ($is_admitted_status) {
         </div>
         
         <?php if ($is_admitted): ?>
-            <a class="btn btn-success fw-bold w-100 w-md-auto px-4 py-3 shadow-sm rounded-pill"
-               href="#"
-               onclick="printSlipBackground('helpers/admission-letter.php?app_no=<?php echo urlencode($db_app_number); ?>'); return false;">
-                <i class="bi bi-download me-2"></i> Download Admission Letter
-            </a>
+            <div class="d-flex flex-column flex-md-row gap-2 w-100 w-md-auto">
+                <?php if ($admission_letter_active): ?>
+                <a class="btn btn-success fw-bold px-4 py-3 shadow-sm rounded-pill"
+                   href="#"
+                   onclick="printSlipBackground('../../helpers/admission-letter.php?app_no=<?php echo urlencode($db_app_number); ?>'); return false;">
+                    <i class="bi bi-download me-2"></i> Admission Letter
+                </a>
+                <?php endif; ?>
+                <?php if ($acceptance_letter_active): ?>
+                <a class="btn btn-primary fw-bold px-4 py-3 shadow-sm rounded-pill"
+                   href="#"
+                   onclick="printSlipBackground('../../helpers/acceptance-letter.php?app_no=<?php echo urlencode($db_app_number); ?>'); return false;">
+                    <i class="bi bi-file-earmark-check me-2"></i> Acceptance Letter
+                </a>
+                <?php endif; ?>
+                <?php if (!$admission_letter_active && !$acceptance_letter_active): ?>
+                <span class="btn btn-outline-secondary fw-bold px-4 py-3 shadow-sm rounded-pill disabled">
+                    <i class="bi bi-clock me-2"></i> Letters Not Yet Available
+                </span>
+                <?php endif; ?>
+            </div>
             <iframe id="printFrame" style="display:none;"></iframe>
         <?php endif; ?>
     </div>

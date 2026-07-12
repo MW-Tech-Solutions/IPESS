@@ -1,8 +1,26 @@
 <?php
 require_once __DIR__ . '/../../app/bootstrap.php';
-if (in_array(normalize_role(current_user_role()), ['SUPER_ADMIN', 'ICT_ADMIN'], true)) {
-    require_once __DIR__ . '/../super-admin/includes/sidebar.php';
-    return;
+
+$userRole = normalize_role(current_user_role());
+$sidebarMap = [
+    'SUPER_ADMIN' => 'super_admin.php',
+    'ICT_ADMIN' => 'super_admin.php',
+    'ICTO' => 'icto.php',
+    'DEPARTMENT_ADMIN' => 'dept_admin.php',
+    'HOD' => 'dept_admin.php',
+    'FACULTY_OFFICER' => 'faculty_admin.php',
+    'PG_SCHOOL_OFFICER' => 'pg_admin.php',
+    'ICT_STAFF' => 'ict_staff.php',
+    'REVIEWER' => 'reviewer.php',
+    'SUPERVISOR' => 'supervisor.php'
+];
+
+if (isset($sidebarMap[$userRole])) {
+    $sidebarFile = __DIR__ . '/sidebars/' . $sidebarMap[$userRole];
+    if (file_exists($sidebarFile)) {
+        require_once $sidebarFile;
+        return;
+    }
 }
 ?>
 <nav class="sidebar" id="sidebar">

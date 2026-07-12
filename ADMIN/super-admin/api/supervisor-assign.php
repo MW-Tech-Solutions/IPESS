@@ -54,18 +54,19 @@ try {
             if ($departmentId !== '') {
                 $stmt = $pdo->prepare("
                     SELECT s.supervisor_id AS id,
-                           COALESCE(s.full_name, u.email) AS name,
+                           COALESCE(s.full_name, u.full_name, u.email) AS name,
                            u.email
                     FROM supervisors s
                     LEFT JOIN users u ON s.user_id = u.user_id
-                    WHERE s.status = 'Active' AND s.department_id = ?
+                    WHERE s.status = 'Active'
+                      AND (s.department_id = ? OR s.department_id IS NULL)
                     ORDER BY s.full_name ASC
                 ");
                 $stmt->execute([$departmentId]);
             } else {
                 $stmt = $pdo->prepare("
                     SELECT s.supervisor_id AS id,
-                           COALESCE(s.full_name, u.email) AS name,
+                           COALESCE(s.full_name, u.full_name, u.email) AS name,
                            u.email
                     FROM supervisors s
                     LEFT JOIN users u ON s.user_id = u.user_id
@@ -75,15 +76,25 @@ try {
                 $stmt->execute();
             }
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } elseif (column_exists($pdo, 'users', 'role_id')) {
-            $roleId = 4;
+        } else {
+            // No supervisors table — use users table with role_id for SUPERVISOR (role_id=4)
+            $supervisorRoleId = 4;
             if (table_exists($pdo, 'roles')) {
                 $roleStmt = $pdo->prepare("SELECT role_id FROM roles WHERE role_key = 'SUPERVISOR' OR role_name = 'Supervisor' LIMIT 1");
                 $roleStmt->execute();
-                $roleId = (int) ($roleStmt->fetchColumn() ?: 4);
+                $supervisorRoleId = (int) ($roleStmt->fetchColumn() ?: 4);
             }
-            $stmt = $pdo->prepare("SELECT user_id AS id, email AS name, email FROM users WHERE role_id = ? ORDER BY email ASC");
-            $stmt->execute([$roleId]);
+            // Return all supervisors regardless of department so dept filtering doesn't hide valid supervisors
+            $stmt = $pdo->prepare("
+                SELECT u.user_id AS id,
+                       COALESCE(u.full_name, u.email) AS name,
+                       u.email
+                FROM users u
+                WHERE u.role_id = ?
+                  AND (u.account_status IS NULL OR u.account_status = 'active')
+                ORDER BY u.full_name ASC, u.email ASC
+            ");
+            $stmt->execute([$supervisorRoleId]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
@@ -118,6 +129,11 @@ try {
             ? "LEFT JOIN departments d ON pc.department = d.dept_id"
             : "LEFT JOIN departments d ON 1=0";
 
+        // Determine admitted status filter without relying on outer alias inside subquery
+        $admitInnerWhere = $hasCurrentStatus
+            ? "(status = 'Admitted' OR current_status = 'ADMISSION_APPROVED')"
+            : "status = 'Admitted'";
+
         $studentSql = "
             SELECT a.application_id,
                    a.user_id AS student_id,
@@ -132,7 +148,7 @@ try {
             JOIN (
                 SELECT user_id, MAX(application_id) AS application_id
                 FROM applications
-                WHERE {$admitWhere}
+                WHERE {$admitInnerWhere}
                 GROUP BY user_id
             ) latest ON latest.application_id = a.application_id
             JOIN programme_choices pc ON pc.application_id = a.application_id

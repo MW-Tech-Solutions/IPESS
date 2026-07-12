@@ -12,7 +12,10 @@ require_once 'includes/db.php';
 if (isset($_GET['ajax_fetch_applicant'])) {
     $filterStatus = $_GET['status'] ?? 'all';
     $searchTerm   = trim($_GET['search'] ?? '');
-    $currentPage  = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?? 1;
+    $currentPage  = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT);
+    if ($currentPage === false || $currentPage === null || $currentPage < 1) {
+        $currentPage = 1;
+    }
     $offset = ($currentPage - 1); 
 
     $baseJoins = "
@@ -231,7 +234,10 @@ try {
 }
 $filterStatus = $_GET['status'] ?? 'all';
 $searchTerm   = trim($_GET['search'] ?? '');
-$currentPage  = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?? 1;
+$currentPage  = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT);
+if ($currentPage === false || $currentPage === null || $currentPage < 1) {
+    $currentPage = 1;
+}
 
 $baseJoins = "
     FROM applications a
@@ -573,8 +579,8 @@ $totalPages = ceil($totalApplicants / 1);
 <script>
     let currentModalDocId = null;
     let selectedDocId = null;
-    let currentApplicantPage = <?= $currentPage ?>;
-    const totalPages = <?= $totalPages ?>;
+    let currentApplicantPage = <?= (int)$currentPage ?>;
+    const totalPages = <?= (int)$totalPages ?>;
     const currentFilterStatus = "<?= htmlspecialchars($filterStatus) ?>";
     const currentSearchTerm = "<?= htmlspecialchars($searchTerm) ?>";
 

@@ -68,64 +68,65 @@ require_once 'includes/topbar.php';
     </div>
 </section>
 
-<!-- Duties Modal -->
+<!-- Duties Modal — Full Grouped Permission Tree -->
 <div class="modal fade" id="dutiesModal" tabindex="-1" aria-labelledby="dutiesModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="dutiesModalLabel">Manage Duties for Role</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="max-height:65vh;overflow-y:auto;">
                 <form id="dutiesForm">
                     <input type="hidden" id="modalRoleKey" name="role_key">
-                    
-                    <p class="text-muted small mb-3">Check the duties/permissions this role is allowed to perform.</p>
-                    
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="permissions[]" value="view_applications" id="permViewApps">
-                        <label class="form-check-label" for="permViewApps">
-                            <strong>View Applications</strong>
-                            <span class="d-block text-muted small">Access dashboard and view list/details of applicant profiles.</span>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="permissions[]" value="download_applications" id="permDownloadApps">
-                        <label class="form-check-label" for="permDownloadApps">
-                            <strong>Download Applications PDF</strong>
-                            <span class="d-block text-muted small">Download or print full application form summaries.</span>
-                        </label>
-                    </div>
-                    
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="permissions[]" value="download_documents" id="permDownloadDocs">
-                        <label class="form-check-label" for="permDownloadDocs">
-                            <strong>Download Credentials & Documents</strong>
-                            <span class="d-block text-muted small">Download uploaded certificates, transcripts, O-levels, and NYSC docs.</span>
-                        </label>
-                    </div>
+                    <p class="text-muted small mb-3">
+                        Check the permissions this role is allowed to perform.
+                        Use <strong>Select All</strong> in each group for quick assignment.
+                    </p>
 
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="permissions[]" value="manage_users" id="permManageUsers">
-                        <label class="form-check-label" for="permManageUsers">
-                            <strong>Manage Staff Users</strong>
-                            <span class="d-block text-muted small">Create and control administrative/review staff accounts.</span>
-                        </label>
-                    </div>
-
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="permissions[]" value="manage_roles" id="permManageRoles">
-                        <label class="form-check-label" for="permManageRoles">
-                            <strong>Manage Roles & System Duties</strong>
-                            <span class="d-block text-muted small">Full administrative privileges to modify roles and system duties.</span>
-                        </label>
-                    </div>
+                    <?php
+                    if (function_exists('get_all_permission_groups')) {
+                        foreach (get_all_permission_groups() as $groupKey => $group) {
+                            $groupId = 'grp_' . $groupKey;
+                            echo '<div class="card mb-3 border">';
+                            echo '<div class="card-header d-flex align-items-center justify-content-between py-2 px-3 bg-light" style="cursor:pointer;" data-bs-toggle="collapse" data-bs-target="#' . $groupId . '">';
+                            echo '<span><i class="' . htmlspecialchars($group['icon'], ENT_QUOTES, 'UTF-8') . ' me-2 text-primary"></i><strong>' . htmlspecialchars($group['label'], ENT_QUOTES, 'UTF-8') . '</strong></span>';
+                            echo '<span class="d-flex align-items-center gap-2">';
+                            echo '<button type="button" class="btn btn-outline-primary btn-sm py-0 px-2 select-all-btn" data-group="' . $groupId . '" onclick="event.stopPropagation();toggleGroupAll(\'' . $groupId . '\',this)">Select All</button>';
+                            echo '<i class="fas fa-chevron-down text-muted small"></i>';
+                            echo '</span>';
+                            echo '</div>';
+                            echo '<div class="collapse show" id="' . $groupId . '">';
+                            echo '<div class="card-body py-2 px-3">';
+                            foreach ($group['permissions'] as $perm) {
+                                $permId = 'perm_' . $perm['key'];
+                                echo '<div class="form-check mb-2 ps-4">';
+                                echo '<input class="form-check-input perm-check" type="checkbox" name="permissions[]" value="' . htmlspecialchars($perm['key'], ENT_QUOTES, 'UTF-8') . '" id="' . $permId . '" data-group="' . $groupId . '">';
+                                echo '<label class="form-check-label" for="' . $permId . '">';
+                                echo '<strong>' . htmlspecialchars($perm['name'], ENT_QUOTES, 'UTF-8') . '</strong>';
+                                echo '<span class="d-block text-muted small">' . htmlspecialchars($perm['description'], ENT_QUOTES, 'UTF-8') . '</span>';
+                                echo '</label>';
+                                echo '</div>';
+                            }
+                            echo '</div></div></div>';
+                        }
+                    } else {
+                        // Fallback if registry not loaded
+                        echo '<p class="text-danger small">Permission registry not loaded. Check helpers/permissions-registry.php.</p>';
+                    }
+                    ?>
                 </form>
             </div>
-            <div class="modal-content-footer p-3 border-top d-flex justify-content-end gap-2">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveDutiesBtn">Save Duties</button>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAllPermissions()">
+                    <i class="fas fa-check-double me-1"></i>Select All Permissions
+                </button>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveDutiesBtn">
+                        <i class="fas fa-save me-1"></i>Save Duties
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -174,8 +175,13 @@ function openDutiesModal(roleKey, roleName) {
     document.getElementById('dutiesModalLabel').innerText = `Manage Duties for: ${roleName}`;
     modalRoleKeyInput.value = roleKey;
     
-    // Reset checkboxes
+    // Reset all checkboxes and Select All buttons
     dutiesForm.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+    dutiesForm.querySelectorAll('.select-all-btn').forEach(btn => {
+        btn.textContent = 'Select All';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-primary');
+    });
     
     // Fetch current permissions
     fetch(`api/manage-entities.php?action=get_permissions&role_key=${encodeURIComponent(roleKey)}`)
@@ -190,6 +196,31 @@ function openDutiesModal(roleKey, roleName) {
             dutiesModal.show();
         });
 }
+
+function toggleGroupAll(groupId, btn) {
+    const checkboxes = dutiesForm.querySelectorAll(`.perm-check[data-group="${groupId}"]`);
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+    if (allChecked) {
+        btn.textContent = 'Select All';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-primary');
+    } else {
+        btn.textContent = 'Deselect All';
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-primary');
+    }
+}
+
+function selectAllPermissions() {
+    dutiesForm.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+    dutiesForm.querySelectorAll('.select-all-btn').forEach(btn => {
+        btn.textContent = 'Deselect All';
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-primary');
+    });
+}
+
 
 saveDutiesBtn.addEventListener('click', () => {
     const formData = new FormData(dutiesForm);

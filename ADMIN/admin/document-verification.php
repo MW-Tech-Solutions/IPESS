@@ -60,7 +60,10 @@ try {
 }
 $filterStatus = $_GET['status'] ?? 'all';
 $searchTerm   = trim($_GET['search'] ?? '');
-$currentPage  = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?? 1;
+$currentPage  = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT);
+if ($currentPage === false || $currentPage === null || $currentPage < 1) {
+    $currentPage = 1;
+}
 $limit = 1; 
 $offset = ($currentPage - 1) * $limit;
 
@@ -530,12 +533,13 @@ $totalPages = ceil($totalApplicants / 1);
 </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
     <script>
+    let currentModalDocId = null;
+    let selectedDocId = null;
+
     document.getElementById('sidebar-toggle').addEventListener('click', function() {
         document.getElementById('sidebar').classList.toggle('collapsed');
         document.getElementById('main-wrapper').classList.toggle('sidebar-collapsed');
     });
-// Global variable to track which doc is currently open in modal
-let currentModalDocId = null;
 
 function openVerificationModal(docId, filePath, docTitle) {
     currentModalDocId = docId;
@@ -590,10 +594,9 @@ function openRejectionModalFromVerify() {
     const rejectModal = new bootstrap.Modal(document.getElementById('rejectionModal'));
     rejectModal.show();
 }
-    let selectedDocId = null;
     const currentFilterStatus = "<?= htmlspecialchars($filterStatus) ?>";
     const currentSearchTerm = "<?= htmlspecialchars($searchTerm) ?>";
-    const currentPage = <?= $currentPage ?>;
+    const currentPage = <?= (int)$currentPage ?>;
 
     function selectDocument(element) {
         selectedDocId = element.dataset.docId;

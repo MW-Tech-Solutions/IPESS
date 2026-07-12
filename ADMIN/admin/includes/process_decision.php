@@ -89,7 +89,7 @@ try {
         require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
         $progManager = new ApplicationProgressManager($pdo);
         $missingStage = null;
-        if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_DECISION, $missingStage)) {
+        if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_COMPLETED, $missingStage)) {
             throw new Exception("Cannot make a final decision before the '{$missingStage}' stage is completed.");
         }
     }
@@ -124,8 +124,8 @@ try {
     }
 
     $subject = ($decision === 'admit' || $decision === 'approve')
-        ? "Congratulations! Admission Offer - JOSTUM PG"
-        : "Application Status Update - JOSTUM PG";
+        ? "Congratulations! Admission Offer - IPESS JOSTUM"
+        : "Application Status Update - IPESS JOSTUM";
 
     $attachmentPath = '';
     $attachmentName = '';
@@ -133,7 +133,7 @@ try {
     if ($decision === 'admit' || $decision === 'approve') {
         $body = "<p>Dear <strong>{$fullName}</strong>,</p>
                 <p>We are pleased to inform you that you have been offered admission into the Postgraduate programme at
-                <strong>Joseph Sarwuan Tarka University, Makurdi (JOSTUM)</strong>.</p>
+                <strong>Institute of Procurement, Environmental and Social Standard IPESS JOSTUM</strong>.</p>
                 <p><strong>Application Number:</strong> {$appNumber}</p>
                 <p>Your official admission letter is attached to this email as a PDF document.</p>
                 <p>Regards,<br>Admission Officer, PG School</p>";

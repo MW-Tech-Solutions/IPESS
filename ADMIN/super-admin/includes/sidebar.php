@@ -76,6 +76,19 @@
                     </li>
                 </ul>
             </div>
+            <?php if (has_permission('reset_authenticator')): ?>
+            <div class="sidebar-section">
+                <div class="sidebar-label">ICT Tools</div>
+                <ul class="sidebar-nav">
+                    <li>
+                        <a class="<?php echo $currentPage === 'reset-authenticator.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/reset-authenticator.php'); ?>">
+                            <i class="fas fa-mobile-alt"></i>
+                            <span>Reset Authenticator</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <?php endif; ?>
             <div class="sidebar-section">
                 <div class="sidebar-label">Admissions</div>
                 <ul class="sidebar-nav">
@@ -119,6 +132,13 @@
                         <a class="<?php echo $currentPage === 'admission-decisions.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/admission-decisions.php'); ?>">
                             <i class="fas fa-gavel"></i>
                             <span>Admission Decisions</span>
+                        </a>
+                    </li>
+                    <!-- Activate Admissions -->
+                    <li>
+                        <a class="<?php echo $currentPage === 'activate-admissions.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/activate-admissions.php'); ?>">
+                            <i class="fas fa-toggle-on"></i>
+                            <span>Activate Admissions</span>
                         </a>
                     </li>
                 </ul>

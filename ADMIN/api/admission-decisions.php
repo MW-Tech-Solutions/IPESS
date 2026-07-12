@@ -174,7 +174,7 @@ try {
                 SELECT DISTINCT c.course_id AS id, c.course_title AS name
                 FROM programme_choices pc
                 JOIN courses c ON pc.course = c.course_id
-                WHERE pc.faculty = ? AND pc.department = ? AND pc.degree_type = ?
+                WHERE pc.faculty = ? AND pc.department = ? AND c.degree_id = ?
                 ORDER BY c.course_title ASC
             ");
             $stmt->execute([$facultyId, $departmentId, $programmeId]);

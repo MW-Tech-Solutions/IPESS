@@ -27,6 +27,18 @@ function resolve_reviewer_id(PDO $pdo, ?string $nameOrEmail): ?int {
 }
 
 function fetch_department_id(): ?int {
+    if (!isset($_SESSION['department_id']) && isset($_SESSION['user_id'])) {
+        try {
+            require_once __DIR__ . '/../../admin/includes/db.php';
+            global $pdo;
+            $stmt = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
+            $stmt->execute([$_SESSION['user_id']]);
+            $deptId = $stmt->fetchColumn();
+            if ($deptId !== false && $deptId !== null) {
+                $_SESSION['department_id'] = (int) $deptId;
+            }
+        } catch (Throwable $e) {}
+    }
     return $_SESSION['department_id'] ?? $_SESSION['dept_id'] ?? null;
 }
 
@@ -37,7 +49,7 @@ if ($action === 'list') {
         exit;
     }
 
-    $stmt = $pdo->prepare("\
+    $stmt = $pdo->prepare("
         SELECT a.application_id, a.application_number, a.current_status, a.submitted_at,
                pd.first_name, pd.surname,
                c.course_title,
@@ -47,10 +59,10 @@ if ($action === 'list') {
         LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
         LEFT JOIN courses c ON pc.course = c.course_id
         LEFT JOIN users u ON a.assigned_reviewer_id = u.user_id
-        WHERE a.department_id = ? AND a.current_status IN ('ASSIGNED_TO_DEPARTMENT', 'UNDER_DEPT_REVIEW', 'ACTION_REQUIRED_DOCS', 'TOPIC_REJECTED', 'DEPT_APPROVED', 'DEPT_REJECTED', 'REVIEWER_ASSIGNED')
+        WHERE (a.department_id = ? OR pc.department = ?) AND a.current_status IN ('ASSIGNED_TO_DEPARTMENT', 'UNDER_DEPT_REVIEW', 'ACTION_REQUIRED_DOCS', 'TOPIC_REJECTED', 'DEPT_APPROVED', 'DEPT_REJECTED', 'REVIEWER_ASSIGNED')
         ORDER BY a.submitted_at DESC
     ");
-    $stmt->execute([$deptId]);
+    $stmt->execute([$deptId, $deptId]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $data = array_map(function ($row) {

@@ -51,6 +51,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmtProgress->execute([$appId]);
                 }
 
+                // Advance Departmental Review stage to In Progress
+                $progManager->updateStageStatus((int)$appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, ApplicationProgressManager::STATUS_IN_PROGRESS);
+
                 $_SESSION['message'] = "Referee verified and application progress updated.";
                 $_SESSION['msg_type'] = "success";
             }

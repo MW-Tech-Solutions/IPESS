@@ -8,8 +8,10 @@ class ApplicationProgressManager {
     public const STAGE_DOC_VERIFY     = 'Documents Verification';
     public const STAGE_REFEREES       = 'Referee Report';
     public const STAGE_DEPT_REVIEW    = 'Departmental Review';
-    public const STAGE_PG_REVIEW      = 'PG Review';
-    public const STAGE_DECISION       = 'Final Decisions';
+    public const STAGE_FACULTY_REVIEW = 'Faculty Review';
+    public const STAGE_PG_REVIEW      = 'PG School Review';
+    public const STAGE_ICT_PROCESSING = 'Main ICT Processing';
+    public const STAGE_COMPLETED      = 'Admission Completed';
 
     public const STATUS_PENDING       = 'Pending';
     public const STATUS_IN_PROGRESS   = 'In Progress';
@@ -20,8 +22,10 @@ class ApplicationProgressManager {
         self::STAGE_DOC_VERIFY,
         self::STAGE_REFEREES,
         self::STAGE_DEPT_REVIEW,
+        self::STAGE_FACULTY_REVIEW,
         self::STAGE_PG_REVIEW,
-        self::STAGE_DECISION,
+        self::STAGE_ICT_PROCESSING,
+        self::STAGE_COMPLETED,
     ];
 
     public function __construct(PDO $pdo) {
@@ -131,6 +135,12 @@ class ApplicationProgressManager {
         foreach (self::ALL_STAGES as $stage) {
             if ($stage === $stageName) {
                 break;
+            }
+            if ($stage === self::STAGE_FACULTY_REVIEW) {
+                continue;
+            }
+            if ($stage === self::STAGE_ICT_PROCESSING) {
+                continue;
             }
             $status = strtoupper(trim($history[$stage]['status'] ?? ''));
             if (!in_array($status, ['COMPLETED', 'APPROVED', 'REJECTED'], true)) {

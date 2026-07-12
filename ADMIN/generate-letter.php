@@ -11,11 +11,13 @@ $appNumber = $_GET['app_no'];
 
 try {
     $stmt = $pdo->prepare("
-        SELECT a.application_number, a.submitted_at, p.title, p.surname, p.first_name, p.middle_name, p.address, pc.course, pc.degree_type, pc.faculty, pc.department, pc.mode_of_study, u.email
+        SELECT a.application_number, a.submitted_at, p.title, p.surname, p.first_name, p.middle_name, p.address, pc.course, pc.degree_type, pc.faculty, pc.department, pc.mode_of_study, u.email,
+               ap.admission_letter_status
         FROM applications a
         JOIN users u ON a.user_id = u.user_id
         LEFT JOIN personal_details p ON a.application_id = p.application_id
         LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
+        LEFT JOIN admission_processing ap ON a.application_id = ap.application_id
         WHERE a.application_number = ? AND a.status = 'Admitted'
     ");
     $stmt->execute([$appNumber]);
@@ -23,6 +25,10 @@ try {
 
     if (!$applicant) {
         die("<h1>Admission Letter Not Available</h1><p>This admission letter cannot be generated. The application was not found or has not been approved.</p><a href='admission-decisions.php'>Go back</a>");
+    }
+
+    if (($applicant['admission_letter_status'] ?? 'Inactive') !== 'Active') {
+        die("<h1>Admission Letter Not Activated</h1><p>Your admission letter has not been activated yet by the ICT department. Please check back later.</p>");
     }
 
 } catch (PDOException $e) {

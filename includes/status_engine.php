@@ -219,8 +219,10 @@ function update_application_status(PDO $pdo, int $application_id, string $new_st
             $pg_done_statuses = ['REVIEWER_APPROVED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
             if (in_array($new_status, $pg_done_statuses, true)) {
                 $setStageProgress($application_id, 'PG Review', 'Completed');
+                $setStageProgress($application_id, 'PG School Review', 'Completed');
             } elseif (in_array($new_status, ['REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW'], true)) {
                 $setStageProgress($application_id, 'PG Review', 'In Progress');
+                $setStageProgress($application_id, 'PG School Review', 'In Progress');
             }
 
             // Final Decisions

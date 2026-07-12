@@ -7,6 +7,8 @@ require_once __DIR__ . '/../../../config/urls.php';
 require_once __DIR__ . '/../../../includes/status_engine.php';
 require_once __DIR__ . '/../../../includes/permissions.php';
 require_once __DIR__ . '/../../../ADMIN/includes/mailer.php';
+require_once __DIR__ . '/../../../includes/referee_service.php';
+require_once __DIR__ . '/../../../includes/completion_service.php';
 
 if (!isset($_SESSION['role']) || !is_admin_role($_SESSION['role'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized.']);
@@ -584,7 +586,7 @@ try {
             SELECT DISTINCT c.course_id AS id, c.course_title AS name
             FROM programme_choices pc
             JOIN courses c ON pc.course = c.course_id
-            WHERE pc.faculty = ? AND pc.department = ? AND pc.degree_type = ?
+            WHERE pc.faculty = ? AND pc.department = ? AND c.degree_id = ?
             ORDER BY c.course_title ASC
         ");
         $stmt->execute([$facultyId, $departmentId, $programmeId]);
@@ -603,9 +605,6 @@ try {
             exit;
         }
 
-        $pdo->prepare("UPDATE referee_uploads SET verified_status = 'Verified', verified_by = ?, verified_at = NOW() WHERE referee_id = ?")
-            ->execute([$_SESSION['user_id'] ?? null, $refId]);
-
         $stmt = $pdo->prepare("SELECT application_id FROM referees WHERE referee_id = ? LIMIT 1");
         $stmt->execute([$refId]);
         $appId = (int) $stmt->fetchColumn();
@@ -619,7 +618,25 @@ try {
                 exit;
             }
         }
+
+        $pdo->prepare("UPDATE referee_uploads SET verified_status = 'Verified', verified_by = ?, verified_at = NOW() WHERE referee_id = ?")
+            ->execute([$_SESSION['user_id'] ?? null, $refId]);
+
         if ($appId > 0) {
+            // Update Application Progress
+            $stmtProgress = $pdo->prepare("
+                INSERT INTO application_progress (application_id, stage, stage_status, stage_updated_at) 
+                VALUES (?, 'Referee Report', 'Completed', NOW())
+                ON DUPLICATE KEY UPDATE stage_status = 'Completed', stage_updated_at = NOW()
+            ");
+            $stmtProgress->execute([$appId]);
+
+            // Advance the next stage (Departmental Review) to In Progress
+            $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, ApplicationProgressManager::STATUS_IN_PROGRESS);
+
+            // Update completion weights
+            update_completion($pdo, $appId);
+
             $stmt = $pdo->prepare("SELECT user_id FROM applications WHERE application_id = ? LIMIT 1");
             $stmt->execute([$appId]);
             $userId = (int) $stmt->fetchColumn();
@@ -634,7 +651,7 @@ try {
 
     if ($action === 'reject') {
         $refId = (int) ($_POST['referee_id'] ?? 0);
-        $reason = trim($_POST['reason'] ?? '');
+        $reason = trim($_POST['reason'] ?? $_POST['remarks'] ?? '');
         if ($refId <= 0) {
             echo json_encode(['success' => false, 'message' => 'Invalid referee.']);
             exit;
@@ -644,12 +661,23 @@ try {
             exit;
         }
 
-        $pdo->prepare("UPDATE referee_uploads SET verified_status = 'Rejected', verified_by = ?, verified_at = NOW(), rejection_reason = ? WHERE referee_id = ?")
-            ->execute([$_SESSION['user_id'] ?? null, $reason, $refId]);
-
         $stmt = $pdo->prepare("SELECT application_id FROM referees WHERE referee_id = ? LIMIT 1");
         $stmt->execute([$refId]);
         $appId = (int) $stmt->fetchColumn();
+
+        if ($appId > 0) {
+            require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+            $progManager = new ApplicationProgressManager($pdo);
+            $missingStage = null;
+            if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_REFEREES, $missingStage)) {
+                echo json_encode(['success' => false, 'message' => "Cannot reject referee reports before the '{$missingStage}' stage is completed."]);
+                exit;
+            }
+        }
+
+        $pdo->prepare("UPDATE referee_uploads SET verified_status = 'Rejected', verified_by = ?, verified_at = NOW(), rejection_reason = ? WHERE referee_id = ?")
+            ->execute([$_SESSION['user_id'] ?? null, $reason, $refId]);
+
         if ($appId > 0) {
             $stmt = $pdo->prepare("SELECT user_id FROM applications WHERE application_id = ? LIMIT 1");
             $stmt->execute([$appId]);

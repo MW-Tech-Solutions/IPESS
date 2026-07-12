@@ -134,7 +134,10 @@
                     <div class="dropdown">
                         <button class="profile-chip dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <?php if (!empty($currentUser['avatar'])): ?>
-                                <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" alt="Avatar" style="width:26px;height:26px;border-radius:50%;">
+                                <img src="<?php echo htmlspecialchars($currentUser['avatar']); ?>" alt="Avatar" style="width:26px;height:26px;border-radius:50%;" onerror="this.style.display='none'; document.getElementById('avatar-fallback').style.display='inline-flex';">
+                                <span id="avatar-fallback" style="width:26px;height:26px;border-radius:50%;background:#f6f2e7;color:#0b5b3f;display:none;align-items:center;justify-content:center;font-weight:700;">
+                                    <?php echo htmlspecialchars($avatarInitial); ?>
+                                </span>
                             <?php else: ?>
                                 <span style="width:26px;height:26px;border-radius:50%;background:#f6f2e7;color:#0b5b3f;display:inline-flex;align-items:center;justify-content:center;font-weight:700;">
                                     <?php echo htmlspecialchars($avatarInitial); ?>

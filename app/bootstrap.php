@@ -7,9 +7,17 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/helpers/auth.php';
 require_once __DIR__ . '/helpers/mailer.php';
+// Load permissions registry (used by bootstrapper, auth, and role-management UI)
+if (file_exists(JOSTUM_ROOT . '/helpers/permissions-registry.php')) {
+    require_once JOSTUM_ROOT . '/helpers/permissions-registry.php';
+}
 
 if (php_sapi_name() !== 'cli') {
     start_secure_session();
+}
+// Run DB bootstrapper — creates missing RBAC tables + seeds on first deploy
+if (file_exists(JOSTUM_ROOT . '/database/bootstrap.php')) {
+    require JOSTUM_ROOT . '/database/bootstrap.php';
 }
 
 // Custom error/exception logging for remote debugging

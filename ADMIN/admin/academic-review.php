@@ -320,7 +320,7 @@ function renderStudents(list) {
             <td>${item.application_number}</td>
             <td>${item.programme}</td>
             <td>${item.course}</td>
-            <td><span class="status-chip">${item.status || 'Draft'}</span></td>
+            <td><span class="status-chip ${statusChipClass(item)}">${getStatusLabel(item)}</span></td>
             <td class="text-end">
                 ${canAccept(item) ? `<button class="btn btn-sm btn-success me-2" onclick="acceptApplication(${item.application_id})"><i class="fas fa-check"></i></button>` : ''}
                 <button class="btn btn-sm btn-outline-primary" onclick="viewStudent(${item.application_id})"><i class="fas fa-eye"></i></button>
@@ -329,12 +329,38 @@ function renderStudents(list) {
     `).join('');
 }
 
-function canAccept(item) {
-    const status = (item.status || '').toLowerCase();
+function getStatusLabel(item) {
     const current = (item.current_status || '').toUpperCase();
-    if (['submitted', 'admitted', 'rejected'].includes(status)) return false;
-    if (['SUBMITTED', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'].includes(current)) return false;
-    return true;
+    const statusLabels = {
+        'DRAFT': 'Draft',
+        'SUBMITTED': 'Submitted',
+        'ASSIGNED_TO_DEPARTMENT': 'Assigned to Department',
+        'UNDER_DEPT_REVIEW': 'Under Dept Review',
+        'ACTION_REQUIRED_DOCS': 'Action Required (Docs)',
+        'DEPT_APPROVED': 'Department Approved',
+        'DEPT_REJECTED': 'Department Rejected',
+        'REVIEWER_ASSIGNED': 'Reviewer Assigned',
+        'UNDER_REVIEWER_REVIEW': 'Under Reviewer Review',
+        'REVIEWER_APPROVED': 'Reviewer Approved',
+        'REVIEWER_REJECTED': 'Reviewer Rejected',
+        'ADMIN_FINAL_REVIEW': 'Admin Final Review',
+        'ADMISSION_APPROVED': 'Admission Approved',
+        'ADMISSION_REJECTED': 'Admission Rejected'
+    };
+    return statusLabels[current] || item.status || 'Draft';
+}
+
+function statusChipClass(item) {
+    const label = getStatusLabel(item).toLowerCase();
+    if (label.includes('approved') || label.includes('admitted')) return 'status-success';
+    if (label.includes('pending') || label.includes('review') || label.includes('submitted')) return 'status-warning';
+    if (label.includes('rejected')) return 'status-danger';
+    return 'status-muted';
+}
+
+function canAccept(item) {
+    const current = (item.current_status || '').toUpperCase();
+    return ['SUBMITTED', 'UNDER_DEPT_REVIEW', 'ACTION_REQUIRED_DOCS'].includes(current);
 }
 
 function setText(id, value) {
@@ -512,8 +538,14 @@ function setModalActions(data, appId) {
     footer.setAttribute('data-app-id', appId);
     const status = (data.status || '').toLowerCase();
     const current = (data.current_status || '').toUpperCase();
-    const isFinal = ['submitted', 'admitted', 'rejected'].includes(status) || ['SUBMITTED', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'].includes(current);
-    footer.style.display = isFinal ? 'none' : 'flex';
+    const isFinal = ['admitted', 'rejected', 'department approved', 'department rejected'].includes(status) || ['DEPT_APPROVED', 'DEPT_REJECTED', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'].includes(current);
+    if (isFinal) {
+        footer.classList.add('d-none');
+        footer.classList.remove('d-flex');
+    } else {
+        footer.classList.remove('d-none');
+        footer.classList.add('d-flex');
+    }
 }
 
 async function acceptApplication(appId) {
@@ -534,7 +566,17 @@ async function modalAccept() {
     const appId = footer ? footer.getAttribute('data-app-id') : '';
     if (!appId) return;
     await acceptApplication(appId);
-    bootstrap.Modal.getInstance(document.getElementById('studentModal')).hide();
+    const modalEl = document.getElementById('studentModal');
+    if (document.activeElement && modalEl.contains(document.activeElement)) {
+        document.activeElement.blur();
+    }
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) {
+        modalInstance.hide();
+    } else {
+        const closeBtn = modalEl.querySelector('.btn-close') || modalEl.querySelector('[data-bs-dismiss="modal"]');
+        if (closeBtn) closeBtn.click();
+    }
 }
 
 async function modalReject() {
@@ -551,7 +593,17 @@ async function modalReject() {
         return;
     }
     loadStudents();
-    bootstrap.Modal.getInstance(document.getElementById('studentModal')).hide();
+    const modalEl = document.getElementById('studentModal');
+    if (document.activeElement && modalEl.contains(document.activeElement)) {
+        document.activeElement.blur();
+    }
+    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+    if (modalInstance) {
+        modalInstance.hide();
+    } else {
+        const closeBtn = modalEl.querySelector('.btn-close') || modalEl.querySelector('[data-bs-dismiss="modal"]');
+        if (closeBtn) closeBtn.click();
+    }
 }
 
 async function applyBulk() {
