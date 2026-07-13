@@ -63,10 +63,10 @@ if ($action === 'list') {
         LEFT JOIN supervisors s ON sa.supervisor_id = s.supervisor_id
         LEFT JOIN projects p ON p.application_id = a.application_id
         LEFT JOIN research_details rd ON rd.application_id = a.application_id
-        WHERE a.department_id = ? AND a.status = 'Admitted'
+        WHERE (a.department_id = ? OR pc.department = ?) AND a.status = 'Admitted'
         ORDER BY pd.surname ASC
     ");
-    $stmt->execute([$deptId]);
+    $stmt->execute([$deptId, $deptId]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $data = array_map(function ($row) {

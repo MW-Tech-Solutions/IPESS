@@ -127,7 +127,7 @@ function buildSupervisorSelect(supervisors, selectedId) {
         const opt = document.createElement('option');
         opt.value = sup.id;
         opt.textContent = sup.name || sup.email || `Supervisor #${sup.id}`;
-        if (selectedId && Number(selectedId) === Number(sup.id)) {
+        if (selectedId && String(selectedId) === String(sup.id)) {
             opt.selected = true;
         }
         select.appendChild(opt);

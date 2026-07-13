@@ -189,10 +189,10 @@ try {
         $studentId = (int) ($_POST['student_id'] ?? 0);
         $applicationId = (int) ($_POST['application_id'] ?? 0);
         $applicationNumber = trim((string) ($_POST['application_number'] ?? ''));
-        $supervisorId = (int) ($_POST['supervisor_id'] ?? 0);
+        $supervisorInput = trim((string) ($_POST['supervisor_id'] ?? ''));
         $departmentId = $_POST['department_id'] ?? null;
 
-        if (($studentId <= 0 && $applicationNumber === '') || $supervisorId <= 0) {
+        if (($studentId <= 0 && $applicationNumber === '') || $supervisorInput === '') {
             echo json_encode(['success' => false, 'message' => 'Missing student or supervisor.']);
             exit;
         }
@@ -227,22 +227,30 @@ try {
         $stmt->execute([$keyVal]);
         $exists = (bool) $stmt->fetchColumn();
 
+        $supervisorId = 0;
         $supervisorName = '';
-        if ($supervisorId > 0) {
+        if (is_numeric($supervisorInput)) {
+            $supervisorId = (int) $supervisorInput;
             $supStmt = $pdo->prepare("SELECT COALESCE(full_name, email) AS name, email FROM users WHERE user_id = ? LIMIT 1");
             $supStmt->execute([$supervisorId]);
             $supRow = $supStmt->fetch(PDO::FETCH_ASSOC);
             if ($supRow) {
                 $supervisorName = (string) $supRow['name'];
             }
-        }
-        if ($supervisorName === '' && table_exists($pdo, 'supervisor_profiles')) {
-            $supStmt = $pdo->prepare("SELECT full_name, email FROM supervisor_profiles WHERE supervisor_id = ? LIMIT 1");
-            $supStmt->execute([(string) $supervisorId]);
-            $supRow = $supStmt->fetch(PDO::FETCH_ASSOC);
-            if ($supRow) {
-                $supervisorName = (string) $supRow['full_name'];
-                $supervisorEmail = (string) ($supRow['email'] ?? '');
+        } else {
+            if (table_exists($pdo, 'supervisor_profiles')) {
+                $supStmt = $pdo->prepare("SELECT full_name, email FROM supervisor_profiles WHERE supervisor_id = ? LIMIT 1");
+                $supStmt->execute([$supervisorInput]);
+                $supRow = $supStmt->fetch(PDO::FETCH_ASSOC);
+                if ($supRow) {
+                    $supervisorName = (string) $supRow['full_name'];
+                    $supervisorEmail = (string) ($supRow['email'] ?? '');
+                    if ($supervisorEmail !== '') {
+                        $userStmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ? LIMIT 1");
+                        $userStmt->execute([$supervisorEmail]);
+                        $supervisorId = (int) ($userStmt->fetchColumn() ?: 0);
+                    }
+                }
             }
         }
 

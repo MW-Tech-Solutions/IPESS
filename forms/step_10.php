@@ -33,6 +33,20 @@ try {
         ];
     }
 
+    $admission_letter_status = 'Inactive';
+    $acceptance_letter_status = 'Inactive';
+    try {
+        $stmtAP = $pdo->prepare("SELECT admission_letter_status, acceptance_letter_status FROM admission_processing WHERE application_id = ? LIMIT 1");
+        $stmtAP->execute([$application_id]);
+        $apRow = $stmtAP->fetch(PDO::FETCH_ASSOC);
+        if ($apRow) {
+            $admission_letter_status = $apRow['admission_letter_status'] ?? 'Inactive';
+            $acceptance_letter_status = $apRow['acceptance_letter_status'] ?? 'Inactive';
+        }
+    } catch (PDOException $e) {
+        error_log("Database Error fetching admission letter statuses: " . $e->getMessage());
+    }
+
 } catch (PDOException $e) {
     error_log("Database Error: " . $e->getMessage());
 }
@@ -289,11 +303,22 @@ if (in_array($final_status, ['APPROVED', 'REJECTED'], true)) {
         </div>
         
         <?php if($is_admitted): ?>
-            <a class="btn btn-success fw-bold w-100 w-md-auto px-4 py-3 shadow-sm rounded-pill"
-               href="#"
-               onclick="printSlipBackground('helpers/admission-letter.php?app_no=<?php echo urlencode($app_number); ?>'); return false;">
-                <i class="bi bi-download me-2"></i> Download Admission Letter
-            </a>
+            <div class="d-flex flex-column flex-md-row gap-2 w-100 w-md-auto justify-content-center justify-content-md-end">
+                <?php if($admission_letter_status === 'Active'): ?>
+                    <a class="btn btn-success fw-bold px-4 py-3 shadow-sm rounded-pill"
+                       href="#"
+                       onclick="printSlipBackground('<?php echo app_url('helpers/admission-letter.php?app_no=' . urlencode($app_number)); ?>'); return false;">
+                        <i class="bi bi-download me-2"></i> Download Admission Letter
+                    </a>
+                <?php endif; ?>
+                <?php if($acceptance_letter_status === 'Active'): ?>
+                    <a class="btn btn-primary fw-bold px-4 py-3 shadow-sm rounded-pill"
+                       href="#"
+                       onclick="printSlipBackground('<?php echo app_url('helpers/acceptance-letter.php?app_no=' . urlencode($app_number)); ?>'); return false;">
+                        <i class="bi bi-download me-2"></i> Download Acceptance Letter
+                    </a>
+                <?php endif; ?>
+            </div>
             <iframe id="printFrame" style="display:none;"></iframe>
         <?php endif; ?>
     </div>

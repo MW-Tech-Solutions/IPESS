@@ -27,7 +27,7 @@
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-brand">
                 <div class="brand-mark">
-                    <img src="../images/ipess_logo.png" alt="IPESS Logo" class="sidebar-brand-logo">
+                    <img src="<?php echo app_url('ADMIN/images/ipess_logo.png'); ?>" alt="IPESS Logo" class="sidebar-brand-logo">
                 </div>
                 <div class="brand-text">
                     <span class="brand-name">IPESS FUAM</span>

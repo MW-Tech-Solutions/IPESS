@@ -52,7 +52,7 @@ if ($action === 'list') {
         $params = [$reviewerId];
     }
 
-    $where[] = "a.current_status IN ('REVIEWER_ASSIGNED', 'DEPT_APPROVED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ACTION_REQUIRED_REVIEW')";
+    $where[] = "a.current_status IN ('REVIEWER_ASSIGNED', 'DEPT_APPROVED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ACTION_REQUIRED_REVIEW', 'APPROVED_BY_POSTGRADUATE_SCHOOL', 'REJECTED_BY_POSTGRADUATE_SCHOOL', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED', 'Admitted', 'Rejected')";
 
     if ($facultyId > 0) {
         $where[] = "pc.faculty = ?";

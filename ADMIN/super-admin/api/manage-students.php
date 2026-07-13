@@ -1,16 +1,14 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+require_once __DIR__ . '/../../../app/bootstrap.php';
+enforce_session_timeout(900, 'ADMIN/login.php');
 
-header('Content-Type: application/json');
-
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'SUPER_ADMIN') {
+if (!has_permission('manage_students')) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+    echo json_encode(['success' => false, 'message' => 'Access denied: Requires manage_students permission.']);
     exit;
 }
 
+header('Content-Type: application/json');
 require_once __DIR__ . '/../includes/db.php';
 
 set_error_handler(function ($severity, $message, $file, $line) {

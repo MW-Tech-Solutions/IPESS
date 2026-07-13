@@ -1,4 +1,13 @@
 <?php
+require_once __DIR__ . '/../../../app/bootstrap.php';
+enforce_session_timeout(900, 'ADMIN/login.php');
+
+if (!has_permission('manage_users')) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Access denied: Requires manage_users permission.']);
+    exit;
+}
+
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../../includes/mailer.php';
 require_once __DIR__ . '/../../includes/phpqrcode.php';

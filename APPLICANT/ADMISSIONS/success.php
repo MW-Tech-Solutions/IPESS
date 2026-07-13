@@ -53,6 +53,19 @@ try {
 
     $appId = $app['application_id'];
     
+    // Fetch passport
+    $stmt_pass = $pdo->prepare("
+        SELECT file_path 
+        FROM documents 
+        WHERE application_id = ? 
+          AND document_type IN ('passport_profile','passport') 
+        ORDER BY CASE WHEN document_type = 'passport_profile' THEN 0 ELSE 1 END
+        LIMIT 1
+    ");
+    $stmt_pass->execute([$appId]);
+    $passport = $stmt_pass->fetch(PDO::FETCH_ASSOC);
+    $passportPath = (!empty($passport['file_path'])) ? '../../' . ltrim($passport['file_path'], '/') : '../../assets/img/default-avatar.png';
+
     $stmt = $pdo->prepare("SELECT * FROM olevel_exams WHERE application_id = ? ORDER BY sitting_number ASC");
     $stmt->execute([$appId]);
     $olevel_exams = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -141,7 +154,7 @@ try {
         /* --- DESKTOP & PRINT OVERRIDES --- */
         @media (min-width: 768px) {
             .slip-container { padding: 50px; margin: 30px auto; }
-            .header-top { display: grid; grid-template-columns: 120px 1fr 120px; flex-direction: row; }
+            .header-top { display: grid; grid-template-columns: 120px minmax(0, 1fr) 120px; align-items: center; }
             .uni-logo { width: 110px; }
             .header-titles h2 { font-size: 1.6rem; }
             .header-meta { flex-direction: row; justify-content: space-between; }
@@ -153,7 +166,7 @@ try {
             .no-print { display: none !important; }
             body { background: white; }
             .slip-container { box-shadow: none; border: none; margin: 0; width: 100%; max-width: 100%; padding: 0px; }
-            .header-top { display: grid; grid-template-columns: 120px 1fr 120px; }
+            .header-top { display: grid; grid-template-columns: 120px minmax(0, 1fr) 120px; align-items: center; }
             .header-meta { flex-direction: row; justify-content: space-between; }
             .info-grid { grid-template-columns: repeat(2, 1fr); }
             .section-title { -webkit-print-color-adjust: exact; background-color: var(--brand-blue) !important; color: white !important; }
@@ -180,7 +193,13 @@ try {
                 <p>Joseph Sarwuan Tarka University, Makurdi</p>
                 <div class="fw-bold mt-1 text-dark" style="font-size: 0.85rem;">Official Application Acknowledgment Slip</div>
             </div>
-            <div class="d-none d-md-block"></div>
+            <div class="passport-box text-end">
+                <?php if (!empty($passport['file_path'])): ?>
+                    <img src="<?php echo htmlspecialchars($passportPath); ?>" alt="User Passport" style="width: 90px; height: 110px; border: 1px solid #ddd; object-fit: cover;">
+                <?php else: ?>
+                    <div style="width: 90px; height: 110px; border: 1px dashed #ddd; display: inline-block; line-height: 110px; text-align: center; color: #aaa; font-size: 8pt;">No Photo</div>
+                <?php endif; ?>
+            </div>
         </div>
 
         <div class="header-ruler"></div>

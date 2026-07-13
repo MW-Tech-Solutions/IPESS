@@ -1,5 +1,13 @@
 <?php
-session_start();
+require_once __DIR__ . '/../../../app/bootstrap.php';
+enforce_session_timeout(900, 'ADMIN/login.php');
+
+if (!has_permission('reports')) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'message' => 'Access denied: Requires reports permission.']);
+    exit;
+}
+
 require_once __DIR__ . '/../includes/db.php';
 
 $dompdfAvailable = false;

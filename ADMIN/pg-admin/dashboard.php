@@ -20,7 +20,7 @@ if (isset($pdo)) {
         $stats['pending'] = (int) $pdo->query("
             SELECT COUNT(*) 
             FROM applications 
-            WHERE status = 'Submitted' AND current_status IN ('FACULTY_APPROVED', 'UNDER_PG_REVIEW')
+            WHERE status = 'Submitted' AND current_status IN ('DEPT_APPROVED', 'FACULTY_APPROVED', 'UNDER_PG_REVIEW')
         ")->fetchColumn();
 
         // 3. Approved by PG School (APPROVED_BY_POSTGRADUATE_SCHOOL or ADMISSION_APPROVED)

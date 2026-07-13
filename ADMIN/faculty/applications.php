@@ -52,9 +52,9 @@ if (isset($pdo)) {
         if ($filterStatus === 'Pending') {
             $whereClauses[] = "a.current_status IN ('DEPT_APPROVED', 'UNDER_FACULTY_REVIEW')";
         } elseif ($filterStatus === 'Approved') {
-            $whereClauses[] = "a.current_status IN ('FACULTY_APPROVED', 'APPROVED_BY_FACULTY')";
+            $whereClauses[] = "a.current_status IN ('FACULTY_APPROVED', 'APPROVED_BY_FACULTY', 'APPROVED_BY_POSTGRADUATE_SCHOOL', 'ADMISSION_APPROVED', 'Admitted')";
         } elseif ($filterStatus === 'Rejected') {
-            $whereClauses[] = "a.current_status = 'FACULTY_REJECTED'";
+            $whereClauses[] = "a.current_status IN ('FACULTY_REJECTED', 'REJECTED_BY_POSTGRADUATE_SCHOOL', 'ADMISSION_REJECTED', 'Rejected')";
         }
 
         $whereSql = implode(' AND ', $whereClauses);
@@ -79,8 +79,8 @@ if (isset($pdo)) {
             FROM applications a
             JOIN programme_choices pc ON a.application_id = pc.application_id
             JOIN personal_details pd ON a.application_id = pd.application_id
-            JOIN departments d ON pc.department = d.dept_id
-            JOIN courses c ON pc.course = c.course_id
+            LEFT JOIN departments d ON pc.department = d.dept_id
+            LEFT JOIN courses c ON pc.course = c.course_id
             WHERE {$whereSql}
             ORDER BY a.submitted_at DESC
             LIMIT :limit OFFSET :offset

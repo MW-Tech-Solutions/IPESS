@@ -52,7 +52,7 @@ if (isset($pdo)) {
 
         // Pending vs Verified vs Rejected status filter logic
         if ($filterStatus === 'Pending') {
-            $whereClauses[] = "(ap.stage_status IS NULL OR ap.stage_status != 'Completed') AND a.status = 'Submitted'";
+            $whereClauses[] = "(ap.stage_status IS NULL OR ap.stage_status != 'Completed') AND a.status != 'Draft'";
         } elseif ($filterStatus === 'Verified') {
             $whereClauses[] = "ap.stage_status = 'Completed'";
         } elseif ($filterStatus === 'Rejected') {
@@ -83,8 +83,8 @@ if (isset($pdo)) {
             FROM applications a
             JOIN programme_choices pc ON a.application_id = pc.application_id
             JOIN personal_details pd ON a.application_id = pd.application_id
-            JOIN departments d ON pc.department = d.dept_id
-            JOIN faculties f ON pc.faculty = f.faculty_id
+            LEFT JOIN departments d ON pc.department = d.dept_id
+            LEFT JOIN faculties f ON pc.faculty = f.faculty_id
             LEFT JOIN application_progress ap ON a.application_id = ap.application_id AND ap.stage = 'Documents Verification'
             WHERE {$whereSql}
             ORDER BY a.submitted_at DESC

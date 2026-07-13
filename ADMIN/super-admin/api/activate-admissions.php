@@ -13,8 +13,8 @@ if (!isset($_SESSION['user_id'])) {
 $sessionUserId = (int) $_SESSION['user_id'];
 $sessionRole   = $_SESSION['role'] ?? '';
 
-if (!in_array($sessionRole, ['SUPER_ADMIN', 'ICT_ADMIN'], true)) {
-    echo json_encode(['success' => false, 'message' => 'Forbidden.']);
+if (!has_permission('ict_processing')) {
+    echo json_encode(['success' => false, 'message' => 'Forbidden. Requires ict_processing permission.']);
     exit;
 }
 

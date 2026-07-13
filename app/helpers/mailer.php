@@ -48,7 +48,7 @@ function portal_mail_config(): array
         'pass'          => (string)(getenv('SMTP_PASS') ?: ''),
         'encryption'    => $enc,
         'from_email'    => (string)(getenv('SMTP_FROM_EMAIL') ?: (getenv('SMTP_USER') ?: '')),
-        'from_name'     => (string)(getenv('SMTP_FROM_NAME') ?: 'IPESS FUAM'),
+        'from_name'     => (string)(getenv('SMTP_FROM_NAME') ?: 'Institute of Procurement, Environmental and Social Standard IPESS JOSTUM'),
         'reply_to_email'=> (string)(getenv('SMTP_REPLY_TO_EMAIL') ?: ''),
         'reply_to_name' => (string)(getenv('SMTP_REPLY_TO_NAME') ?: ''),
         'debug'         => (int)(getenv('SMTP_DEBUG') ?: 0), // 0,1,2
@@ -58,7 +58,7 @@ function portal_mail_config(): array
 
 function portal_email_template(string $title, string $contentHtml, array $meta = []): string
 {
-    $preheader  = htmlspecialchars($meta['preheader'] ?? 'IPESS FUAM Notification', ENT_QUOTES, 'UTF-8');
+    $preheader  = htmlspecialchars($meta['preheader'] ?? 'Institute of Procurement, Environmental and Social Standard IPESS JOSTUM Notification', ENT_QUOTES, 'UTF-8');
     $footerNote = htmlspecialchars($meta['footer_note'] ?? 'This is an automated message. Please do not reply.', ENT_QUOTES, 'UTF-8');
 
     $ctaLabel = $meta['cta_label'] ?? '';
@@ -100,7 +100,7 @@ HTML;
         <table role="presentation" cellpadding="0" cellspacing="0" width="640" style="max-width:640px;background:#ffffff;border-radius:12px;box-shadow:0 6px 18px rgba(15,23,42,0.08);overflow:hidden;">
           <tr>
             <td style="background:#782D32;color:#ffffff;padding:22px 28px;font-size:18px;font-weight:600;">
-              IPESS FUAM
+              Institute of Procurement, Environmental and Social Standard IPESS JOSTUM
             </td>
           </tr>
           <tr>
@@ -119,7 +119,7 @@ HTML;
           </tr>
         </table>
         <div style="font-size:11.5px;color:#8a94a6;margin-top:10px;">
-          IPESS FUAM - Institute of Procurement, Environmental and Social Standards
+          Institute of Procurement, Environmental and Social Standard IPESS JOSTUM
         </div>
       </td>
     </tr>
@@ -200,7 +200,14 @@ function portal_send_mail(
                 $name = $img['name'] ?? 'image.png';
                 $mime = $img['mime'] ?? 'image/png';
                 if ($cid !== '' && $data !== '') {
-                    $mail->addStringEmbeddedImage($data, $cid, $name, 'base64', $mime);
+                    $decodedData = $data;
+                    if (is_string($data) && preg_match('/^[a-zA-Z0-9\/+\r\n]*={0,2}$/', trim($data))) {
+                        $decoded = base64_decode(trim($data), true);
+                        if ($decoded !== false && base64_encode($decoded) === trim($data)) {
+                            $decodedData = $decoded;
+                        }
+                    }
+                    $mail->addStringEmbeddedImage($decodedData, $cid, $name, 'base64', $mime);
                 }
             }
         }

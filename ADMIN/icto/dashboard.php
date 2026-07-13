@@ -21,7 +21,7 @@ if (isset($pdo)) {
             SELECT COUNT(DISTINCT a.application_id) 
             FROM applications a
             LEFT JOIN application_progress ap ON a.application_id = ap.application_id AND ap.stage = 'Documents Verification'
-            WHERE a.status = 'Submitted' AND (ap.stage_status IS NULL OR ap.stage_status != 'Completed')
+            WHERE a.status != 'Draft' AND (ap.stage_status IS NULL OR ap.stage_status != 'Completed')
         ")->fetchColumn();
 
         // Verified Applicants (Documents stage is Completed)

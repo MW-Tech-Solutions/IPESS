@@ -50,7 +50,31 @@ try {
         $departmentId = $_GET['department_id'] ?? '';
         $rows = [];
 
-        if (table_exists($pdo, 'supervisors')) {
+        if (table_exists($pdo, 'supervisor_profiles')) {
+            if ($departmentId !== '') {
+                $stmt = $pdo->prepare("
+                    SELECT s.supervisor_id AS id,
+                           s.full_name AS name,
+                           s.email
+                    FROM supervisor_profiles s
+                    WHERE s.status = 'Active'
+                      AND (s.department_id = ? OR s.department_id IS NULL OR s.department_id = '')
+                    ORDER BY s.full_name ASC
+                ");
+                $stmt->execute([$departmentId]);
+            } else {
+                $stmt = $pdo->prepare("
+                    SELECT s.supervisor_id AS id,
+                           s.full_name AS name,
+                           s.email
+                    FROM supervisor_profiles s
+                    WHERE s.status = 'Active'
+                    ORDER BY s.full_name ASC
+                ");
+                $stmt->execute();
+            }
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } elseif (table_exists($pdo, 'supervisors')) {
             if ($departmentId !== '') {
                 $stmt = $pdo->prepare("
                     SELECT s.supervisor_id AS id,
@@ -206,10 +230,24 @@ try {
                 $keys = array_values(array_filter(array_unique($keys)));
                 if (!empty($keys)) {
                     $placeholders = implode(',', array_fill(0, count($keys), '?'));
-                    $stmt = $pdo->prepare("SELECT {$keyCol} AS ref_id, {$supervisorCol} AS supervisor_id FROM supervisor_students WHERE {$keyCol} IN ({$placeholders})");
+                    $stmt = $pdo->prepare("SELECT {$keyCol} AS ref_id, {$supervisorCol} AS supervisor_val FROM supervisor_students WHERE {$keyCol} IN ({$placeholders})");
                     $stmt->execute($keys);
                     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-                        $assignmentMap[(int) $row['ref_id']] = (int) $row['supervisor_id'];
+                        $val = trim((string) $row['supervisor_val']);
+                        if ($val !== '' && is_numeric($val) && table_exists($pdo, 'supervisor_profiles')) {
+                            $emailStmt = $pdo->prepare("SELECT email FROM users WHERE user_id = ? LIMIT 1");
+                            $emailStmt->execute([(int)$val]);
+                            $email = $emailStmt->fetchColumn();
+                            if ($email) {
+                                $profStmt = $pdo->prepare("SELECT supervisor_id FROM supervisor_profiles WHERE email = ? LIMIT 1");
+                                $profStmt->execute([$email]);
+                                $profId = $profStmt->fetchColumn();
+                                if ($profId) {
+                                    $val = $profId;
+                                }
+                            }
+                        }
+                        $assignmentMap[(int) $row['ref_id']] = $val;
                     }
                 }
             }
@@ -230,10 +268,10 @@ try {
     if ($action === 'assign') {
         $studentId = (int) ($_POST['student_id'] ?? 0);
         $applicationId = (int) ($_POST['application_id'] ?? 0);
-        $supervisorId = (int) ($_POST['supervisor_id'] ?? 0);
+        $supervisorInput = trim((string) ($_POST['supervisor_id'] ?? ''));
         $departmentId = $_POST['department_id'] ?? null;
 
-        if ($studentId <= 0 || $supervisorId <= 0) {
+        if ($studentId <= 0 || $supervisorInput === '') {
             echo json_encode(['success' => false, 'message' => 'Missing student or supervisor.']);
             exit;
         }
@@ -243,71 +281,181 @@ try {
             exit;
         }
 
+        // 1. Resolve supervisor details
+        $supervisorId = 0;
+        $supervisorName = '';
+        if (is_numeric($supervisorInput)) {
+            $supervisorId = (int) $supervisorInput;
+            $supStmt = $pdo->prepare("SELECT COALESCE(full_name, email) AS name FROM users WHERE user_id = ? LIMIT 1");
+            $supStmt->execute([$supervisorId]);
+            $supervisorName = (string) ($supStmt->fetchColumn() ?: '');
+        } else {
+            if (table_exists($pdo, 'supervisor_profiles')) {
+                $supStmt = $pdo->prepare("SELECT full_name, email FROM supervisor_profiles WHERE supervisor_id = ? LIMIT 1");
+                $supStmt->execute([$supervisorInput]);
+                $supRow = $supStmt->fetch(PDO::FETCH_ASSOC);
+                if ($supRow) {
+                    $supervisorName = (string) $supRow['full_name'];
+                    $supervisorEmail = (string) ($supRow['email'] ?? '');
+                    if ($supervisorEmail !== '') {
+                        $userStmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ? LIMIT 1");
+                        $userStmt->execute([$supervisorEmail]);
+                        $supervisorId = (int) ($userStmt->fetchColumn() ?: 0);
+                    }
+                }
+            }
+        }
+
+        // 2. Fetch student details from database
+        $studentName = '';
+        $studentEmail = '';
+        $programme = '';
+        $applicationNumber = '';
+
+        $stmt = $pdo->prepare("
+            SELECT a.application_number, 
+                   CONCAT(p.first_name, ' ', p.surname) AS full_name, 
+                   COALESCE(u.email, aa.email) AS email,
+                   COALESCE(dt.degree_name, pc.degree_type) AS degree_type,
+                   COALESCE(c.course_title, pc.course) AS course
+            FROM applications a
+            LEFT JOIN personal_details p ON a.application_id = p.application_id
+            LEFT JOIN users u ON a.user_id = u.user_id
+            LEFT JOIN applicant_accounts aa ON aa.user_id = a.user_id
+            LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
+            LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
+            LEFT JOIN courses c ON pc.course = c.course_id
+            WHERE a.application_id = ? LIMIT 1
+        ");
+        $stmt->execute([$applicationId]);
+        $studentRow = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($studentRow) {
+            $studentName = (string) $studentRow['full_name'];
+            $studentEmail = (string) $studentRow['email'];
+            $applicationNumber = (string) $studentRow['application_number'];
+            $programme = trim(($studentRow['degree_type'] ?? '') . ' in ' . ($studentRow['course'] ?? ''));
+        }
+
+        // 3. Resolve columns
         $cols = get_columns($pdo, 'supervisor_students');
-        $supervisorCol = in_array('supervisor_id', $cols, true) ? 'supervisor_id' : (in_array('supervisor_user_id', $cols, true) ? 'supervisor_user_id' : null);
         $studentCol = in_array('student_id', $cols, true) ? 'student_id' : (in_array('user_id', $cols, true) ? 'user_id' : null);
-        $applicationCol = in_array('application_id', $cols, true) ? 'application_id' : null;
-        $departmentCol = in_array('department_id', $cols, true) ? 'department_id' : null;
+        $supervisorCol = in_array('supervisor_id', $cols, true) ? 'supervisor_id' : (in_array('supervisor_user_id', $cols, true) ? 'supervisor_user_id' : null);
+        $supervisorNameCol = in_array('supervisor_name', $cols, true) ? 'supervisor_name' : null;
+        $fullNameCol = in_array('full_name', $cols, true) ? 'full_name' : null;
+        $programmeCol = in_array('programme', $cols, true) ? 'programme' : null;
+        $emailCol = in_array('email', $cols, true) ? 'email' : null;
         $assignedAtCol = in_array('assigned_at', $cols, true) ? 'assigned_at' : null;
+        $supervisorUserIdCol = in_array('supervisor_user_id', $cols, true) ? 'supervisor_user_id' : null;
         $studentUserIdCol = in_array('student_user_id', $cols, true) ? 'student_user_id' : null;
+        $applicationIdCol = in_array('application_id', $cols, true) ? 'application_id' : null;
         $applicationNumberCol = in_array('application_number', $cols, true) ? 'application_number' : null;
+        $departmentIdCol = in_array('department_id', $cols, true) ? 'department_id' : null;
 
-        if ($supervisorCol === null || $studentCol === null) {
-            echo json_encode(['success' => false, 'message' => 'supervisor_students schema missing supervisor/student columns.']);
+        if ($studentCol === null) {
+            echo json_encode(['success' => false, 'message' => 'supervisor_students schema missing student_id column.']);
             exit;
         }
 
-        $keyCol = $applicationCol ? 'application_id' : $studentCol;
-        $keyVal = $applicationCol ? $applicationId : $studentId;
-        if ($keyVal <= 0) {
-            echo json_encode(['success' => false, 'message' => 'Missing application or student reference.']);
-            exit;
-        }
+        $keyCol = $studentCol;
+        $keyVal = $applicationNumber !== '' ? $applicationNumber : (string) $studentId;
 
         $stmt = $pdo->prepare("SELECT 1 FROM supervisor_students WHERE {$keyCol} = ? LIMIT 1");
         $stmt->execute([$keyVal]);
         $exists = (bool) $stmt->fetchColumn();
 
         if ($exists) {
-            $setParts = ["{$supervisorCol} = ?"];
-            $params = [$supervisorId];
-            if ($departmentCol !== null && $departmentId !== null && $departmentId !== '') {
-                $setParts[] = "{$departmentCol} = ?";
-                $params[] = $departmentId;
+            $setParts = [];
+            $params = [];
+            if ($supervisorCol !== null) {
+                $setParts[] = "{$supervisorCol} = ?";
+                $params[] = ($supervisorCol === 'supervisor_user_id') ? $supervisorId : $supervisorInput;
             }
-            if ($studentUserIdCol !== null) {
-                $setParts[] = "{$studentUserIdCol} = ?";
-                $params[] = $studentId;
-            }
-            if ($applicationNumberCol !== null && !empty($_POST['application_number'])) {
-                $setParts[] = "{$applicationNumberCol} = ?";
-                $params[] = trim((string) $_POST['application_number']);
+            if ($supervisorNameCol !== null && $supervisorName !== '') {
+                $setParts[] = "{$supervisorNameCol} = ?";
+                $params[] = $supervisorName;
             }
             if ($assignedAtCol !== null) {
                 $setParts[] = "{$assignedAtCol} = NOW()";
             }
-            $params[] = $keyVal;
-            $stmt = $pdo->prepare("UPDATE supervisor_students SET " . implode(', ', $setParts) . " WHERE {$keyCol} = ?");
-            $stmt->execute($params);
-        } else {
-            $insertCols = [$supervisorCol, $studentCol];
-            $insertVals = [$supervisorId, $studentId];
-
-            if ($applicationCol !== null && $applicationId > 0) {
-                $insertCols[] = $applicationCol;
-                $insertVals[] = $applicationId;
+            if ($fullNameCol !== null && $studentName !== '') {
+                $setParts[] = "{$fullNameCol} = ?";
+                $params[] = $studentName;
             }
-            if ($studentUserIdCol !== null) {
+            if ($programmeCol !== null && $programme !== '') {
+                $setParts[] = "{$programmeCol} = ?";
+                $params[] = $programme;
+            }
+            if ($emailCol !== null && $studentEmail !== '') {
+                $setParts[] = "{$emailCol} = ?";
+                $params[] = $studentEmail;
+            }
+            if ($supervisorUserIdCol !== null) {
+                $setParts[] = "{$supervisorUserIdCol} = ?";
+                $params[] = $supervisorId;
+            }
+            if ($studentUserIdCol !== null && $studentId > 0) {
+                $setParts[] = "{$studentUserIdCol} = ?";
+                $params[] = $studentId;
+            }
+            if ($applicationIdCol !== null && $applicationId > 0) {
+                $setParts[] = "{$applicationIdCol} = ?";
+                $params[] = $applicationId;
+            }
+            if ($applicationNumberCol !== null && $applicationNumber !== '') {
+                $setParts[] = "{$applicationNumberCol} = ?";
+                $params[] = $applicationNumber;
+            }
+            if ($departmentIdCol !== null && $departmentId !== null && $departmentId !== '') {
+                $setParts[] = "{$departmentIdCol} = ?";
+                $params[] = (int) $departmentId;
+            }
+            if (!empty($setParts)) {
+                $params[] = $keyVal;
+                $stmt = $pdo->prepare("UPDATE supervisor_students SET " . implode(', ', $setParts) . " WHERE {$keyCol} = ?");
+                $stmt->execute($params);
+            }
+        } else {
+            $insertCols = [$studentCol];
+            $insertVals = [$keyVal];
+            if ($supervisorCol !== null) {
+                $insertCols[] = $supervisorCol;
+                $insertVals[] = ($supervisorCol === 'supervisor_user_id') ? $supervisorId : $supervisorInput;
+            }
+            if ($supervisorNameCol !== null && $supervisorName !== '') {
+                $insertCols[] = $supervisorNameCol;
+                $insertVals[] = $supervisorName;
+            }
+            if ($fullNameCol !== null && $studentName !== '') {
+                $insertCols[] = $fullNameCol;
+                $insertVals[] = $studentName;
+            }
+            if ($programmeCol !== null && $programme !== '') {
+                $insertCols[] = $programmeCol;
+                $insertVals[] = $programme;
+            }
+            if ($emailCol !== null && $studentEmail !== '') {
+                $insertCols[] = $emailCol;
+                $insertVals[] = $studentEmail;
+            }
+            if ($supervisorUserIdCol !== null) {
+                $insertCols[] = $supervisorUserIdCol;
+                $insertVals[] = $supervisorId;
+            }
+            if ($studentUserIdCol !== null && $studentId > 0) {
                 $insertCols[] = $studentUserIdCol;
                 $insertVals[] = $studentId;
             }
-            if ($applicationNumberCol !== null && !empty($_POST['application_number'])) {
-                $insertCols[] = $applicationNumberCol;
-                $insertVals[] = trim((string) $_POST['application_number']);
+            if ($applicationIdCol !== null && $applicationId > 0) {
+                $insertCols[] = $applicationIdCol;
+                $insertVals[] = $applicationId;
             }
-            if ($departmentCol !== null && $departmentId !== null && $departmentId !== '') {
-                $insertCols[] = $departmentCol;
-                $insertVals[] = $departmentId;
+            if ($applicationNumberCol !== null && $applicationNumber !== '') {
+                $insertCols[] = $applicationNumberCol;
+                $insertVals[] = $applicationNumber;
+            }
+            if ($departmentIdCol !== null && $departmentId !== null && $departmentId !== '') {
+                $insertCols[] = $departmentIdCol;
+                $insertVals[] = (int) $departmentId;
             }
             if ($assignedAtCol !== null) {
                 $insertCols[] = $assignedAtCol;

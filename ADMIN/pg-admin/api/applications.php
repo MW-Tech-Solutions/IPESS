@@ -109,15 +109,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'details') {
         // Fetch applicant with supervisor details
         $stmt = $pdo->prepare("
             SELECT a.application_id, a.application_number, a.status, a.current_status,
-                   p.first_name, p.surname, p.email, c.course_title,
-                   su.full_name AS supervisor_name, sp.supervisor_status, sa.assigned_at AS supervisor_assigned_at
+                   p.first_name, p.surname, u.email AS email, c.course_title,
+                    sa.supervisor_name AS supervisor_name, COALESCE(sp.supervisor_status, sa.status) AS supervisor_status, sa.updated_at AS supervisor_assigned_at
             FROM applications a
             LEFT JOIN personal_details p ON a.application_id = p.application_id
+            LEFT JOIN users u ON a.user_id = u.user_id
             LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
             LEFT JOIN courses c ON pc.course = c.course_id
-            LEFT JOIN student_profiles sp ON (sp.student_id = a.application_number OR sp.email = p.email)
-            LEFT JOIN supervisor_assignments sa ON sa.application_id = a.application_id AND sa.status = 'Assigned'
-            LEFT JOIN supervisors su ON sa.supervisor_id = su.supervisor_id
+            LEFT JOIN student_profiles sp ON (sp.student_id = a.application_number OR sp.email = u.email)
+            LEFT JOIN supervisor_students sa ON (sa.application_id = a.application_id OR sa.application_number = a.application_number)
             WHERE a.application_id = ?
             LIMIT 1
         ");

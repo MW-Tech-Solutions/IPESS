@@ -59,7 +59,7 @@ if ($action === 'list') {
         LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
         LEFT JOIN courses c ON pc.course = c.course_id
         LEFT JOIN users u ON a.assigned_reviewer_id = u.user_id
-        WHERE (a.department_id = ? OR pc.department = ?) AND a.current_status IN ('ASSIGNED_TO_DEPARTMENT', 'UNDER_DEPT_REVIEW', 'ACTION_REQUIRED_DOCS', 'TOPIC_REJECTED', 'DEPT_APPROVED', 'DEPT_REJECTED', 'REVIEWER_ASSIGNED')
+        WHERE (a.department_id = ? OR pc.department = ?) AND a.status != 'Draft'
         ORDER BY a.submitted_at DESC
     ");
     $stmt->execute([$deptId, $deptId]);

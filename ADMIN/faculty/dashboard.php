@@ -60,7 +60,7 @@ if (isset($pdo)) {
             SELECT COUNT(DISTINCT a.application_id) 
             FROM applications a 
             JOIN programme_choices pc ON a.application_id = pc.application_id 
-            WHERE {$whereSql} AND a.current_status IN ('FACULTY_APPROVED', 'APPROVED_BY_FACULTY')
+            WHERE {$whereSql} AND a.current_status IN ('FACULTY_APPROVED', 'APPROVED_BY_FACULTY', 'APPROVED_BY_POSTGRADUATE_SCHOOL', 'ADMISSION_APPROVED', 'Admitted')
         ");
         $stmt->execute($params);
         $stats['approved'] = (int) $stmt->fetchColumn();
@@ -70,7 +70,7 @@ if (isset($pdo)) {
             SELECT COUNT(DISTINCT a.application_id) 
             FROM applications a 
             JOIN programme_choices pc ON a.application_id = pc.application_id 
-            WHERE {$whereSql} AND a.current_status IN ('FACULTY_REJECTED', 'ACTION_REQUIRED_DOCS')
+            WHERE {$whereSql} AND a.current_status IN ('FACULTY_REJECTED', 'ACTION_REQUIRED_DOCS', 'REJECTED_BY_POSTGRADUATE_SCHOOL', 'ADMISSION_REJECTED', 'Rejected')
         ");
         $stmt->execute($params);
         $stats['rejected'] = (int) $stmt->fetchColumn();

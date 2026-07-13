@@ -50,7 +50,7 @@ if (isset($pdo)) {
 
         // PG evaluation status filter
         if ($filterStatus === 'Pending') {
-            $whereClauses[] = "a.current_status IN ('FACULTY_APPROVED', 'UNDER_PG_REVIEW')";
+            $whereClauses[] = "a.current_status IN ('DEPT_APPROVED', 'FACULTY_APPROVED', 'UNDER_PG_REVIEW')";
         } elseif ($filterStatus === 'Approved') {
             $whereClauses[] = "a.current_status IN ('APPROVED_BY_POSTGRADUATE_SCHOOL', 'ADMISSION_APPROVED', 'Admitted')";
         } elseif ($filterStatus === 'Rejected') {
@@ -76,16 +76,16 @@ if (isset($pdo)) {
             SELECT DISTINCT a.application_id, a.application_number, a.status, a.current_status, a.submitted_at,
                    pd.first_name, pd.surname,
                    d.dept_name, f.faculty_name, c.course_title,
-                   sp.supervisor_status, sa.assigned_at AS supervisor_assigned_at, su.full_name AS supervisor_name
+                    COALESCE(sp.supervisor_status, sa.status) AS supervisor_status, sa.updated_at AS supervisor_assigned_at, sa.supervisor_name AS supervisor_name
             FROM applications a
             JOIN programme_choices pc ON a.application_id = pc.application_id
             JOIN personal_details pd ON a.application_id = pd.application_id
-            JOIN departments d ON pc.department = d.dept_id
-            JOIN faculties f ON pc.faculty = f.faculty_id
-            JOIN courses c ON pc.course = c.course_id
-            LEFT JOIN student_profiles sp ON (sp.student_id = a.application_number OR sp.email = pd.email)
-            LEFT JOIN supervisor_assignments sa ON sa.application_id = a.application_id AND sa.status = 'Assigned'
-            LEFT JOIN supervisors su ON sa.supervisor_id = su.supervisor_id
+            LEFT JOIN users u ON a.user_id = u.user_id
+            LEFT JOIN departments d ON pc.department = d.dept_id
+            LEFT JOIN faculties f ON pc.faculty = f.faculty_id
+            LEFT JOIN courses c ON pc.course = c.course_id
+            LEFT JOIN student_profiles sp ON (sp.student_id = a.application_number OR sp.email = u.email)
+            LEFT JOIN supervisor_students sa ON (sa.application_id = a.application_id OR sa.application_number = a.application_number)
             WHERE {$whereSql}
             ORDER BY a.submitted_at DESC
             LIMIT :limit OFFSET :offset

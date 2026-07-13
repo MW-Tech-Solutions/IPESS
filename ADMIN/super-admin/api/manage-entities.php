@@ -1,4 +1,24 @@
 <?php
+require_once __DIR__ . '/../../../app/bootstrap.php';
+enforce_session_timeout(900, 'ADMIN/login.php');
+
+$action = $_GET['action'] ?? $_POST['action'] ?? 'list';
+$entity = $_GET['entity'] ?? $_POST['entity'] ?? '';
+
+if ($action === 'get_permissions' || $action === 'save_permissions' || $entity === 'roles') {
+    if (!has_permission('manage_roles')) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied: Requires manage_roles permission.']);
+        exit;
+    }
+} else {
+    if (!has_permission('manage_academics')) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied: Requires manage_academics permission.']);
+        exit;
+    }
+}
+
 require_once __DIR__ . '/../includes/db.php';
 
 header('Content-Type: application/json');

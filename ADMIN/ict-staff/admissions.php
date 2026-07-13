@@ -52,15 +52,16 @@ if (isset($pdo)) {
         // Data query
         $dataQuery = "
             SELECT DISTINCT a.application_id, a.application_number, a.status, a.current_status, a.submitted_at,
-                   pd.first_name, pd.surname, pd.email,
+                   pd.first_name, pd.surname, u.email AS email,
                    d.dept_name, f.faculty_name, c.course_title,
                    ap.matric_number, ap.student_number, ap.acceptance_letter_status, ap.admission_letter_status
             FROM applications a
             JOIN programme_choices pc ON a.application_id = pc.application_id
             JOIN personal_details pd ON a.application_id = pd.application_id
-            JOIN departments d ON pc.department = d.dept_id
-            JOIN faculties f ON pc.faculty = f.faculty_id
-            JOIN courses c ON pc.course = c.course_id
+            LEFT JOIN users u ON a.user_id = u.user_id
+            LEFT JOIN departments d ON pc.department = d.dept_id
+            LEFT JOIN faculties f ON pc.faculty = f.faculty_id
+            LEFT JOIN courses c ON pc.course = c.course_id
             LEFT JOIN admission_processing ap ON a.application_id = ap.application_id
             WHERE {$whereSql}
             ORDER BY a.submitted_at DESC

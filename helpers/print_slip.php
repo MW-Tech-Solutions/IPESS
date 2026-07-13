@@ -179,7 +179,7 @@ try {
         /* --- DESKTOP & PRINT OVERRIDES --- */
         @media (min-width: 768px) {
             .slip-container { padding: 50px; margin: 30px auto; }
-            .header-top { display: grid; grid-template-columns: 120px 1fr 120px; flex-direction: row; }
+            .header-top { display: grid; grid-template-columns: 120px minmax(0, 1fr) 120px; align-items: center; }
             .uni-logo { width: 110px; }
             .header-titles h2 { font-size: 1.6rem; }
             .header-meta { flex-direction: row; justify-content: space-between; }
@@ -192,7 +192,7 @@ try {
             .no-print { display: none !important; }
             body { background: white; margin: 0; }
             .slip-container { box-shadow: none; border: none; margin: 0; width: 100%; max-width: 100%; padding: 20px; }
-            .header-top { display: grid; grid-template-columns: 100px 1fr 100px; gap: 20px; }
+            .header-top { display: grid; grid-template-columns: 100px minmax(0, 1fr) 100px; gap: 20px; align-items: center; }
             .uni-logo { width: 90px; }
             .header-titles h2 { font-size: 18pt; }
             .header-meta { flex-direction: row; justify-content: space-between; }
