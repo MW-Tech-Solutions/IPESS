@@ -100,6 +100,16 @@ if (!function_exists('generate_all_missing_tables')) {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
             ");
 
+            $pdo->exec("
+                CREATE TABLE IF NOT EXISTS `system_modules` (
+                    `module_key` VARCHAR(50) NOT NULL,
+                    `module_name` VARCHAR(100) NOT NULL,
+                    `is_active` TINYINT(1) DEFAULT 1,
+                    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`module_key`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+            ");
+
             // 4. Alterations and migrations (Adding missing columns safely)
             $alterations = [
                 "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `faculty_id` INT NULL",
@@ -222,6 +232,12 @@ if (!function_exists('generate_all_missing_tables')) {
                     }
                 }
             }
+
+            // Seed modules configuration
+            $pdo->exec("
+                INSERT IGNORE INTO system_modules (module_key, module_name, is_active) 
+                VALUES ('admissions', 'Admissions Exercise', 1)
+            ");
 
             // Re-enable foreign key checks
             $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");

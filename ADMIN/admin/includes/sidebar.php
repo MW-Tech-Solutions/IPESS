@@ -45,6 +45,7 @@ try {
                     <span>Admin Dashboard</span>
                 </a>
             </li>
+            <?php if (is_module_accessible('admissions')): ?>
             <!-- Stage 1: Application Submitted -->
             <li>
                 <a class="<?php echo $currentPage === 'application-management.php' ? 'active' : ''; ?>" href="application-management.php">
@@ -99,6 +100,13 @@ try {
                     <span>Reports</span>
                 </a>
             </li>
+            <?php else: ?>
+            <li>
+                <div class="px-3 py-2 text-muted small">
+                    <i class="fas fa-lock me-1"></i> Admissions module is currently disabled.
+                </div>
+            </li>
+            <?php endif; ?>
         </ul>
     </div>
     <div class="sidebar-footer">

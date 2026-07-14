@@ -5,6 +5,28 @@ ini_set('display_startup_errors', 0);
 error_reporting(0);
 require 'db.php';
 
+// Load module check helper
+$admissions_closed = false;
+try {
+    if (!function_exists('is_module_active')) {
+        function is_module_active_local(string $module_key, $pdo): bool {
+            try {
+                $stmt = $pdo->prepare("SELECT is_active FROM system_modules WHERE module_key = ?");
+                $stmt->execute([$module_key]);
+                $val = $stmt->fetchColumn();
+                return $val === false || (int)$val === 1;
+            } catch (Throwable $e) {
+                return true;
+            }
+        }
+        $admissions_closed = !is_module_active_local('admissions', $pdo);
+    } else {
+        $admissions_closed = !is_module_active('admissions');
+    }
+} catch (Throwable $e) {
+    $admissions_closed = false;
+}
+
 $error = '';
 
 $max_attempts = 5;       
@@ -110,7 +132,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     redirect_to('APPLICANT/ACADEMICS/student-portal/index.php#dashboard');
                 }
 
-                redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
+                // Block non-admitted users if admissions module is closed
+                if ($admissions_closed) {
+                    // Destroy session for non-admitted users so they can't access the dashboard
+                    session_destroy();
+                    $error = "<strong>Admissions Exercise is Closed.</strong><br>Access to the admissions portal is currently disabled. Please check back later or contact the admissions office.";
+                } else {
+                    redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
+                }
             }
         } else {
             $insertStmt = $pdo->prepare("INSERT INTO login_attempts (ip_address, attempt_time) VALUES (?, NOW())");

@@ -37,6 +37,7 @@ try {
                     <span>Dashboard</span>
                 </a>
             </li>
+            <?php if (is_module_accessible('admissions')): ?>
             <li>
                 <a class="<?php echo ($currentPage === 'academic-review.php' || $currentPage === 'department-applications.php') ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/academic-review.php'); ?>">
                     <i class="fas fa-folder-open"></i>
@@ -61,6 +62,13 @@ try {
                     <span>Reports</span>
                 </a>
             </li>
+            <?php else: ?>
+            <li>
+                <div class="px-3 py-2 text-muted small">
+                    <i class="fas fa-lock me-1"></i> Admissions module is currently disabled.
+                </div>
+            </li>
+            <?php endif; ?>
         </ul>
     </div>
     <div class="sidebar-footer">

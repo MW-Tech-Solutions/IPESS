@@ -6,6 +6,7 @@ require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/helpers/auth.php';
+require_once __DIR__ . '/helpers/modules.php';
 require_once __DIR__ . '/helpers/mailer.php';
 // Load permissions registry (used by bootstrapper, auth, and role-management UI)
 if (file_exists(JOSTUM_ROOT . '/helpers/permissions-registry.php')) {

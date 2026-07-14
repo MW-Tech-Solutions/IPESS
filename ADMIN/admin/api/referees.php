@@ -247,19 +247,19 @@ try {
             SELECT rr1.*
             FROM referee_requests rr1
             INNER JOIN (
-                SELECT referee_id, MAX(requested_at) AS requested_at
+                SELECT referee_id, MAX(request_id) AS max_id
                 FROM referee_requests
                 GROUP BY referee_id
-            ) rr2 ON rr1.referee_id = rr2.referee_id AND rr1.requested_at = rr2.requested_at
+            ) rr2 ON rr1.request_id = rr2.max_id
         ) rr ON rr.referee_id = r.referee_id" : "";
         $joinUploads = $hasUploads ? "LEFT JOIN (
             SELECT ru1.*
             FROM referee_uploads ru1
             INNER JOIN (
-                SELECT referee_id, MAX(submitted_at) AS submitted_at
+                SELECT referee_id, MAX(upload_id) AS max_id
                 FROM referee_uploads
                 GROUP BY referee_id
-            ) ru2 ON ru1.referee_id = ru2.referee_id AND ru1.submitted_at = ru2.submitted_at
+            ) ru2 ON ru1.upload_id = ru2.max_id
         ) ru ON ru.referee_id = r.referee_id" : "";
         $statusExpr = $hasUploads && $hasRequests
             ? "COALESCE(ru.verified_status, rr.status, 'Pending')"
@@ -373,19 +373,19 @@ try {
             SELECT rr1.*
             FROM referee_requests rr1
             INNER JOIN (
-                SELECT referee_id, MAX(requested_at) AS requested_at
+                SELECT referee_id, MAX(request_id) AS max_id
                 FROM referee_requests
                 GROUP BY referee_id
-            ) rr2 ON rr1.referee_id = rr2.referee_id AND rr1.requested_at = rr2.requested_at
+            ) rr2 ON rr1.request_id = rr2.max_id
         ) rr ON rr.referee_id = r.referee_id" : "";
         $joinUploads = $hasUploads ? "LEFT JOIN (
             SELECT ru1.*
             FROM referee_uploads ru1
             INNER JOIN (
-                SELECT referee_id, MAX(submitted_at) AS submitted_at
+                SELECT referee_id, MAX(upload_id) AS max_id
                 FROM referee_uploads
                 GROUP BY referee_id
-            ) ru2 ON ru1.referee_id = ru2.referee_id AND ru1.submitted_at = ru2.submitted_at
+            ) ru2 ON ru1.upload_id = ru2.max_id
         ) ru ON ru.referee_id = r.referee_id" : "";
         $statusExpr = $hasUploads && $hasRequests
             ? "COALESCE(ru.verified_status, rr.status, 'Pending')"

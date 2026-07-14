@@ -466,6 +466,25 @@ async function contactApplicantReferees() {
 
 function fillReferee(index, ref) {
     const statusEl = document.getElementById(`ref${index}Status`);
+    if (!ref || !ref.referee_id) {
+        if (statusEl) {
+            statusEl.textContent = 'Not Supplied';
+            statusEl.className = 'badge bg-light text-muted border';
+        }
+        setText(`ref${index}Name`, 'Not Supplied');
+        setText(`ref${index}Title`, '');
+        setText(`ref${index}Org`, '');
+        setText(`ref${index}Email`, '');
+        setText(`ref${index}Phone`, '');
+        
+        const detailsContainer = document.getElementById(`ref${index}DetailsToggleContainer`);
+        if (detailsContainer) detailsContainer.style.display = 'none';
+        
+        const actionContainer = document.getElementById(`ref${index}ActionContainer`);
+        if (actionContainer) actionContainer.style.display = 'none';
+        return;
+    }
+
     const status = ref.status || 'Pending';
     if (statusEl) {
         statusEl.textContent = status;

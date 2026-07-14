@@ -37,12 +37,20 @@ try {
                     <span>Dashboard</span>
                 </a>
             </li>
+            <?php if (is_module_accessible('admissions')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'admissions.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/ict-staff/admissions.php'); ?>">
                     <i class="fas fa-id-card"></i>
                     <span>Admissions Processing</span>
                 </a>
             </li>
+            <?php else: ?>
+            <li>
+                <div class="px-3 py-2 text-muted small">
+                    <i class="fas fa-lock me-1"></i> Admissions module is currently disabled.
+                </div>
+            </li>
+            <?php endif; ?>
         </ul>
     </div>
     <div class="sidebar-footer">

@@ -88,22 +88,32 @@
                     <?php endif; ?>
                 </ul>
             </div>
-            <?php if (has_permission('reset_authenticator')): ?>
+            <?php if (has_permission('reset_authenticator') || normalize_role(current_user_role()) === 'SUPER_ADMIN'): ?>
             <div class="sidebar-section">
                 <div class="sidebar-label">ICT Tools</div>
                 <ul class="sidebar-nav">
+                    <?php if (has_permission('reset_authenticator')): ?>
                     <li>
                         <a class="<?php echo $currentPage === 'reset-authenticator.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/reset-authenticator.php'); ?>">
                             <i class="fas fa-mobile-alt"></i>
                             <span>Reset Authenticator</span>
                         </a>
                     </li>
+                    <?php endif; ?>
+                    <?php if (normalize_role(current_user_role()) === 'SUPER_ADMIN'): ?>
+                    <li>
+                        <a class="<?php echo $currentPage === 'modules.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/modules.php'); ?>">
+                            <i class="fas fa-cubes"></i>
+                            <span>Module Settings</span>
+                        </a>
+                    </li>
+                    <?php endif; ?>
                 </ul>
             </div>
             <?php endif; ?>
             <?php 
             $canViewAdmissionsSec = has_permission('view_applications') || has_permission('verify_applicants') || has_permission('department_review') || has_permission('pg_review') || has_permission('manage_admissions') || has_permission('ict_processing');
-            if ($canViewAdmissionsSec): 
+            if ($canViewAdmissionsSec && is_module_accessible('admissions')): 
             ?>
             <div class="sidebar-section">
                 <div class="sidebar-label">Admissions</div>
