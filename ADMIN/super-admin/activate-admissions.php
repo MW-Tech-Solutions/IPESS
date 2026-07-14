@@ -3,6 +3,13 @@ require_once __DIR__ . '/../../app/bootstrap.php';
 enforce_session_timeout(900, 'ADMIN/login.php');
 require_role(['SUPER_ADMIN', 'ICT_ADMIN'], 'ADMIN/login.php');
 
+// Ensure database table exists
+require_once __DIR__ . '/../../helpers/create_admission_processing.php';
+try {
+    $pdo = db();
+    check_and_create_admission_processing($pdo);
+} catch (Throwable $_) {}
+
 $pageTitle    = 'Activate Admissions';
 $pageSubtitle = 'Generate matric numbers and activate admission & acceptance letters for approved applicants.';
 $currentPage  = basename(__FILE__); // 'activate-admissions.php'

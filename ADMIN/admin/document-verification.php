@@ -212,44 +212,36 @@ $totalPages = ceil($totalApplicants / 1);
 
 
             <div class="content-container">
-                <div class="kpi-cards">
-                    <div class="kpi-card">
-                        <div class="kpi-icon warning">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <div class="kpi-content">
-                            <h3><?= (int)$stats['pending'] ?></h3>
-                            <p>Pending Verification</p>
+                <section class="stat-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                        <div>
+                            <div class="stat-title">Pending Verification</div>
+                            <div class="stat-value"><?= number_format($stats['pending']) ?></div>
                         </div>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-icon success">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <div class="kpi-content">
-                            <h3><?= (int)$stats['verified'] ?></h3>
-                            <p>Verified</p>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                        <div>
+                            <div class="stat-title">Verified</div>
+                            <div class="stat-value"><?= number_format($stats['verified']) ?></div>
                         </div>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-icon danger">
-                            <i class="fas fa-times-circle"></i>
-                        </div>
-                        <div class="kpi-content">
-                            <h3><?= (int)$stats['rejected'] ?></h3>
-                            <p>Rejected / Re-upload</p>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+                        <div>
+                            <div class="stat-title">Rejected / Re-upload</div>
+                            <div class="stat-value"><?= number_format($stats['rejected']) ?></div>
                         </div>
                     </div>
-                    <div class="kpi-card">
-                        <div class="kpi-icon info">
-                            <i class="fas fa-file-alt"></i>
-                        </div>
-                        <div class="kpi-content">
-                            <h3><?= (int)$stats['total'] ?></h3>
-                            <p>Total Documents</p>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
+                        <div>
+                            <div class="stat-title">Total Documents</div>
+                            <div class="stat-value"><?= number_format($stats['total']) ?></div>
                         </div>
                     </div>
-                </div>
+                </section>
 
                 <div class="row">
                     

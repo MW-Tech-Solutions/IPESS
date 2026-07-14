@@ -127,6 +127,11 @@ class DashboardController {
 
     private function logAudit($event, $user, $details) {
         $cols = $this->auditColumns();
+        if (in_array('actor_user_id', $cols, true)) {
+            $stmt = $this->pdo->prepare("INSERT INTO audit_logs (actor_user_id, action, details, created_at) VALUES (?, ?, ?, NOW())");
+            $stmt->execute([$user, $event, $details]);
+            return;
+        }
         if (in_array('event', $cols, true)) {
             try {
                 $stmt = $this->pdo->prepare("INSERT INTO audit_logs (event, user, details, timestamp) VALUES (?, ?, ?, NOW())");

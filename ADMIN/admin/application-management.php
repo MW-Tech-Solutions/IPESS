@@ -120,44 +120,36 @@ require_once 'includes/topbar.php';
 
         <div class="content-container">
             
-<div class="kpi-cards">
-    <div class="kpi-card">
-        <div class="kpi-icon primary">
-            <i class="fas fa-file-alt"></i>
-        </div>
-        <div class="kpi-content">
-            <h3><?= number_format($stats['total']) ?></h3>
-            <p>Total Applications</p>
+<section class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
+        <div>
+            <div class="stat-title">Total Applications</div>
+            <div class="stat-value"><?= number_format($stats['total']) ?></div>
         </div>
     </div>
-    <div class="kpi-card">
-        <div class="kpi-icon success">
-            <i class="fas fa-check-circle"></i>
-        </div>
-        <div class="kpi-content">
-            <h3><?= number_format($stats['admitted']) ?></h3>
-            <p>Approved Applications</p>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+        <div>
+            <div class="stat-title">Approved Applications</div>
+            <div class="stat-value"><?= number_format($stats['admitted']) ?></div>
         </div>
     </div>
-    <div class="kpi-card">
-        <div class="kpi-icon warning">
-            <i class="fas fa-clock"></i>
-        </div>
-        <div class="kpi-content">
-            <h3><?= number_format($stats['pending']) ?></h3>
-            <p>Under Review</p>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+        <div>
+            <div class="stat-title">Under Review</div>
+            <div class="stat-value"><?= number_format($stats['pending']) ?></div>
         </div>
     </div>
-    <div class="kpi-card">
-        <div class="kpi-icon danger">
-            <i class="fas fa-times-circle"></i>
-        </div>
-        <div class="kpi-content">
-            <h3><?= number_format($stats['rejected']) ?></h3>
-            <p>Rejected</p>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+        <div>
+            <div class="stat-title">Rejected</div>
+            <div class="stat-value"><?= number_format($stats['rejected']) ?></div>
         </div>
     </div>
-</div>
+</section>
 
             <div class="card p-3 mb-4 border-0 shadow-sm rounded-3">
     <form class="row g-2" method="GET" id="filterForm">

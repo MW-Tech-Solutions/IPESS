@@ -34,6 +34,15 @@ if (!function_exists('db')) {
 
 function ensure_database_compatibility(PDO $pdo): void {
     try {
+        // Auto-heal/generate any missing tables
+        $repairPath = __DIR__ . '/../../helpers/generate_all_tables.php';
+        if (file_exists($repairPath)) {
+            require_once $repairPath;
+            if (function_exists('generate_all_missing_tables')) {
+                generate_all_missing_tables($pdo);
+            }
+        }
+
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS password_resets (
                 id INT AUTO_INCREMENT PRIMARY KEY,

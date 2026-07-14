@@ -4,6 +4,8 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../../../app/bootstrap.php';
 require_once __DIR__ . '/../../admin/includes/db.php';
+require_once __DIR__ . '/../../../helpers/create_admission_processing.php';
+check_and_create_admission_processing($pdo);
 
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized.']);

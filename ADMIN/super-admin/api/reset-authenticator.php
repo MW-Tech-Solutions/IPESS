@@ -56,20 +56,7 @@ if ($action === 'search') {
         $stmt->execute([$like, $like]);
         $staffRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Search applicant accounts
-        $stmt2 = $pdo->prepare("
-            SELECT user_id, CONCAT(first_name, ' ', surname) AS full_name, email,
-                   'STUDENT' AS role,
-                   CASE WHEN totp_secret IS NOT NULL THEN 1 ELSE 0 END AS has_totp
-            FROM applicant_accounts
-            WHERE email LIKE ? OR first_name LIKE ? OR surname LIKE ?
-            LIMIT 10
-        ");
-        $stmt2->execute([$like, $like, $like]);
-        $applicantRows = $stmt2->fetchAll(PDO::FETCH_ASSOC);
-
-        $results = array_merge($staffRows, $applicantRows);
-        echo json_encode(['success' => true, 'data' => $results]);
+        echo json_encode(['success' => true, 'data' => $staffRows]);
     } catch (Throwable $e) {
         echo json_encode(['success' => false, 'message' => $e->getMessage()]);
     }
@@ -126,7 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'reset') {
             $actorId    = (int) ($_SESSION['user_id'] ?? 0);
             $actorEmail = $_SESSION['email'] ?? 'unknown';
             $logStmt = $pdo->prepare("
-                INSERT INTO audit_logs (user_id, action, description, ip_address, created_at)
+                INSERT INTO audit_logs (actor_user_id, action, details, ip_address, created_at)
                 VALUES (?, 'RESET_AUTHENTICATOR', ?, ?, NOW())
             ");
             $logStmt->execute([

@@ -31,3 +31,447 @@ File: C:\xampp\htdocs\JOSTUM\helpers\admission-letter-template.php on line 264
 [2026-07-12 14:29:31] PHP Error (2): Undefined variable $surname
 File: C:\xampp\htdocs\JOSTUM\helpers\admission-letter-template.php on line 264
 
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:41] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:42] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+
+[2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
+File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
+

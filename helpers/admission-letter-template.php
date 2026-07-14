@@ -12,6 +12,9 @@ function admission_letter_column_exists(PDO $pdo, string $table, string $column)
 }
 
 function admission_letter_fetch(PDO $pdo, string $appNumber, ?int $userId = null): ?array {
+    require_once __DIR__ . '/create_admission_processing.php';
+    check_and_create_admission_processing($pdo);
+
     $hasCurrentStatus = admission_letter_column_exists($pdo, 'applications', 'current_status');
     $admitWhere = $hasCurrentStatus
         ? "(a.status = 'Admitted' OR a.current_status = 'ADMISSION_APPROVED')"

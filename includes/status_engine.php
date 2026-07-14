@@ -71,6 +71,12 @@ function log_audit(PDO $pdo, string $event, ?int $user_id, string $details): voi
         $cols->execute();
         $available = array_map('strtolower', $cols->fetchAll(PDO::FETCH_COLUMN));
 
+        if (in_array('actor_user_id', $available, true)) {
+            $stmt = $pdo->prepare("INSERT INTO audit_logs (actor_user_id, action, details, created_at) VALUES (?, ?, ?, NOW())");
+            $stmt->execute([$user_id, $event, $details]);
+            return;
+        }
+
         if (in_array('event', $available, true)) {
             try {
                 $stmt = $pdo->prepare("INSERT INTO audit_logs (event, user, details, timestamp) VALUES (?, ?, ?, NOW())");
