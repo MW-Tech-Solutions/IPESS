@@ -102,11 +102,6 @@ try {
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_verification'])) {
-        $maxFileSize = 250 * 1024; 
-        $file = $_FILES['id_card'];
-        $passportFile = $_FILES['passport_photo'] ?? null;
-        $workEmail = trim($_POST['work_email'] ?? '');
-
         // Form fields
         $refereeName = trim($_POST['referee_name'] ?? '');
         $refereeTitle = trim($_POST['referee_title'] ?? '');
@@ -136,96 +131,56 @@ try {
         $signature = trim($_POST['signature'] ?? '');
         $declarationDate = date('Y-m-d');
 
-        if ($file['size'] > $maxFileSize) {
-            $message = "Error: File is too large. Maximum size allowed is 250KB.";
-            $messageType = "danger";
-        } elseif ($file['error'] !== UPLOAD_ERR_OK) {
-            $message = "Error uploading file. Please try again.";
-            $messageType = "danger";
-        } else {
-            $uploadDir = '../../uploads/referee_ids/';
-            $passportDir = '../../uploads/referee_passports/';
-            if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-            if (!is_dir($passportDir)) mkdir($passportDir, 0777, true);
+        $details = [
+            'work_email' => null,
+            'passport_path' => null,
+            'work_id_path' => null,
+            'referee_name' => $refereeName,
+            'referee_title' => $refereeTitle,
+            'referee_organization' => $refereeOrg,
+            'referee_department' => $refereeDept,
+            'referee_position' => $refereePosition,
+            'referee_address' => $refereeAddress,
+            'referee_phone' => $refereePhone,
+            'relationship' => $relationship,
+            'years_known' => $yearsKnown,
+            'assessment_character_integrity' => $assessCharacter,
+            'assessment_professional_competence' => $assessCompetence,
+            'assessment_leadership_ability' => $assessLeadership,
+            'assessment_communication_skills' => $assessCommunication,
+            'assessment_teamwork' => $assessTeamwork,
+            'assessment_reliability' => $assessReliability,
+            'assessment_initiative' => $assessInitiative,
+            'assessment_emotional_stability' => $assessStability,
+            'major_strengths' => $majorStrengths,
+            'weaknesses' => $weaknesses,
+            'recommendation' => $recommendation,
+            'additional_comments' => $additionalComments,
+            'declaration_accepted' => $declarationAccepted,
+            'signature' => $signature,
+            'declaration_date' => $declarationDate
+        ];
 
-            $fileName = time() . '_' . preg_replace("/[^a-zA-Z0-9.]/", "_", $file['name']);
-            $targetPath = $uploadDir . $fileName;
-            $dbTargetPath = 'uploads/referee_ids/' . $fileName;
-            $fileExtension = strtolower(pathinfo($targetPath, PATHINFO_EXTENSION));
-            $allowedTypes = ['jpg', 'jpeg', 'png', 'pdf'];
+        record_referee_submission($pdo, $refId, (int) $data['application_id'], $details);
+        if ($token) {
+            $pdo->prepare("UPDATE referee_requests SET status = 'Submitted' WHERE token = ?")->execute([$token]);
+        }
 
-            $passportPath = null;
-            $dbPassportPath = null;
-            if (in_array($fileExtension, $allowedTypes)) {
-                if (move_uploaded_file($file['tmp_name'], $targetPath)) {
-                    if ($passportFile && $passportFile['error'] === UPLOAD_ERR_OK && $passportFile['size'] <= $maxFileSize) {
-                        $passportName = time() . '_' . preg_replace("/[^a-zA-Z0-9.]/", "_", $passportFile['name']);
-                        $passportTarget = $passportDir . $passportName;
-                        if (move_uploaded_file($passportFile['tmp_name'], $passportTarget)) {
-                            $passportPath = $passportTarget;
-                            $dbPassportPath = 'uploads/referee_passports/' . $passportName;
-                        }
-                    }
+        $message = "Thank you! Your evaluation report has been submitted successfully.";
+        $messageType = "success";
+        $showForm = false;
 
-                    $details = [
-                        'work_email' => $workEmail,
-                        'passport_path' => $dbPassportPath,
-                        'work_id_path' => $dbTargetPath,
-                        'referee_name' => $refereeName,
-                        'referee_title' => $refereeTitle,
-                        'referee_organization' => $refereeOrg,
-                        'referee_department' => $refereeDept,
-                        'referee_position' => $refereePosition,
-                        'referee_address' => $refereeAddress,
-                        'referee_phone' => $refereePhone,
-                        'relationship' => $relationship,
-                        'years_known' => $yearsKnown,
-                        'assessment_character_integrity' => $assessCharacter,
-                        'assessment_professional_competence' => $assessCompetence,
-                        'assessment_leadership_ability' => $assessLeadership,
-                        'assessment_communication_skills' => $assessCommunication,
-                        'assessment_teamwork' => $assessTeamwork,
-                        'assessment_reliability' => $assessReliability,
-                        'assessment_initiative' => $assessInitiative,
-                        'assessment_emotional_stability' => $assessStability,
-                        'major_strengths' => $majorStrengths,
-                        'weaknesses' => $weaknesses,
-                        'recommendation' => $recommendation,
-                        'additional_comments' => $additionalComments,
-                        'declaration_accepted' => $declarationAccepted,
-                        'signature' => $signature,
-                        'declaration_date' => $declarationDate
-                    ];
-
-                    record_referee_submission($pdo, $refId, (int) $data['application_id'], $details);
-                    if ($token) {
-                        $pdo->prepare("UPDATE referee_requests SET status = 'Submitted' WHERE token = ?")->execute([$token]);
-                    }
-
-                    $message = "Thank you! Your verification and evaluation report have been submitted successfully.";
-                    $messageType = "success";
-                    $showForm = false;
-
-                    if (!empty($data['applicant_user_id'])) {
-                        notify_user($pdo, (int) $data['applicant_user_id'], 'Referee Submitted', 'Your referee has submitted verification details.');
-                    }
-                    if (!empty($data['app_email'])) {
-                        portal_send_mail(
-                            $data['app_email'],
-                            $data['first_name'] . ' ' . $data['surname'],
-                            'Referee Submission Received',
-                            '<p>Your referee has submitted verification details. You will be notified once it is reviewed.</p>',
-                            'Referee submission received.'
-                        );
-                    }
-                } else {
-                    $message = "Failed to save file to server.";
-                    $messageType = "danger";
-                }
-            } else {
-                $message = "Invalid file type. Only JPG, PNG, and PDF are allowed.";
-                $messageType = "danger";
-            }
+        if (!empty($data['applicant_user_id'])) {
+            notify_user($pdo, (int) $data['applicant_user_id'], 'Referee Submitted', 'Your referee has submitted their evaluation report.');
+        }
+        if (!empty($data['app_email'])) {
+            portal_send_mail(
+                $data['app_email'],
+                $data['first_name'] . ' ' . $data['surname'],
+                'Referee Submission Received',
+                '<p>Your referee has submitted their evaluation report.</p>',
+                'Referee submission received.'
+            );
         }
     }
 } catch (PDOException $e) {
@@ -375,10 +330,6 @@ try {
                                 <input type="email" name="referee_email" class="form-control" value="<?= htmlspecialchars($data['email']) ?>" readonly>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Work Email (Verification)</label>
-                                <input type="email" name="work_email" class="form-control" required placeholder="you@organization.com">
-                            </div>
-                            <div class="col-md-6">
                                 <label class="form-label">Relationship with Applicant</label>
                                 <input type="text" name="relationship" class="form-control" required placeholder="e.g. Academic Supervisor, Line Manager">
                             </div>
@@ -474,22 +425,7 @@ try {
                         </div>
                     </div>
 
-                    <!-- Verification Uploads -->
-                    <div class="mb-4">
-                        <h5 class="border-bottom pb-2 mb-3 text-primary fw-bold"><i class="fas fa-file-invoice me-2"></i>Verification Documents</h5>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Upload Your Organization ID / Professional ID</label>
-                                <input type="file" name="id_card" class="form-control" required accept=".jpg,.jpeg,.png,.pdf">
-                                <div class="form-text text-danger">Max size: 250KB (JPG, PNG, or PDF)</div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Upload Your Passport Photo (Optional)</label>
-                                <input type="file" name="passport_photo" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
-                                <div class="form-text text-muted">Max size: 250KB (JPG, PNG, or PDF)</div>
-                            </div>
-                        </div>
-                    </div>
+
 
                     <!-- Section E: Declaration -->
                     <div class="mb-4 p-3 bg-light rounded-3 border-start border-4 border-success">

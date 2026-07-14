@@ -397,81 +397,14 @@ require_once 'includes/topbar.php'; // Opens .main-content
         <div class="modal-content border-0 shadow-lg">
             <form method="POST" id="modalVerificationForm">
                 <div class="modal-header bg-light">
-                    <h5 class="modal-title fw-bold"><i class="fas fa-id-card me-2 text-primary"></i>Verification & ID Check</h5>
+                    <h5 class="modal-title fw-bold"><i class="fas fa-file-alt me-2 text-primary"></i>Referee Evaluation Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-0">
-                    <ul class="nav nav-tabs px-3 pt-3 bg-light border-bottom" id="verificationModalTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active fw-bold text-secondary" id="docs-tab" data-bs-toggle="tab" data-bs-target="#docs-panel" type="button" role="tab"><i class="fas fa-file-invoice me-1"></i> Identity Documents</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link fw-bold text-secondary" id="eval-tab" data-bs-toggle="tab" data-bs-target="#eval-panel" type="button" role="tab"><i class="fas fa-chart-line me-1"></i> Evaluation Report</button>
-                        </li>
-                    </ul>
-                    <div class="tab-content" id="verificationModalTabContent">
-                        <!-- Tab 1: Identity Documents -->
-                        <div class="tab-pane fade show active" id="docs-panel" role="tabpanel">
-                            <div class="row g-0">
-                                <div class="col-lg-8 border-end bg-dark">
-                                    <div id="idViewerContainer" class="d-flex align-items-center justify-content-center" style="height: 500px; background: #333;">
-                                        <div id="noIdPlaceholder" class="text-center text-white-50">
-                                            <i class="fas fa-file-invoice fa-4x mb-3"></i>
-                                            <p>No ID card uploaded yet.</p>
-                                        </div>
-                                        <iframe id="modal_id_viewer" style="width:100%; height: 100%; border: none; display:none;"></iframe>
-                                    </div>
-                                </div>
-                                <div class="col-lg-4 p-4 bg-white">
-                                    <input type="hidden" name="referee_id" id="modalRefId">
-                                    <input type="hidden" name="current_page" id="modalPage">
-                                    
-                                    <div class="text-center mb-4">
-                                        <div class="avatar bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:60px; height:60px;">
-                                            <i class="fas fa-user text-primary fa-lg"></i>
-                                        </div>
-                                        <h5 id="modalRefName" class="fw-bold mb-0"></h5>
-                                        <p id="modalRefOrg" class="text-muted small mb-2"></p>
-                                        <span id="modalRefStatus" class="badge rounded-pill px-3"></span>
-                                    </div>
-
-                                    <hr class="my-4">
-
-                                    <div class="mb-4">
-                                        <div class="d-flex justify-content-between mb-2 small">
-                                            <span class="text-muted">Email:</span>
-                                            <strong id="modalRefEmail" class="text-end text-break"></strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-2 small">
-                                            <span class="text-muted">Phone:</span>
-                                            <strong id="modalRefPhone" class="text-end"></strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between mb-2 small" id="modalRefWorkEmailContainer" style="display: none;">
-                                            <span class="text-muted">Work Email:</span>
-                                            <strong id="modalRefWorkEmail" class="text-end text-break"></strong>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-grid gap-2">
-                                        <button type="submit" name="action" value="acknowledge" id="btnAcknowledge" class="btn btn-primary">
-                                            <i class="fas fa-paper-plane me-2"></i> Acknowledge
-                                        </button>
-                                        
-                                        <button type="submit" name="action" value="verify" id="btnConfirmVerify" class="btn btn-success">
-                                            <i class="fas fa-check-double me-2"></i> Final Verify
-                                        </button>
-
-                                        <button type="submit" name="action" value="notify" class="btn btn-outline-secondary btn-sm mt-3">
-                                            <i class="fas fa-envelope me-1"></i> Send Reminder
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Tab 2: Evaluation Report -->
-                        <div class="tab-pane fade" id="eval-panel" role="tabpanel">
-                            <div class="p-4" style="max-height: 500px; overflow-y: auto;">
+                    <div class="row g-0">
+                        <!-- Left Side: Evaluation Details -->
+                        <div class="col-lg-8 border-end" style="max-height: 600px; overflow-y: auto;">
+                            <div class="p-4">
                                 <div id="noFormPlaceholder" class="text-center text-muted py-5">
                                     <i class="fas fa-exclamation-circle fa-4x mb-3 opacity-25"></i>
                                     <p>No evaluation report submitted by the referee yet.</p>
@@ -546,7 +479,50 @@ require_once 'includes/topbar.php'; // Opens .main-content
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Right Side: Action Panel -->
+                        <div class="col-lg-4 p-4 bg-white">
+                            <input type="hidden" name="referee_id" id="modalRefId">
+                            <input type="hidden" name="current_page" id="modalPage">
+                            
+                            <div class="text-center mb-4">
+                                <div class="avatar bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:60px; height:60px;">
+                                    <i class="fas fa-user text-primary fa-lg"></i>
+                                </div>
+                                <h5 id="modalRefName" class="fw-bold mb-0"></h5>
+                                <p id="modalRefOrg" class="text-muted small mb-2"></p>
+                                <span id="modalRefStatus" class="badge rounded-pill px-3"></span>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between mb-2 small">
+                                    <span class="text-muted">Email:</span>
+                                    <strong id="modalRefEmail" class="text-end text-break"></strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2 small">
+                                    <span class="text-muted">Phone:</span>
+                                    <strong id="modalRefPhone" class="text-end"></strong>
+                                </div>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" name="action" value="acknowledge" id="btnAcknowledge" class="btn btn-primary" style="display:none;">
+                                    <i class="fas fa-paper-plane me-2"></i> Acknowledge
+                                </button>
+                                
+                                <button type="submit" name="action" value="verify" id="btnConfirmVerify" class="btn btn-success">
+                                    <i class="fas fa-check-double me-2"></i> Final Verify
+                                </button>
+
+                                <button type="submit" name="action" value="notify" class="btn btn-outline-secondary btn-sm mt-3">
+                                    <i class="fas fa-envelope me-1"></i> Send Reminder
+                                </button>
+                            </div>
+                        </div>
                     </div>
+                </div>
             </form>
         </div>
     </div>
@@ -667,24 +643,9 @@ require_once 'includes/topbar.php'; // Opens .main-content
             (data.status === 'Verified' ? 'bg-success' : 
              data.status === 'Received' ? 'bg-primary' : 'bg-secondary');
 
-        // ID Viewer
-        const iframe = document.getElementById('modal_id_viewer');
-        const placeholder = document.getElementById('noIdPlaceholder');
-        
-        if (data.id_path) {
-            iframe.src = '../' + data.id_path; 
-            iframe.style.display = 'block';
-            placeholder.style.display = 'none';
-        } else {
-            iframe.style.display = 'none';
-            placeholder.style.display = 'block';
-        }
-
         // Button States
-        const btnAck = document.getElementById('btnAcknowledge');
         const btnVerify = document.getElementById('btnConfirmVerify');
 
-        btnAck.disabled = (data.status === 'Received' || data.status === 'Verified' || !data.id_path);
         if(data.status === 'Verified') {
              btnVerify.disabled = true;
              btnVerify.innerHTML = '<i class="fas fa-check-circle me-1"></i> Already Verified';
@@ -693,33 +654,14 @@ require_once 'includes/topbar.php'; // Opens .main-content
              btnVerify.innerHTML = '<i class="fas fa-check-double me-1"></i> Final Verification';
         }
 
-        // Reset Tab Focus to ID documents by default
-        const docsTabEl = document.querySelector('#verificationModalTabs #docs-tab');
-        if (docsTabEl) {
-            bootstrap.Tab.getOrCreateInstance(docsTabEl).show();
-        }
-
         // Form details
         const noForm = document.getElementById('noFormPlaceholder');
         const formDiv = document.getElementById('evaluationFormDetails');
-        const evalTab = document.getElementById('eval-tab');
-        
-        const workEmailEl = document.getElementById('modalRefWorkEmail');
-        const workEmailContainer = document.getElementById('modalRefWorkEmailContainer');
-        if (workEmailEl && workEmailContainer) {
-            if (data.work_email) {
-                workEmailEl.innerText = data.work_email;
-                workEmailContainer.style.display = 'flex';
-            } else {
-                workEmailContainer.style.display = 'none';
-            }
-        }
 
         const hasForm = ['Submitted', 'Verified', 'Received'].includes(data.status) && data.submitted_name;
         if (hasForm) {
             noForm.style.display = 'none';
             formDiv.style.display = 'block';
-            if (evalTab) evalTab.style.display = '';
 
             document.getElementById('evalRefName').innerText = data.submitted_name || data.full_name;
             document.getElementById('evalRefTitle').innerText = data.submitted_title || data.title;

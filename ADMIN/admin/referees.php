@@ -85,24 +85,6 @@ require_once 'includes/topbar.php';
                                 <div class="small text-muted" id="ref1Org">-</div>
                                 <div class="small text-muted" id="ref1Email">-</div>
                                 <div class="small text-muted mb-3" id="ref1Phone">-</div>
-                                <div class="small text-muted mb-2">Work Email</div>
-                                <div class="fw-semibold mb-3" id="ref1WorkEmail">-</div>
-                                <div class="row g-3">
-                                    <div class="col-6">
-                                        <div class="text-muted small mb-1">Passport</div>
-                                        <div class="ratio ratio-4x5 border rounded bg-light">
-                                            <img id="ref1PassportImg" alt="Passport" style="display:none;width:100%;height:100%;object-fit:cover;">
-                                            <iframe id="ref1PassportFrame" src="about:blank" class="w-100 h-100 border-0" style="display:none;"></iframe>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="text-muted small mb-1">Work ID</div>
-                                        <div class="ratio ratio-4x5 border rounded bg-light">
-                                            <img id="ref1WorkIdImg" alt="Work ID" style="display:none;width:100%;height:100%;object-fit:cover;">
-                                            <iframe id="ref1WorkIdFrame" src="about:blank" class="w-100 h-100 border-0" style="display:none;"></iframe>
-                                        </div>
-                                    </div>
-                                </div>
                                 
                                 <div class="mt-3 mb-2" id="ref1DetailsToggleContainer" style="display:none;">
                                     <button class="btn btn-sm btn-outline-primary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#ref1CollapsibleDetails">
@@ -163,24 +145,6 @@ require_once 'includes/topbar.php';
                                 <div class="small text-muted" id="ref2Org">-</div>
                                 <div class="small text-muted" id="ref2Email">-</div>
                                 <div class="small text-muted mb-3" id="ref2Phone">-</div>
-                                <div class="small text-muted mb-2">Work Email</div>
-                                <div class="fw-semibold mb-3" id="ref2WorkEmail">-</div>
-                                <div class="row g-3">
-                                    <div class="col-6">
-                                        <div class="text-muted small mb-1">Passport</div>
-                                        <div class="ratio ratio-4x5 border rounded bg-light">
-                                            <img id="ref2PassportImg" alt="Passport" style="display:none;width:100%;height:100%;object-fit:cover;">
-                                            <iframe id="ref2PassportFrame" src="about:blank" class="w-100 h-100 border-0" style="display:none;"></iframe>
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="text-muted small mb-1">Work ID</div>
-                                        <div class="ratio ratio-4x5 border rounded bg-light">
-                                            <img id="ref2WorkIdImg" alt="Work ID" style="display:none;width:100%;height:100%;object-fit:cover;">
-                                            <iframe id="ref2WorkIdFrame" src="about:blank" class="w-100 h-100 border-0" style="display:none;"></iframe>
-                                        </div>
-                                    </div>
-                                </div>
                                 
                                 <div class="mt-3 mb-2" id="ref2DetailsToggleContainer" style="display:none;">
                                     <button class="btn btn-sm btn-outline-primary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#ref2CollapsibleDetails">
@@ -512,9 +476,7 @@ function fillReferee(index, ref) {
     setText(`ref${index}Org`, ref.organization);
     setText(`ref${index}Email`, ref.email);
     setText(`ref${index}Phone`, ref.phone);
-    setText(`ref${index}WorkEmail`, ref.work_email);
-    setPreviewDoc(`ref${index}Passport`, ref.passport_path);
-    setPreviewDoc(`ref${index}WorkId`, ref.work_id_path);
+
 
     const actionContainer = document.getElementById(`ref${index}ActionContainer`);
     if (actionContainer) {
