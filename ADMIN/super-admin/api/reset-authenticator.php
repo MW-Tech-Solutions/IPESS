@@ -11,7 +11,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../app/bootstrap.php';
+require_once __DIR__ . '/../../../app/bootstrap.php';
 header('Content-Type: application/json');
 
 // ── Auth guard ────────────────────────────────────────────────────
@@ -45,12 +45,13 @@ if ($action === 'search') {
     try {
         $like = '%' . $query . '%';
 
-        // Search staff users
+        // Search staff users (joining roles table for correct role name)
         $stmt = $pdo->prepare("
-            SELECT user_id, full_name, email, role,
-                   CASE WHEN totp_secret IS NOT NULL THEN 1 ELSE 0 END AS has_totp
-            FROM users
-            WHERE email LIKE ? OR full_name LIKE ?
+            SELECT u.user_id, u.full_name, u.email, r.role_name AS role,
+                   CASE WHEN u.totp_secret IS NOT NULL THEN 1 ELSE 0 END AS has_totp
+            FROM users u
+            LEFT JOIN roles r ON r.role_id = u.role_id
+            WHERE u.email LIKE ? OR u.full_name LIKE ?
             LIMIT 20
         ");
         $stmt->execute([$like, $like]);
