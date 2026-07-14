@@ -3,7 +3,7 @@ name: Deploy PHP & Bootstrap App to Bluehost
 on:
   push:
     branches:
-      - main 
+      - main  # Triggers when you push code to main branch
 
 jobs:
   php-deploy:
@@ -19,10 +19,11 @@ jobs:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./ 
-        server-dir: public_html/ipess.jostumservices.com/
+        local-dir: ./  # Uploads the entire root directory
+        server-dir: ./
         exclude: |
           **/.git*
           **/.git*/**
           **/.github/**
           **/uploads/**
+          **/uploads
