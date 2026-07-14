@@ -271,9 +271,9 @@ h1,h2,h3,h4{font-family:{$fontHeading};color:#063b29}
   <div class="lh-band">
     <img src="{$logoSrc}" alt="IPESS Logo" class="lh-logo">
     <div class="lh-titles">
-      <div class="lh-main">Institute of Procurement, Environmental and Social Standard IPESS JOSTUM</div>
-      <div class="lh-sub">Office of the Registrar</div>
-      <div class="lh-dept">(Formerly University of Agriculture, Makurdi)</div>
+      <div class="lh-main">Institute of Procurement, Environmental and Social Standard (IPESS)</div>
+      <div class="lh-sub">Joseph Sarwuan Tarka University, Makurdi</div>
+      <div class="lh-dept">Office of the Registrar, (Formerly University of Agriculture, Makurdi)</div>
       <div class="lh-addr">P.M.B. 2373, Makurdi, Benue State, Nigeria</div>
     </div>
     <div class="lh-passport">
@@ -532,9 +532,9 @@ h1,h2,h3,h4{font-family:{$fontHeading};color:#063b29}
   <div class="lh-band">
     <img src="{$logoSrc}" alt="IPESS Logo" class="lh-logo">
     <div class="lh-titles">
-      <div class="lh-main">Institute of Procurement, Environmental and Social Standard IPESS JOSTUM</div>
-      <div class="lh-sub">Office of the Registrar</div>
-      <div class="lh-dept">(Formerly University of Agriculture, Makurdi)</div>
+      <div class="lh-main">Institute of Procurement, Environmental and Social Standard (IPESS)</div>
+      <div class="lh-sub">Joseph Sarwuan Tarka University, Makurdi</div>
+      <div class="lh-dept">Office of the Registrar, (Formerly University of Agriculture, Makurdi)</div>
       <div class="lh-addr">P.M.B. 2373, Makurdi, Benue State, Nigeria</div>
     </div>
     <div class="lh-passport">
@@ -629,7 +629,7 @@ h1,h2,h3,h4{font-family:{$fontHeading};color:#063b29}
     <p>Yours faithfully,</p>
     <div class="sig-line"></div>
     <p class="sig-name">{$fullName}</p>
-    <p class="sig-role">Applicant &nbsp;|&nbsp; Application No.: {$applicationNumber}</p>
+    <p class="sig-role">Applicant, Application No.: {$applicationNumber}</p>
     <p class="sig-role">Date: {$today}</p>
   </div>
 
