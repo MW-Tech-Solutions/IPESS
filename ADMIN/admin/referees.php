@@ -103,6 +103,47 @@ require_once 'includes/topbar.php';
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <div class="mt-3 mb-2" id="ref1DetailsToggleContainer" style="display:none;">
+                                    <button class="btn btn-sm btn-outline-primary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#ref1CollapsibleDetails">
+                                        <i class="fas fa-list me-1"></i> View Form Evaluation
+                                    </button>
+                                    <div class="collapse mt-2 border rounded p-3 bg-light text-start" id="ref1CollapsibleDetails">
+                                        <div class="small">
+                                            <div class="mb-2"><strong>Department:</strong> <span id="ref1SubDept">-</span></div>
+                                            <div class="mb-2"><strong>Position:</strong> <span id="ref1SubPos">-</span></div>
+                                            <div class="mb-2"><strong>Official Address:</strong> <span id="ref1SubAddress">-</span></div>
+                                            <div class="mb-2"><strong>Relationship:</strong> <span id="ref1SubRel">-</span> (<span id="ref1SubYears">-</span> years known)</div>
+                                            
+                                            <h6 class="fw-bold mt-3 mb-2 border-bottom pb-1 text-primary">Section C: Ratings</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-bordered bg-white mb-2" style="font-size: 0.75rem;">
+                                                    <tbody>
+                                                        <tr><td>Character & Integrity</td><td id="ref1AssessCharacter" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Professional Competence</td><td id="ref1AssessCompetence" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Leadership Ability</td><td id="ref1AssessLeadership" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Communication Skills</td><td id="ref1AssessCommunication" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Teamwork</td><td id="ref1AssessTeamwork" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Reliability</td><td id="ref1AssessReliability" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Initiative</td><td id="ref1AssessInitiative" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Emotional Stability</td><td id="ref1AssessStability" class="fw-semibold text-center"></td></tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <h6 class="fw-bold mt-3 mb-2 border-bottom pb-1 text-primary">Section D: Comments</h6>
+                                            <div class="mb-2"><strong>Strengths:</strong> <p id="ref1Strengths" class="mb-0 text-muted style-italic"></p></div>
+                                            <div class="mb-2"><strong>Weaknesses:</strong> <p id="ref1Weaknesses" class="mb-0 text-muted style-italic"></p></div>
+                                            <div class="mb-2"><strong>Recommendation:</strong> <span id="ref1Recommendation" class="badge"></span></div>
+                                            <div class="mb-2"><strong>Additional Comments:</strong> <p id="ref1AddComments" class="mb-0 text-muted style-italic"></p></div>
+
+                                            <h6 class="fw-bold mt-3 mb-2 border-bottom pb-1 text-success">Section E: Declaration</h6>
+                                            <div class="mb-1"><i class="fas fa-check text-success me-1"></i> Certified & Signed by <strong><span id="ref1Signature">-</span></strong></div>
+                                            <div class="text-muted" style="font-size: 0.7rem;">Date: <span id="ref1DeclDate">-</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="mt-3 text-end" id="ref1ActionContainer" style="display:none;">
                                     <button class="btn btn-sm btn-success me-1" id="ref1VerifyBtn" onclick="processRefereeAction(1, 'verify')"><i class="fas fa-check me-1"></i>Verify</button>
                                     <button class="btn btn-sm btn-danger" id="ref1RejectBtn" onclick="processRefereeAction(1, 'reject')"><i class="fas fa-times me-1"></i>Reject</button>
@@ -140,6 +181,47 @@ require_once 'includes/topbar.php';
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <div class="mt-3 mb-2" id="ref2DetailsToggleContainer" style="display:none;">
+                                    <button class="btn btn-sm btn-outline-primary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#ref2CollapsibleDetails">
+                                        <i class="fas fa-list me-1"></i> View Form Evaluation
+                                    </button>
+                                    <div class="collapse mt-2 border rounded p-3 bg-light text-start" id="ref2CollapsibleDetails">
+                                        <div class="small">
+                                            <div class="mb-2"><strong>Department:</strong> <span id="ref2SubDept">-</span></div>
+                                            <div class="mb-2"><strong>Position:</strong> <span id="ref2SubPos">-</span></div>
+                                            <div class="mb-2"><strong>Official Address:</strong> <span id="ref2SubAddress">-</span></div>
+                                            <div class="mb-2"><strong>Relationship:</strong> <span id="ref2SubRel">-</span> (<span id="ref2SubYears">-</span> years known)</div>
+                                            
+                                            <h6 class="fw-bold mt-3 mb-2 border-bottom pb-1 text-primary">Section C: Ratings</h6>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-bordered bg-white mb-2" style="font-size: 0.75rem;">
+                                                    <tbody>
+                                                        <tr><td>Character & Integrity</td><td id="ref2AssessCharacter" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Professional Competence</td><td id="ref2AssessCompetence" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Leadership Ability</td><td id="ref2AssessLeadership" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Communication Skills</td><td id="ref2AssessCommunication" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Teamwork</td><td id="ref2AssessTeamwork" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Reliability</td><td id="ref2AssessReliability" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Initiative</td><td id="ref2AssessInitiative" class="fw-semibold text-center"></td></tr>
+                                                        <tr><td>Emotional Stability</td><td id="ref2AssessStability" class="fw-semibold text-center"></td></tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <h6 class="fw-bold mt-3 mb-2 border-bottom pb-1 text-primary">Section D: Comments</h6>
+                                            <div class="mb-2"><strong>Strengths:</strong> <p id="ref2Strengths" class="mb-0 text-muted style-italic"></p></div>
+                                            <div class="mb-2"><strong>Weaknesses:</strong> <p id="ref2Weaknesses" class="mb-0 text-muted style-italic"></p></div>
+                                            <div class="mb-2"><strong>Recommendation:</strong> <span id="ref2Recommendation" class="badge"></span></div>
+                                            <div class="mb-2"><strong>Additional Comments:</strong> <p id="ref2AddComments" class="mb-0 text-muted style-italic"></p></div>
+
+                                            <h6 class="fw-bold mt-3 mb-2 border-bottom pb-1 text-success">Section E: Declaration</h6>
+                                            <div class="mb-1"><i class="fas fa-check text-success me-1"></i> Certified & Signed by <strong><span id="ref2Signature">-</span></strong></div>
+                                            <div class="text-muted" style="font-size: 0.7rem;">Date: <span id="ref2DeclDate">-</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="mt-3 text-end" id="ref2ActionContainer" style="display:none;">
                                     <button class="btn btn-sm btn-success me-1" id="ref2VerifyBtn" onclick="processRefereeAction(2, 'verify')"><i class="fas fa-check me-1"></i>Verify</button>
                                     <button class="btn btn-sm btn-danger" id="ref2RejectBtn" onclick="processRefereeAction(2, 'reject')"><i class="fas fa-times me-1"></i>Reject</button>
@@ -441,6 +523,52 @@ function fillReferee(index, ref) {
             actionContainer.dataset.refereeId = ref.referee_id;
         } else {
             actionContainer.style.display = 'none';
+        }
+    }
+
+    // Populate Evaluation Form details
+    const toggleContainer = document.getElementById(`ref${index}DetailsToggleContainer`);
+    if (toggleContainer) {
+        const hasForm = ['Submitted', 'Verified', 'Rejected'].includes(status) && ref.submitted_name;
+        if (hasForm) {
+            toggleContainer.style.display = 'block';
+            setText(`ref${index}SubDept`, ref.submitted_dept);
+            setText(`ref${index}SubPos`, ref.submitted_pos);
+            setText(`ref${index}SubAddress`, ref.submitted_address);
+            setText(`ref${index}SubRel`, ref.relationship);
+            setText(`ref${index}SubYears`, ref.years_known);
+            
+            setText(`ref${index}AssessCharacter`, ref.assess_character);
+            setText(`ref${index}AssessCompetence`, ref.assess_competence);
+            setText(`ref${index}AssessLeadership`, ref.assess_leadership);
+            setText(`ref${index}AssessCommunication`, ref.assess_communication);
+            setText(`ref${index}AssessTeamwork`, ref.assess_teamwork);
+            setText(`ref${index}AssessReliability`, ref.assess_reliability);
+            setText(`ref${index}AssessInitiative`, ref.assess_initiative);
+            setText(`ref${index}AssessStability`, ref.assess_stability);
+            
+            const strengthsEl = document.getElementById(`ref${index}Strengths`);
+            if (strengthsEl) strengthsEl.innerHTML = escapeHtml(ref.strengths || 'None').replace(/\n/g, '<br>');
+            
+            const weaknessesEl = document.getElementById(`ref${index}Weaknesses`);
+            if (weaknessesEl) weaknessesEl.innerHTML = escapeHtml(ref.weaknesses || 'None').replace(/\n/g, '<br>');
+            
+            const addCommentsEl = document.getElementById(`ref${index}AddComments`);
+            if (addCommentsEl) addCommentsEl.innerHTML = escapeHtml(ref.additional_comments || 'None').replace(/\n/g, '<br>');
+            
+            const recEl = document.getElementById(`ref${index}Recommendation`);
+            if (recEl) {
+                recEl.textContent = ref.recommendation || 'Not Rated';
+                recEl.className = 'badge ' + 
+                    (ref.recommendation === 'Strongly Recommend' ? 'bg-success' : 
+                     ref.recommendation === 'Recommend' ? 'bg-primary' : 
+                     ref.recommendation === 'Recommend with Reservation' ? 'bg-warning text-dark' : 'bg-danger');
+            }
+            
+            setText(`ref${index}Signature`, ref.signature);
+            setText(`ref${index}DeclDate`, ref.decl_date);
+        } else {
+            toggleContainer.style.display = 'none';
         }
     }
 }

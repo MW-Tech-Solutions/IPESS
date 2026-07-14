@@ -47,8 +47,8 @@ function send_referee_request_for_row(PDO $pdo, array $data): array {
     $subject = 'Referee Verification Request';
     $content = sprintf(
         '<p>Dear %s,</p>
-         <p>%s (%s) has listed you as a referee for postgraduate admission.</p>
-         <p>Please verify this request by uploading your passport and work ID using the link below.</p>
+         <p>%s (%s) has nominated you as a referee for postgraduate admission.</p>
+         <p>Please complete the referee assessment form and upload your passport and professional credentials using the link below.</p>
          <p><strong>Applicant Ref No:</strong> %s</p>
          <p>Click the button below to proceed.</p>',
         htmlspecialchars($data['referee_name'] ?: 'Referee', ENT_QUOTES, 'UTF-8'),
@@ -401,9 +401,63 @@ try {
                 r.organization AS referee_org,
                 r.email AS referee_email,
                 r.phone AS referee_phone,
-                " . ($hasUploads ? "ru.work_email," : "NULL AS work_email,") . "
-                " . ($hasUploads ? "ru.passport_path," : "NULL AS passport_path,") . "
-                " . ($hasUploads ? "ru.work_id_path," : "NULL AS work_id_path,") . "
+                " . ($hasUploads ? "
+                    ru.work_email,
+                    ru.passport_path,
+                    ru.work_id_path,
+                    ru.referee_name AS submitted_referee_name,
+                    ru.referee_title AS submitted_referee_title,
+                    ru.referee_organization AS submitted_referee_org,
+                    ru.referee_department AS submitted_referee_dept,
+                    ru.referee_position AS submitted_referee_pos,
+                    ru.referee_address AS submitted_referee_address,
+                    ru.referee_phone AS submitted_referee_phone,
+                    ru.relationship,
+                    ru.years_known,
+                    ru.assessment_character_integrity,
+                    ru.assessment_professional_competence,
+                    ru.assessment_leadership_ability,
+                    ru.assessment_communication_skills,
+                    ru.assessment_teamwork,
+                    ru.assessment_reliability,
+                    ru.assessment_initiative,
+                    ru.assessment_emotional_stability,
+                    ru.major_strengths,
+                    ru.weaknesses,
+                    ru.recommendation,
+                    ru.additional_comments,
+                    ru.declaration_accepted,
+                    ru.signature,
+                    ru.declaration_date,
+                " : "
+                    NULL AS work_email,
+                    NULL AS passport_path,
+                    NULL AS work_id_path,
+                    NULL AS submitted_referee_name,
+                    NULL AS submitted_referee_title,
+                    NULL AS submitted_referee_org,
+                    NULL AS submitted_referee_dept,
+                    NULL AS submitted_referee_pos,
+                    NULL AS submitted_referee_address,
+                    NULL AS submitted_referee_phone,
+                    NULL AS relationship,
+                    NULL AS years_known,
+                    NULL AS assessment_character_integrity,
+                    NULL AS assessment_professional_competence,
+                    NULL AS assessment_leadership_ability,
+                    NULL AS assessment_communication_skills,
+                    NULL AS assessment_teamwork,
+                    NULL AS assessment_reliability,
+                    NULL AS assessment_initiative,
+                    NULL AS assessment_emotional_stability,
+                    NULL AS major_strengths,
+                    NULL AS weaknesses,
+                    NULL AS recommendation,
+                    NULL AS additional_comments,
+                    NULL AS declaration_accepted,
+                    NULL AS signature,
+                    NULL AS declaration_date,
+                ") . "
                 {$statusExpr} AS status_label
             FROM referees r
             LEFT JOIN applications a ON r.application_id = a.application_id
@@ -432,6 +486,34 @@ try {
                 'status' => $row['status_label'] ?? 'Pending',
                 'passport_path' => !empty($row['passport_path']) ? app_url($row['passport_path']) : '',
                 'work_id_path' => !empty($row['work_id_path']) ? app_url($row['work_id_path']) : '',
+                
+                // Form details
+                'submitted_name' => $row['submitted_referee_name'] ?? '',
+                'submitted_title' => $row['submitted_referee_title'] ?? '',
+                'submitted_org' => $row['submitted_referee_org'] ?? '',
+                'submitted_dept' => $row['submitted_referee_dept'] ?? '',
+                'submitted_pos' => $row['submitted_referee_pos'] ?? '',
+                'submitted_address' => $row['submitted_referee_address'] ?? '',
+                'submitted_phone' => $row['submitted_referee_phone'] ?? '',
+                'relationship' => $row['relationship'] ?? '',
+                'years_known' => $row['years_known'] ?? '',
+                
+                'assess_character' => $row['assessment_character_integrity'] ?? '',
+                'assess_competence' => $row['assessment_professional_competence'] ?? '',
+                'assess_leadership' => $row['assessment_leadership_ability'] ?? '',
+                'assess_communication' => $row['assessment_communication_skills'] ?? '',
+                'assess_teamwork' => $row['assessment_teamwork'] ?? '',
+                'assess_reliability' => $row['assessment_reliability'] ?? '',
+                'assess_initiative' => $row['assessment_initiative'] ?? '',
+                'assess_stability' => $row['assessment_emotional_stability'] ?? '',
+                
+                'strengths' => $row['major_strengths'] ?? '',
+                'weaknesses' => $row['weaknesses'] ?? '',
+                'recommendation' => $row['recommendation'] ?? '',
+                'additional_comments' => $row['additional_comments'] ?? '',
+                'decl_accepted' => $row['declaration_accepted'] ?? 0,
+                'signature' => $row['signature'] ?? '',
+                'decl_date' => $row['declaration_date'] ?? ''
             ];
         }, $rows);
 

@@ -136,7 +136,11 @@ if (isset($_GET['ajax_fetch_applicant'])) {
     $currentAppId = $stmt->fetchColumn();
 
     if ($currentAppId) {
-        $refQuery = "SELECT r.referee_id, r.full_name, r.title, r.organization, r.email, r.phone, a.application_number, pd.first_name, pd.surname, COALESCE(rs.verified_status, 'Not Submitted') as status, rs.submitted_at as received_at, rs.work_id_path as id_path FROM referees r JOIN applications a ON r.application_id = a.application_id JOIN personal_details pd ON a.application_id = pd.application_id LEFT JOIN referee_uploads rs ON r.referee_id = rs.referee_id WHERE a.application_id = :appId";
+        $refQuery = "SELECT r.referee_id, r.full_name, r.title, r.organization, r.email, r.phone, a.application_number, pd.first_name, pd.surname, COALESCE(rs.verified_status, 'Not Submitted') as status, rs.submitted_at as received_at, rs.work_id_path as id_path,
+        rs.passport_path, rs.work_email, rs.referee_name as submitted_name, rs.referee_title as submitted_title, rs.referee_organization as submitted_org, rs.referee_department as submitted_dept, rs.referee_position as submitted_pos, rs.referee_address as submitted_address, rs.referee_phone as submitted_phone, rs.relationship, rs.years_known,
+        rs.assessment_character_integrity, rs.assessment_professional_competence, rs.assessment_leadership_ability, rs.assessment_communication_skills, rs.assessment_teamwork, rs.assessment_reliability, rs.assessment_initiative, rs.assessment_emotional_stability,
+        rs.major_strengths, rs.weaknesses, rs.recommendation, rs.additional_comments, rs.declaration_accepted, rs.signature, rs.declaration_date
+        FROM referees r JOIN applications a ON r.application_id = a.application_id JOIN personal_details pd ON a.application_id = pd.application_id LEFT JOIN referee_uploads rs ON r.referee_id = rs.referee_id WHERE a.application_id = :appId";
         
         $stmt = $pdo->prepare($refQuery);
         $stmt->execute([':appId' => $currentAppId]);
@@ -397,59 +401,152 @@ require_once 'includes/topbar.php'; // Opens .main-content
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-0">
-                    <div class="row g-0">
-                        <div class="col-lg-8 border-end bg-dark">
-                            <div id="idViewerContainer" class="d-flex align-items-center justify-content-center" style="height: 500px; background: #333;">
-                                <div id="noIdPlaceholder" class="text-center text-white-50">
-                                    <i class="fas fa-file-invoice fa-4x mb-3"></i>
-                                    <p>No ID card uploaded yet.</p>
+                    <ul class="nav nav-tabs px-3 pt-3 bg-light border-bottom" id="verificationModalTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold text-secondary" id="docs-tab" data-bs-toggle="tab" data-bs-target="#docs-panel" type="button" role="tab"><i class="fas fa-file-invoice me-1"></i> Identity Documents</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold text-secondary" id="eval-tab" data-bs-toggle="tab" data-bs-target="#eval-panel" type="button" role="tab"><i class="fas fa-chart-line me-1"></i> Evaluation Report</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="verificationModalTabContent">
+                        <!-- Tab 1: Identity Documents -->
+                        <div class="tab-pane fade show active" id="docs-panel" role="tabpanel">
+                            <div class="row g-0">
+                                <div class="col-lg-8 border-end bg-dark">
+                                    <div id="idViewerContainer" class="d-flex align-items-center justify-content-center" style="height: 500px; background: #333;">
+                                        <div id="noIdPlaceholder" class="text-center text-white-50">
+                                            <i class="fas fa-file-invoice fa-4x mb-3"></i>
+                                            <p>No ID card uploaded yet.</p>
+                                        </div>
+                                        <iframe id="modal_id_viewer" style="width:100%; height: 100%; border: none; display:none;"></iframe>
+                                    </div>
                                 </div>
-                                <iframe id="modal_id_viewer" style="width:100%; height: 100%; border: none; display:none;"></iframe>
+                                <div class="col-lg-4 p-4 bg-white">
+                                    <input type="hidden" name="referee_id" id="modalRefId">
+                                    <input type="hidden" name="current_page" id="modalPage">
+                                    
+                                    <div class="text-center mb-4">
+                                        <div class="avatar bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:60px; height:60px;">
+                                            <i class="fas fa-user text-primary fa-lg"></i>
+                                        </div>
+                                        <h5 id="modalRefName" class="fw-bold mb-0"></h5>
+                                        <p id="modalRefOrg" class="text-muted small mb-2"></p>
+                                        <span id="modalRefStatus" class="badge rounded-pill px-3"></span>
+                                    </div>
+
+                                    <hr class="my-4">
+
+                                    <div class="mb-4">
+                                        <div class="d-flex justify-content-between mb-2 small">
+                                            <span class="text-muted">Email:</span>
+                                            <strong id="modalRefEmail" class="text-end text-break"></strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2 small">
+                                            <span class="text-muted">Phone:</span>
+                                            <strong id="modalRefPhone" class="text-end"></strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-2 small" id="modalRefWorkEmailContainer" style="display: none;">
+                                            <span class="text-muted">Work Email:</span>
+                                            <strong id="modalRefWorkEmail" class="text-end text-break"></strong>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-grid gap-2">
+                                        <button type="submit" name="action" value="acknowledge" id="btnAcknowledge" class="btn btn-primary">
+                                            <i class="fas fa-paper-plane me-2"></i> Acknowledge
+                                        </button>
+                                        
+                                        <button type="submit" name="action" value="verify" id="btnConfirmVerify" class="btn btn-success">
+                                            <i class="fas fa-check-double me-2"></i> Final Verify
+                                        </button>
+
+                                        <button type="submit" name="action" value="notify" class="btn btn-outline-secondary btn-sm mt-3">
+                                            <i class="fas fa-envelope me-1"></i> Send Reminder
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="col-lg-4 p-4 bg-white">
-                            <input type="hidden" name="referee_id" id="modalRefId">
-                            <input type="hidden" name="current_page" id="modalPage">
-                            
-                            <div class="text-center mb-4">
-                                <div class="avatar bg-light rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:60px; height:60px;">
-                                    <i class="fas fa-user text-primary fa-lg"></i>
+                        <!-- Tab 2: Evaluation Report -->
+                        <div class="tab-pane fade" id="eval-panel" role="tabpanel">
+                            <div class="p-4" style="max-height: 500px; overflow-y: auto;">
+                                <div id="noFormPlaceholder" class="text-center text-muted py-5">
+                                    <i class="fas fa-exclamation-circle fa-4x mb-3 opacity-25"></i>
+                                    <p>No evaluation report submitted by the referee yet.</p>
                                 </div>
-                                <h5 id="modalRefName" class="fw-bold mb-0"></h5>
-                                <p id="modalRefOrg" class="text-muted small mb-2"></p>
-                                <span id="modalRefStatus" class="badge rounded-pill px-3"></span>
-                            </div>
+                                <div id="evaluationFormDetails" style="display: none;">
+                                    <div class="row g-4 mb-4">
+                                        <div class="col-md-6 text-start">
+                                            <h6 class="text-primary fw-bold mb-3 border-bottom pb-2"><i class="fas fa-user-tie me-2"></i>Section B: Referee Details</h6>
+                                            <table class="table table-sm table-borderless small">
+                                                <tbody>
+                                                    <tr><td class="text-muted" style="width: 35%;">Full Name:</td><td id="evalRefName" class="fw-semibold"></td></tr>
+                                                    <tr><td class="text-muted">Title:</td><td id="evalRefTitle" class="fw-semibold"></td></tr>
+                                                    <tr><td class="text-muted">Organization:</td><td id="evalRefOrg" class="fw-semibold"></td></tr>
+                                                    <tr><td class="text-muted">Department:</td><td id="evalRefDept" class="fw-semibold"></td></tr>
+                                                    <tr><td class="text-muted">Position:</td><td id="evalRefPos" class="fw-semibold"></td></tr>
+                                                    <tr><td class="text-muted">Address:</td><td id="evalRefAddress" class="fw-semibold"></td></tr>
+                                                    <tr><td class="text-muted">Phone:</td><td id="evalRefPhone" class="fw-semibold"></td></tr>
+                                                    <tr><td class="text-muted">Relationship:</td><td id="evalRefRel" class="fw-semibold"></td></tr>
+                                                    <tr><td class="text-muted">Years Known:</td><td id="evalRefYears" class="fw-semibold"></td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
 
-                            <hr class="my-4">
+                                        <div class="col-md-6 text-start">
+                                            <h6 class="text-primary fw-bold mb-3 border-bottom pb-2"><i class="fas fa-chart-line me-2"></i>Section C: Criteria Ratings</h6>
+                                            <table class="table table-sm table-bordered small">
+                                                <thead class="table-light">
+                                                    <tr><th>Criteria</th><th class="text-center" style="width: 35%;">Rating</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr><td>Character & Integrity</td><td id="evalAssessCharacter" class="text-center fw-semibold"></td></tr>
+                                                    <tr><td>Professional Competence</td><td id="evalAssessCompetence" class="text-center fw-semibold"></td></tr>
+                                                    <tr><td>Leadership Ability</td><td id="evalAssessLeadership" class="text-center fw-semibold"></td></tr>
+                                                    <tr><td>Communication Skills</td><td id="evalAssessCommunication" class="text-center fw-semibold"></td></tr>
+                                                    <tr><td>Teamwork</td><td id="evalAssessTeamwork" class="text-center fw-semibold"></td></tr>
+                                                    <tr><td>Reliability</td><td id="evalAssessReliability" class="text-center fw-semibold"></td></tr>
+                                                    <tr><td>Initiative</td><td id="evalAssessInitiative" class="text-center fw-semibold"></td></tr>
+                                                    <tr><td>Emotional Stability</td><td id="evalAssessStability" class="text-center fw-semibold"></td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
 
-                            <div class="mb-4">
-                                <div class="d-flex justify-content-between mb-2 small">
-                                    <span class="text-muted">Email:</span>
-                                    <strong id="modalRefEmail" class="text-end text-break"></strong>
+                                    <div class="row g-4 text-start">
+                                        <div class="col-md-12">
+                                            <h6 class="text-primary fw-bold mb-3 border-bottom pb-2"><i class="fas fa-comment-alt me-2"></i>Section D: Narrative Comments</h6>
+                                            <div class="p-3 bg-light rounded-3 border mb-3">
+                                                <strong>1. What are the applicant's major strengths?</strong>
+                                                <p id="evalStrengths" class="mb-0 text-muted mt-1 style-italic"></p>
+                                            </div>
+                                            <div class="p-3 bg-light rounded-3 border mb-3">
+                                                <strong>2. What are the applicant's weaknesses?</strong>
+                                                <p id="evalWeaknesses" class="mb-0 text-muted mt-1 style-italic"></p>
+                                            </div>
+                                            <div class="p-3 bg-light rounded-3 border mb-3">
+                                                <strong>3. Would you recommend this applicant for the position?</strong>
+                                                <div class="mt-1"><span id="evalRecommendation" class="badge"></span></div>
+                                            </div>
+                                            <div class="p-3 bg-light rounded-3 border mb-3">
+                                                <strong>4. Additional comments:</strong>
+                                                <p id="evalAddComments" class="mb-0 text-muted mt-1 style-italic"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-3 mt-4 border-start border-4 border-success bg-light rounded-3 text-start">
+                                        <h6 class="text-success fw-bold mb-2"><i class="fas fa-check-circle me-1"></i>Section E: Declaration</h6>
+                                        <p class="small text-muted mb-2">"I certify that the information provided above is true and based on my personal knowledge of the applicant."</p>
+                                        <div class="mb-1"><i class="fas fa-check text-success me-1"></i> Certified & Signed by <strong><span id="evalSignature">-</span></strong></div>
+                                        <div class="text-muted small">Date: <span id="evalDeclDate">-</span></div>
+                                    </div>
                                 </div>
-                                <div class="d-flex justify-content-between mb-2 small">
-                                    <span class="text-muted">Phone:</span>
-                                    <strong id="modalRefPhone" class="text-end"></strong>
-                                </div>
-                            </div>
-
-                            <div class="d-grid gap-2">
-                                <button type="submit" name="action" value="acknowledge" id="btnAcknowledge" class="btn btn-primary">
-                                    <i class="fas fa-paper-plane me-2"></i> Acknowledge
-                                </button>
-                                
-                                <button type="submit" name="action" value="verify" id="btnConfirmVerify" class="btn btn-success">
-                                    <i class="fas fa-check-double me-2"></i> Final Verify
-                                </button>
-
-                                <button type="submit" name="action" value="notify" class="btn btn-outline-secondary btn-sm mt-3">
-                                    <i class="fas fa-envelope me-1"></i> Send Reminder
-                                </button>
                             </div>
                         </div>
                     </div>
-                </div>
             </form>
         </div>
     </div>
@@ -596,7 +693,81 @@ require_once 'includes/topbar.php'; // Opens .main-content
              btnVerify.innerHTML = '<i class="fas fa-check-double me-1"></i> Final Verification';
         }
 
+        // Reset Tab Focus to ID documents by default
+        const docsTabEl = document.querySelector('#verificationModalTabs #docs-tab');
+        if (docsTabEl) {
+            bootstrap.Tab.getOrCreateInstance(docsTabEl).show();
+        }
+
+        // Form details
+        const noForm = document.getElementById('noFormPlaceholder');
+        const formDiv = document.getElementById('evaluationFormDetails');
+        const evalTab = document.getElementById('eval-tab');
+        
+        const workEmailEl = document.getElementById('modalRefWorkEmail');
+        const workEmailContainer = document.getElementById('modalRefWorkEmailContainer');
+        if (workEmailEl && workEmailContainer) {
+            if (data.work_email) {
+                workEmailEl.innerText = data.work_email;
+                workEmailContainer.style.display = 'flex';
+            } else {
+                workEmailContainer.style.display = 'none';
+            }
+        }
+
+        const hasForm = ['Submitted', 'Verified', 'Received'].includes(data.status) && data.submitted_name;
+        if (hasForm) {
+            noForm.style.display = 'none';
+            formDiv.style.display = 'block';
+            if (evalTab) evalTab.style.display = '';
+
+            document.getElementById('evalRefName').innerText = data.submitted_name || data.full_name;
+            document.getElementById('evalRefTitle').innerText = data.submitted_title || data.title;
+            document.getElementById('evalRefOrg').innerText = data.submitted_org || data.organization;
+            document.getElementById('evalRefDept').innerText = data.submitted_dept || '-';
+            document.getElementById('evalRefPos').innerText = data.submitted_pos || '-';
+            document.getElementById('evalRefAddress').innerText = data.submitted_address || '-';
+            document.getElementById('evalRefPhone').innerText = data.submitted_phone || data.phone;
+            document.getElementById('evalRefRel').innerText = data.relationship || '-';
+            document.getElementById('evalRefYears').innerText = data.years_known || '0';
+
+            document.getElementById('evalAssessCharacter').innerText = data.assess_character || '-';
+            document.getElementById('evalAssessCompetence').innerText = data.assess_competence || '-';
+            document.getElementById('evalAssessLeadership').innerText = data.assess_leadership || '-';
+            document.getElementById('evalAssessCommunication').innerText = data.assess_communication || '-';
+            document.getElementById('evalAssessTeamwork').innerText = data.assess_teamwork || '-';
+            document.getElementById('evalAssessReliability').innerText = data.assess_reliability || '-';
+            document.getElementById('evalAssessInitiative').innerText = data.assess_initiative || '-';
+            document.getElementById('evalAssessStability').innerText = data.assess_stability || '-';
+
+            document.getElementById('evalStrengths').innerHTML = escapeHtml(data.strengths || 'None').replace(/\n/g, '<br>');
+            document.getElementById('evalWeaknesses').innerHTML = escapeHtml(data.weaknesses || 'None').replace(/\n/g, '<br>');
+            document.getElementById('evalAddComments').innerHTML = escapeHtml(data.additional_comments || 'None').replace(/\n/g, '<br>');
+
+            const recEl = document.getElementById('evalRecommendation');
+            if (recEl) {
+                recEl.textContent = data.recommendation || 'Not Rated';
+                recEl.className = 'badge ' + 
+                    (data.recommendation === 'Strongly Recommend' ? 'bg-success' : 
+                     data.recommendation === 'Recommend' ? 'bg-primary' : 
+                     data.recommendation === 'Recommend with Reservation' ? 'bg-warning text-dark' : 'bg-danger');
+            }
+
+            document.getElementById('evalSignature').innerText = data.signature || '-';
+            document.getElementById('evalDeclDate').innerText = data.decl_date || '-';
+        } else {
+            noForm.style.display = 'block';
+            formDiv.style.display = 'none';
+        }
+
         new bootstrap.Modal(document.getElementById('verificationModal')).show();
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/[&<>"']/g, function(m) {
+            return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]);
+        });
     }
 </script>
 

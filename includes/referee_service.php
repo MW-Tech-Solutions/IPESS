@@ -34,8 +34,8 @@ function send_referee_request_email(PDO $pdo, int $referee_id, string $verify_li
 
     $content = sprintf(
         '<p>Dear %s,</p>
-         <p>%s (%s) has listed you as a referee for postgraduate admission.</p>
-         <p>Please verify this request by uploading your passport and work ID using the link below.</p>',
+         <p>%s (%s) has nominated you as a referee for postgraduate admission.</p>
+         <p>Please complete the referee assessment form and upload your passport and professional credentials using the link below.</p>',
         htmlspecialchars($data['full_name'], ENT_QUOTES, 'UTF-8'),
         htmlspecialchars($applicantName, ENT_QUOTES, 'UTF-8'),
         htmlspecialchars($data['applicant_email'], ENT_QUOTES, 'UTF-8')
@@ -47,7 +47,7 @@ function send_referee_request_email(PDO $pdo, int $referee_id, string $verify_li
         'Referee Verification Request',
         $content,
         'Referee verification request',
-        ['cta_label' => 'Verify Referee Request', 'cta_url' => $verify_link]
+        ['cta_label' => 'Complete Referee Form', 'cta_url' => $verify_link]
     );
 
     if (!empty($refResult['success'])) {
@@ -64,13 +64,63 @@ function send_referee_request_email(PDO $pdo, int $referee_id, string $verify_li
     return false;
 }
 
-function record_referee_submission(PDO $pdo, int $referee_id, int $application_id, string $work_email, ?string $passport_path, ?string $work_id_path): void {
-    $stmt = $pdo->prepare("
-        INSERT INTO referee_uploads (referee_id, application_id, work_email, passport_path, work_id_path, submitted_at, verified_status)
-        VALUES (?, ?, ?, ?, ?, NOW(), 'Submitted')
-        ON DUPLICATE KEY UPDATE work_email = VALUES(work_email), passport_path = VALUES(passport_path), work_id_path = VALUES(work_id_path), submitted_at = NOW(), verified_status = 'Submitted'
-    ");
-    $stmt->execute([$referee_id, $application_id, $work_email, $passport_path, $work_id_path]);
+function record_referee_submission(PDO $pdo, int $referee_id, int $application_id, array $details): void {
+    $sql = "
+        INSERT INTO referee_uploads (
+            referee_id, application_id, work_email, passport_path, work_id_path, submitted_at, verified_status,
+            referee_name, referee_title, referee_organization, referee_department, referee_position, referee_address, referee_phone,
+            relationship, years_known,
+            assessment_character_integrity, assessment_professional_competence, assessment_leadership_ability, assessment_communication_skills,
+            assessment_teamwork, assessment_reliability, assessment_initiative, assessment_emotional_stability,
+            major_strengths, weaknesses, recommendation, additional_comments,
+            declaration_accepted, signature, declaration_date
+        )
+        VALUES (
+            :referee_id, :application_id, :work_email, :passport_path, :work_id_path, NOW(), 'Submitted',
+            :referee_name, :referee_title, :referee_organization, :referee_department, :referee_position, :referee_address, :referee_phone,
+            :relationship, :years_known,
+            :assessment_character_integrity, :assessment_professional_competence, :assessment_leadership_ability, :assessment_communication_skills,
+            :assessment_teamwork, :assessment_reliability, :assessment_initiative, :assessment_emotional_stability,
+            :major_strengths, :weaknesses, :recommendation, :additional_comments,
+            :declaration_accepted, :signature, :declaration_date
+        )
+        ON DUPLICATE KEY UPDATE 
+            work_email = VALUES(work_email), 
+            passport_path = COALESCE(VALUES(passport_path), passport_path), 
+            work_id_path = COALESCE(VALUES(work_id_path), work_id_path), 
+            submitted_at = NOW(), 
+            verified_status = 'Submitted',
+            referee_name = VALUES(referee_name),
+            referee_title = VALUES(referee_title),
+            referee_organization = VALUES(referee_organization),
+            referee_department = VALUES(referee_department),
+            referee_position = VALUES(referee_position),
+            referee_address = VALUES(referee_address),
+            referee_phone = VALUES(referee_phone),
+            relationship = VALUES(relationship),
+            years_known = VALUES(years_known),
+            assessment_character_integrity = VALUES(assessment_character_integrity),
+            assessment_professional_competence = VALUES(assessment_professional_competence),
+            assessment_leadership_ability = VALUES(assessment_leadership_ability),
+            assessment_communication_skills = VALUES(assessment_communication_skills),
+            assessment_teamwork = VALUES(assessment_teamwork),
+            assessment_reliability = VALUES(assessment_reliability),
+            assessment_initiative = VALUES(assessment_initiative),
+            assessment_emotional_stability = VALUES(assessment_emotional_stability),
+            major_strengths = VALUES(major_strengths),
+            weaknesses = VALUES(weaknesses),
+            recommendation = VALUES(recommendation),
+            additional_comments = VALUES(additional_comments),
+            declaration_accepted = VALUES(declaration_accepted),
+            signature = VALUES(signature),
+            declaration_date = VALUES(declaration_date)
+    ";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute(array_merge([
+        'referee_id' => $referee_id,
+        'application_id' => $application_id
+    ], $details));
 }
 
 function verify_referee_submission(PDO $pdo, int $referee_id, int $actor_id, string $status, ?string $reason = null): void {
