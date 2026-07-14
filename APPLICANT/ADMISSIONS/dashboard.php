@@ -266,6 +266,21 @@ function can_access_academics_portal(?array $app): bool {
 
  $canAccessAcademics = can_access_academics_portal($app_data ?: null);
 
+// Check if admissions module is currently active
+$admissions_closed = false;
+try {
+    $modStmt = $pdo->prepare("SELECT is_active FROM system_modules WHERE module_key = 'admissions'");
+    $modStmt->execute();
+    $modVal = $modStmt->fetchColumn();
+    $admissions_closed = ($modVal !== false && (int)$modVal === 0);
+} catch (Throwable $e) {
+    $admissions_closed = false;
+}
+
+// Hide portal switcher toggler when admissions is closed (admitted students who go to academics
+// and come back won't see a broken Admissions link)
+$showPortalSwitcher = $canAccessAcademics && !$admissions_closed;
+
 function resolve_passport_path(?string $path): string {
     if (!$path) {
         return app_url('asset/homepage/new_jostum_logo.png');
@@ -484,7 +499,7 @@ function render_notification_list($notifications) {
         </div>
     </div>
 </header>
-<?php if ($canAccessAcademics): ?>
+<?php if ($showPortalSwitcher): ?>
 <div class="d-lg-none px-3 pb-2">
     <div class="btn-group btn-group-sm w-100" role="group" aria-label="Portal switcher">
         <a class="btn btn-primary" href="<?php echo htmlspecialchars(app_url('APPLICANT/ADMISSIONS/dashboard.php'), ENT_QUOTES, 'UTF-8'); ?>">Admission</a>
@@ -526,7 +541,7 @@ function render_notification_list($notifications) {
                 </div>
                 
                 <div class="d-flex align-items-center gap-4">
-                    <?php if ($canAccessAcademics): ?>
+                    <?php if ($showPortalSwitcher): ?>
                         <div class="btn-group btn-group-sm" role="group" aria-label="Portal switcher">
                             <a class="btn btn-primary" href="<?php echo htmlspecialchars(app_url('APPLICANT/ADMISSIONS/dashboard.php'), ENT_QUOTES, 'UTF-8'); ?>">Admission</a>
                             <a class="btn btn-outline-secondary" href="<?php echo htmlspecialchars(app_url('APPLICANT/ACADEMICS/student-portal/index.php#dashboard'), ENT_QUOTES, 'UTF-8'); ?>">Academics</a>
