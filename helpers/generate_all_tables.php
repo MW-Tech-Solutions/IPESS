@@ -113,7 +113,31 @@ if (!function_exists('generate_all_missing_tables')) {
                 "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `totp_enabled` TINYINT(1) DEFAULT 0",
                 "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `totp_verified_at` DATETIME DEFAULT NULL",
                 "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `reset_token` VARCHAR(64) NULL",
-                "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `reset_expires` DATETIME NULL"
+                "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `reset_expires` DATETIME NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `referee_name` VARCHAR(150) DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `referee_title` VARCHAR(50) DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `referee_organization` VARCHAR(150) DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `referee_department` VARCHAR(150) DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `referee_position` VARCHAR(150) DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `referee_address` TEXT DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `referee_phone` VARCHAR(20) DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `relationship` VARCHAR(100) DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `years_known` INT DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `assessment_character_integrity` ENUM('Excellent', 'Very Good', 'Good', 'Fair', 'Poor') DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `assessment_professional_competence` ENUM('Excellent', 'Very Good', 'Good', 'Fair', 'Poor') DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `assessment_leadership_ability` ENUM('Excellent', 'Very Good', 'Good', 'Fair', 'Poor') DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `assessment_communication_skills` ENUM('Excellent', 'Very Good', 'Good', 'Fair', 'Poor') DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `assessment_teamwork` ENUM('Excellent', 'Very Good', 'Good', 'Fair', 'Poor') DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `assessment_reliability` ENUM('Excellent', 'Very Good', 'Good', 'Fair', 'Poor') DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `assessment_initiative` ENUM('Excellent', 'Very Good', 'Good', 'Fair', 'Poor') DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `assessment_emotional_stability` ENUM('Excellent', 'Very Good', 'Good', 'Fair', 'Poor') DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `major_strengths` TEXT DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `weaknesses` TEXT DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `recommendation` ENUM('Strongly Recommend', 'Recommend', 'Recommend with Reservation', 'Do Not Recommend') DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `additional_comments` TEXT DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `declaration_accepted` TINYINT DEFAULT 0",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `signature` VARCHAR(150) DEFAULT NULL",
+                "ALTER TABLE `referee_uploads` ADD COLUMN IF NOT EXISTS `declaration_date` DATE DEFAULT NULL"
             ];
 
             foreach ($alterations as $alt) {
