@@ -242,6 +242,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     'SUPERVISOR',
                     'REVIEWER',
                     'ADMIN',
+                    'ICT_SUPPORT',
+                    'STUDENT_MANAGER',
+                    'ACADEMIC_MANAGER',
+                    'SUPERVISOR_MANAGER',
+                    'ICT_STAFF',
                 ];
 
                 $loginRole = normalize_role($user['role'] ?? '');
