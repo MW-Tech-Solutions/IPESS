@@ -53,6 +53,7 @@ if ($pdo) {
         LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
         LEFT JOIN departments d ON d.dept_id = pc.department
         LEFT JOIN courses c ON c.course_id = pc.course
+        GROUP BY a.application_id
         ORDER BY a.submitted_at DESC, a.application_id DESC
         LIMIT 6
     ";

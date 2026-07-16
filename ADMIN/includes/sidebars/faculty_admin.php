@@ -37,12 +37,23 @@ try {
                     <span>Dashboard</span>
                 </a>
             </li>
+            <?php if (has_permission('faculty_review')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'applications.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/faculty/applications.php'); ?>">
                     <i class="fas fa-folder-open"></i>
                     <span>Faculty Review</span>
                 </a>
             </li>
+            <?php endif; ?>
+            
+            <?php if (has_permission('verify_applicants')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/document-verification.php'); ?>">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Document Verification</span>
+                </a>
+            </li>
+            <?php endif; ?>
         </ul>
     </div>
     <div class="sidebar-footer">

@@ -38,12 +38,25 @@ try {
                 </a>
             </li>
             <?php if (is_module_accessible('admissions')): ?>
+            
+            <?php if (has_permission('ict_processing')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'admissions.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/ict-staff/admissions.php'); ?>">
                     <i class="fas fa-id-card"></i>
                     <span>Admissions Processing</span>
                 </a>
             </li>
+            <?php endif; ?>
+
+            <?php if (has_permission('verify_applicants')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/document-verification.php'); ?>">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Document Verification</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
             <?php else: ?>
             <li>
                 <div class="px-3 py-2 text-muted small">

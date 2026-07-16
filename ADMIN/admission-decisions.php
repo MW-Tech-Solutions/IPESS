@@ -468,7 +468,7 @@ require_once 'includes/topbar.php';
     // Other functions
     function viewFullApplication(appId) {
         // Open full application view
-        window.open(`view.php?app_no=${appId}`, '_blank');
+        window.open(`/ADMIN/view.php?app_no=${appId}`, '_blank');
     }
 
     function viewDecisionDetails(appId) {
@@ -613,7 +613,7 @@ require_once 'includes/topbar.php';
                             <button class="btn btn-sm btn-danger" onclick="makeDecision('${item.application_id}', 'reject', '${item.application_number}')">
                                 <i class="fas fa-times"></i> Reject
                             </button>
-                            <a href="view.php?app_no=${encodeURIComponent(item.application_number)}" class="btn btn-sm btn-info">
+                            <a href="/ADMIN/view.php?app_no=${encodeURIComponent(item.application_number)}" class="btn btn-sm btn-info" target="_blank">
                                 <i class="fas fa-eye"></i> View
                             </a>
                         </div>

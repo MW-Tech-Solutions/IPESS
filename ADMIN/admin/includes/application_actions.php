@@ -121,6 +121,6 @@ if ($wantsJson) {
 }
 
 $embed = isset($_POST['embed']) && $_POST['embed'] === '1';
-redirect_to('ADMIN/admin/view.php?app_no=' . urlencode($_POST['app_no'] ?? '') . ($embed ? '&embed=1' : ''));
+redirect_to('ADMIN/view.php?app_no=' . urlencode($_POST['app_no'] ?? '') . ($embed ? '&embed=1' : ''));
 
 

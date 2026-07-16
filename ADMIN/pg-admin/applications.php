@@ -87,6 +87,7 @@ if (isset($pdo)) {
             LEFT JOIN student_profiles sp ON (sp.student_id = a.application_number OR sp.email = u.email)
             LEFT JOIN supervisor_students sa ON (sa.application_id = a.application_id OR sa.application_number = a.application_number)
             WHERE {$whereSql}
+            GROUP BY a.application_id
             ORDER BY a.submitted_at DESC
             LIMIT :limit OFFSET :offset
         ";

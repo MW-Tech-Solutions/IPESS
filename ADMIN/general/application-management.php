@@ -332,7 +332,7 @@ require_once 'includes/topbar.php';
                             </span>
                         </td>
                         <td class="text-end" style="padding-right: 1.5rem;">
-                            <a href="view.php?app_no=<?php echo urlencode($row['application_number']); ?>" class="btn btn-sm btn-outline-primary border-0">
+                            <a href="/ADMIN/view.php?app_no=<?php echo urlencode($row['application_number']); ?>" class="btn btn-sm btn-outline-primary border-0" target="_blank">
                                 <i class="bi bi-eye"></i> View
                             </a>
                         </td>

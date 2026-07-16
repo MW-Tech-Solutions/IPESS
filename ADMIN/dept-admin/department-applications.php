@@ -331,9 +331,7 @@ function statusChipClass(status) {
 
 // Application actions
 function viewApplication(appId) {
-    document.getElementById('modalAppId').textContent = appId;
-    const modal = new bootstrap.Modal(document.getElementById('applicationModal'));
-    modal.show();
+    window.open(`/ADMIN/view.php?app_no=${encodeURIComponent(appId)}`, '_blank');
 }
 
 function assignReviewer(appId) {

@@ -307,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', () => {
             const appNo = btn.dataset.appNo || '';
             const frame = document.getElementById('appViewFrame');
-            frame.src = `view.php?app_no=${encodeURIComponent(appNo)}&embed=1`;
+            frame.src = `/ADMIN/view.php?app_no=${encodeURIComponent(appNo)}&embed=1`;
             const modal = new bootstrap.Modal(document.getElementById('appViewModal'));
             modal.show();
         });

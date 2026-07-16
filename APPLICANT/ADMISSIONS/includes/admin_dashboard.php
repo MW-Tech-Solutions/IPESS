@@ -73,7 +73,7 @@ if (!empty($search_query)) {
     $params[] = $term;
 }
 
-$sql .= " ORDER BY a.submitted_at DESC";
+$sql .= " GROUP BY a.application_id ORDER BY a.submitted_at DESC";
 
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);

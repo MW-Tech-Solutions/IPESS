@@ -115,6 +115,7 @@ if ($pdo) {
         LEFT JOIN courses c ON c.course_id = pc.course
         LEFT JOIN degree_types dt ON dt.degree_id = pc.degree_type
         WHERE " . implode(' AND ', $where) . "
+        GROUP BY a.application_id
         ORDER BY a.updated_at DESC, a.application_id DESC
     ";
 

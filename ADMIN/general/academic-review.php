@@ -297,30 +297,8 @@ function updateSelectedList() {
     }
 }
 
-async function viewApplication(appCode) {
-    try {
-        const res = await fetch(`api/academic-review.php?action=view&app_code=${appCode}`);
-        const data = await res.json();
-        if (data.success) {
-            const app = data.data;
-            document.getElementById('modalAppId').innerText = app.application_number;
-            document.getElementById('modalName').innerText = (app.first_name || '') + ' ' + (app.surname || '');
-            document.getElementById('modalEmail').innerText = app.email || 'N/A';
-            document.getElementById('modalProgramme').innerText = app.course_title || 'N/A';
-            document.getElementById('modalGPA').innerText = app.cgpa || 'N/A';
-            
-            const badge = document.getElementById('modalStatus');
-            badge.innerText = app.current_status;
-            
-            document.getElementById('modalReviewer').innerText = app.reviewer_name || 'Unassigned';
-            
-            new bootstrap.Modal(document.getElementById('applicationModal')).show();
-        } else {
-            alert('Failed to load application details: ' + data.message);
-        }
-    } catch (e) {
-        console.error('Error view details:', e);
-    }
+function viewApplication(appCode) {
+    window.open(`/ADMIN/view.php?app_no=${encodeURIComponent(appCode)}`, '_blank');
 }
 
 function changeReviewer() {

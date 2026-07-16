@@ -38,30 +38,52 @@ try {
                 </a>
             </li>
             <?php if (is_module_accessible('admissions')): ?>
+            
+            <?php if (has_permission('department_review') || has_permission('view_applicants')): ?>
             <li>
                 <a class="<?php echo ($currentPage === 'academic-review.php' || $currentPage === 'department-applications.php') ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/academic-review.php'); ?>">
                     <i class="fas fa-folder-open"></i>
                     <span>Department Applications</span>
                 </a>
             </li>
+            <?php endif; ?>
+
+            <?php if (has_permission('verify_applicants')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/document-verification.php'); ?>">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Document Verification</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
+            <?php if (has_permission('assign_supervisor') || has_permission('supervisor_management')): ?>
             <li>
                 <a class="<?php echo ($currentPage === 'assign-supervisor.php' || $currentPage === 'supervisor-management.php') ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/dept-admin/supervisor-management.php'); ?>">
                     <i class="fas fa-user-plus"></i>
                     <span>Supervisor Assignment</span>
                 </a>
             </li>
+            <?php endif; ?>
+
+            <?php if (has_permission('user_management') || has_permission('view_applicants')): ?>
             <li>
                 <a class="<?php echo ($currentPage === 'manage-students.php' || $currentPage === 'student-management.php') ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/dept-admin/student-management.php'); ?>">
                     <i class="fas fa-users-cog"></i>
                     <span>Student Management</span>
                 </a>
             </li>
+            <?php endif; ?>
+
+            <?php if (has_permission('reports')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'department-reports.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/dept-admin/department-reports.php'); ?>">
                     <i class="fas fa-chart-bar"></i>
                     <span>Reports</span>
                 </a>
             </li>
+            <?php endif; ?>
+
             <?php else: ?>
             <li>
                 <div class="px-3 py-2 text-muted small">

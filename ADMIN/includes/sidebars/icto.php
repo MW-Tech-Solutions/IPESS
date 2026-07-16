@@ -37,12 +37,23 @@ try {
                     <span>Dashboard</span>
                 </a>
             </li>
+            <?php if (has_permission('verify_applicants')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/icto/document-verification.php'); ?>">
                     <i class="fas fa-check-circle"></i>
                     <span>Document Verification</span>
                 </a>
             </li>
+            <?php endif; ?>
+            
+            <?php if (has_permission('view_applications') || has_permission('view_applicants')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'application-management.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/application-management.php'); ?>">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Application Management</span>
+                </a>
+            </li>
+            <?php endif; ?>
         </ul>
     </div>
     <div class="sidebar-footer">

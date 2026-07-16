@@ -48,6 +48,7 @@ $usersSql = "
     LEFT JOIN personal_details p ON p.application_id = a.application_id
     LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
     LEFT JOIN departments d ON d.dept_id = pc.department
+    GROUP BY u.user_id
     ORDER BY u.created_at DESC
 ";
 $users = $pdo->query($usersSql)->fetchAll(PDO::FETCH_ASSOC);

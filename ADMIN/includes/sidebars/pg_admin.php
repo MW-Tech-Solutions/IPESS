@@ -38,12 +38,25 @@ try {
                 </a>
             </li>
             <?php if (is_module_accessible('admissions')): ?>
+            
+            <?php if (has_permission('pg_review') || has_permission('review_applications') || has_permission('manage_admissions') || has_permission('view_applicants')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'applications.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/pg-admin/applications.php'); ?>">
                     <i class="fas fa-folder-open"></i>
                     <span>PG Review &amp; Decisions</span>
                 </a>
             </li>
+            <?php endif; ?>
+
+            <?php if (has_permission('verify_applicants')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/document-verification.php'); ?>">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Document Verification</span>
+                </a>
+            </li>
+            <?php endif; ?>
+
             <?php else: ?>
             <li>
                 <div class="px-3 py-2 text-muted small">

@@ -46,7 +46,7 @@ $offset = ($page - 1) * $limit;
 
 if (isset($pdo)) {
     try {
-        $sql .= " ORDER BY a.submitted_at DESC LIMIT $limit OFFSET $offset";
+        $sql .= " GROUP BY a.application_id ORDER BY a.submitted_at DESC LIMIT $limit OFFSET $offset";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -69,7 +69,7 @@ if (isset($pdo)) {
                         <div class="activity-content">
                             <p>
                                 Application ' . htmlspecialchars($app['status']) . ' for <strong>' . htmlspecialchars($app['first_name'] . ' ' . $app['surname']) . '</strong>
-                                (<a href="view.php?app_no=' . urlencode($app['application_number']) . '">' . htmlspecialchars($app['application_number']) . '</a>)
+                                (<a href="/ADMIN/view.php?app_no=' . urlencode($app['application_number']) . '">' . htmlspecialchars($app['application_number']) . '</a>)
                             </p>
                             <small class="text-muted">' . date('M d, Y, h:i A', strtotime($app['submitted_at'])) . '</small>
                         </div>

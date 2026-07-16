@@ -5,14 +5,39 @@ error_reporting(E_ALL);
 session_start();
 require 'db.php';
 require_once __DIR__ . '/../path.php';
+require_once __DIR__ . '/../config/urls.php';
 require_once __DIR__ . '/includes/upload_path.php';
 require_once __DIR__ . '/../includes/status_engine.php';
 require_once __DIR__ . '/../includes/permissions.php';
 
 $isEmbed = isset($_GET['embed']) && $_GET['embed'] === '1';
 
-if (!isset($_SESSION['role']) || !is_admin_role($_SESSION['role'])) {
+$role = $_SESSION['role'] ?? '';
+$userId = (int) ($_SESSION['user_id'] ?? 0);
+
+if (!$userId || !$role || normalize_role($role) === 'STUDENT') {
     redirect_to('ADMIN/login.php');
+}
+
+$userDeptId = null;
+if ($userId > 0 && isset($pdo)) {
+    try {
+        $stmtDept = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
+        $stmtDept->execute([$userId]);
+        $userDeptId = $stmtDept->fetchColumn();
+        if ($userDeptId) {
+            $userDeptId = (int) $userDeptId;
+        } else {
+            $userDeptId = null;
+        }
+    } catch (Throwable $e) {}
+}
+if ($userDeptId === null) {
+    if (isset($_SESSION['department_id'])) {
+        $userDeptId = (int) $_SESSION['department_id'];
+    } elseif (isset($_SESSION['dept_id'])) {
+        $userDeptId = (int) $_SESSION['dept_id'];
+    }
 }
 
 // Authentication check (uncomment for production)
@@ -80,6 +105,12 @@ try {
     if (!$app) {
         $_SESSION['error'] = "Application not submitted yet.";
         header("Location: application-management.php");
+        exit();
+    }
+
+    if ($userDeptId !== null && (int)$app['department_id'] !== $userDeptId && (int)$app['department'] !== $userDeptId) {
+        $_SESSION['error'] = "Access Denied: Application does not belong to your department.";
+        header("Location: " . ($_SERVER['HTTP_REFERER'] ?? "application-management.php"));
         exit();
     }
 
@@ -543,26 +574,76 @@ try {
             </div>
             
             <div class="d-flex gap-2 mt-3 mt-md-0">
-                <button type="button" class="btn btn-outline-primary px-4" data-bs-toggle="modal" data-bs-target="#assignDeptModal">
-                    <i class="bi bi-diagram-3 me-2"></i>Assign to Department
-                </button>
-                <form method="POST" action="./includes/process_decision.php" class="decision-form">
-                    <input type="hidden" name="app_id" value="<?php echo $appId; ?>">
-                    <input type="hidden" name="decision" value="reject">
-                    <button type="submit" class="btn btn-outline-danger px-4 submit-btn">
-                        <span class="btn-text"><i class="bi bi-x-circle me-2"></i>Reject</span>
-                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                <?php
+                $userRole = $_SESSION['role'] ?? '';
+                $isSuperAdminType = is_admin_role($userRole);
+                $isDeptAdminType = is_department_admin($userRole) || has_permission('department_review');
+                
+                if ($isSuperAdminType): ?>
+                    <button type="button" class="btn btn-outline-primary px-4" data-bs-toggle="modal" data-bs-target="#assignDeptModal">
+                        <i class="bi bi-diagram-3 me-2"></i>Assign to Department
                     </button>
-                </form>
+                    <form method="POST" action="./includes/process_decision.php" class="decision-form">
+                        <input type="hidden" name="app_id" value="<?php echo $appId; ?>">
+                        <input type="hidden" name="decision" value="reject">
+                        <button type="submit" class="btn btn-outline-danger px-4 submit-btn">
+                            <span class="btn-text"><i class="bi bi-x-circle me-2"></i>Reject</span>
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        </button>
+                    </form>
 
-                <form method="POST" action="./includes/process_decision.php" class="decision-form">
-                    <input type="hidden" name="app_id" value="<?php echo $appId; ?>">
-                    <input type="hidden" name="decision" value="admit">
-                    <button type="submit" class="btn btn-primary px-4 submit-btn" style="background-color: var(--brand-primary); border: none;">
-                        <span class="btn-text"><i class="bi bi-check-circle me-2"></i>Admit Applicant</span>
-                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                    </button>
-                </form>
+                    <form method="POST" action="./includes/process_decision.php" class="decision-form">
+                        <input type="hidden" name="app_id" value="<?php echo $appId; ?>">
+                        <input type="hidden" name="decision" value="admit">
+                        <button type="submit" class="btn btn-primary px-4 submit-btn" style="background-color: var(--brand-primary); border: none;">
+                            <span class="btn-text"><i class="bi bi-check-circle me-2"></i>Admit Applicant</span>
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        </button>
+                    </form>
+                <?php elseif ($isDeptAdminType): ?>
+                    <!-- Department Admin Action Forms -->
+                    <form method="POST" action="<?php echo app_url('ADMIN/dept-admin/api/applications.php'); ?>" class="decision-ajax-form">
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="app_code" value="<?php echo htmlspecialchars($appNumber); ?>">
+                        <input type="hidden" name="status" value="approved">
+                        <button type="submit" class="btn btn-success px-4 submit-btn">
+                            <span class="btn-text"><i class="bi bi-check-circle me-2"></i>Department Approve</span>
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        </button>
+                    </form>
+                    
+                    <form method="POST" action="<?php echo app_url('ADMIN/dept-admin/api/applications.php'); ?>" class="decision-ajax-form">
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="app_code" value="<?php echo htmlspecialchars($appNumber); ?>">
+                        <input type="hidden" name="status" value="rejected">
+                        <button type="submit" class="btn btn-danger px-4 submit-btn">
+                            <span class="btn-text"><i class="bi bi-x-circle me-2"></i>Reject Application</span>
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="<?php echo app_url('ADMIN/dept-admin/api/applications.php'); ?>" class="decision-ajax-form">
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="app_code" value="<?php echo htmlspecialchars($appNumber); ?>">
+                        <input type="hidden" name="status" value="needs_info">
+                        <button type="submit" class="btn btn-warning px-4 submit-btn">
+                            <span class="btn-text"><i class="bi bi-question-circle me-2"></i>Request Info</span>
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="<?php echo app_url('ADMIN/dept-admin/api/applications.php'); ?>" class="decision-ajax-form">
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="app_code" value="<?php echo htmlspecialchars($appNumber); ?>">
+                        <input type="hidden" name="status" value="final">
+                        <button type="submit" class="btn btn-info text-white px-4 submit-btn">
+                            <span class="btn-text"><i class="bi bi-exclamation-triangle me-2"></i>Escalate</span>
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        </button>
+                    </form>
+                <?php else: ?>
+                    <span class="text-muted small italic">Decisions are locked based on your assigned role and duties.</span>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -868,6 +949,44 @@ document.querySelectorAll('.decision-form').forEach(form => {
         spinner.classList.remove('d-none'); // Show the loading spinner
         
         // Form continues to process_decision.php automatically
+    });
+});
+
+document.querySelectorAll('.decision-ajax-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = this.querySelector('.submit-btn');
+        const btnText = btn.querySelector('.btn-text');
+        const spinner = btn.querySelector('.spinner-border');
+
+        document.querySelectorAll('.submit-btn').forEach(allBtn => {
+            allBtn.classList.add('disabled');
+            allBtn.style.pointerEvents = 'none';
+            allBtn.style.opacity = '0.7';
+        });
+
+        btnText.innerHTML = "Processing...";
+        spinner.classList.remove('d-none');
+
+        const formData = new FormData(this);
+        fetch(this.getAttribute('action'), {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Action failed.');
+                location.reload();
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('An error occurred.');
+            location.reload();
+        });
     });
 });
 </script>

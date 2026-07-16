@@ -82,6 +82,7 @@ if ($action === 'list') {
         LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
         LEFT JOIN courses c ON pc.course = c.course_id
         WHERE {$whereSql}
+        GROUP BY a.application_id
         ORDER BY a.submitted_at DESC
     ");
     $stmt->execute($params);

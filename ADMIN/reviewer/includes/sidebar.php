@@ -37,12 +37,16 @@
             <div class="sidebar-section">
                 <div class="sidebar-label">Workflow</div>
                 <ul class="sidebar-nav">
+            <div class="sidebar-section">
+                <div class="sidebar-label">Workflow</div>
+                <ul class="sidebar-nav">
                     <li>
                         <a class="<?php echo $currentPage === 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php">
                             <i class="fas fa-tachometer-alt"></i>
                             <span>Review Dashboard</span>
                         </a>
                     </li>
+                    <?php if (has_permission('pg_review') || has_permission('review_applications') || has_permission('view_applicants')): ?>
                     <li>
                         <a class="<?php echo $currentPage === 'assigned-applications.php' ? 'active' : ''; ?>" href="assigned-applications.php">
                             <i class="fas fa-folder-open"></i>
@@ -61,12 +65,23 @@
                             <span>Review History</span>
                         </a>
                     </li>
+                    <?php endif; ?>
+                    <?php if (has_permission('verify_applicants')): ?>
+                    <li>
+                        <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/document-verification.php'); ?>">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Document Verification</span>
+                        </a>
+                    </li>
+                    <?php endif; ?>
+                    <?php if (has_permission('reports')): ?>
                     <li>
                         <a class="<?php echo $currentPage === 'reviewer-reports.php' ? 'active' : ''; ?>" href="reviewer-reports.php">
                             <i class="fas fa-chart-bar"></i>
                             <span>Reports</span>
                         </a>
                     </li>
+                    <?php endif; ?>
                 </ul>
             </div>
             <div class="sidebar-footer">

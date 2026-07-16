@@ -46,7 +46,7 @@ $offset = ($page - 1) * $limit;
 
 if (isset($pdo)) {
     try {
-        $sql .= " ORDER BY a.submitted_at DESC LIMIT $limit OFFSET $offset";
+        $sql .= " GROUP BY a.application_id ORDER BY a.submitted_at DESC LIMIT $limit OFFSET $offset";
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
