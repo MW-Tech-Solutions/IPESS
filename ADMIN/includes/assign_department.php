@@ -34,14 +34,12 @@ try {
     ]);
 
     $_SESSION['success_message'] = 'Department assigned successfully.';
-    if ($app_no !== '') {
-        header('Location: ../view.php?app_no=' . urlencode($app_no));
-    } else {
-        header('Location: ../application-management.php');
-    }
+    $redirect = !empty($_POST['redirect']) ? $_POST['redirect'] : ($app_no !== '' ? '../view.php?app_no=' . urlencode($app_no) : '../application-management.php');
+    header('Location: ' . $redirect);
     exit;
 } catch (Exception $e) {
     $_SESSION['error'] = 'Assignment failed: ' . $e->getMessage();
-    header('Location: ../application-management.php');
+    $redirect = !empty($_POST['redirect']) ? $_POST['redirect'] : '../application-management.php';
+    header('Location: ' . $redirect);
     exit;
 }

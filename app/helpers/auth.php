@@ -231,12 +231,6 @@ if (!function_exists('dashboard_for_role')) {
         
         $dashboard = match ($role) {
             'SUPER_ADMIN', 'ICT_ADMIN' => 'ADMIN/super-admin/dashboard.php',
-            // New modular staff roles — routed to super-admin panel
-            // (sidebar/pages are permission-gated so they only see what they can do)
-            'ICT_SUPPORT'        => 'ADMIN/super-admin/dashboard.php',
-            'STUDENT_MANAGER'    => 'ADMIN/super-admin/dashboard.php',
-            'ACADEMIC_MANAGER'   => 'ADMIN/super-admin/dashboard.php',
-            'SUPERVISOR_MANAGER' => 'ADMIN/super-admin/dashboard.php',
             'PORTAL_ADMIN'       => 'ADMIN/portal-admin/dashboard.php',
             'REGISTRY'           => 'modules/registry/dashboard.php',
             'ICTO'               => 'ADMIN/icto/dashboard.php',
@@ -247,7 +241,7 @@ if (!function_exists('dashboard_for_role')) {
             'SUPERVISOR'         => 'ADMIN/supervisor/dashboard.php',
             'REVIEWER'           => 'ADMIN/reviewer/dashboard.php',
             'STUDENT'            => 'APPLICANT/ADMISSIONS/dashboard.php',
-            default              => null
+            default              => 'ADMIN/general/dashboard.php'
         };
 
         if ($dashboard !== null) {

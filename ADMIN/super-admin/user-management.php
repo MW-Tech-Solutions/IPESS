@@ -322,21 +322,38 @@ require_once 'includes/topbar.php';
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Role</label>
-                            <select class="form-select" name="role_id" required>
-                                <option value="">Select Role</option>
+                            <select class="form-select" name="role_id">
+                                <option value="">No Role (Unassigned)</option>
                                 <?php foreach ($roles as $roleOption): ?>
                                     <option value="<?php echo (int) $roleOption['role_id']; ?>" data-role-key="<?php echo htmlspecialchars($roleOption['role_key']); ?>"><?php echo htmlspecialchars($roleOption['role_name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Department (for Department Admin)</label>
+                            <label class="form-label">Department (for Department Admin / Assigned Duties)</label>
                             <select class="form-select" name="department_id">
-                                <option value="">Select Department</option>
+                                <option value="">Select Department (Optional)</option>
                                 <?php foreach ($departments as $deptOption): ?>
                                     <option value="<?php echo (int) $deptOption['dept_id']; ?>"><?php echo htmlspecialchars($deptOption['dept_name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Assigned Duties (for General/Role-less Users)</label>
+                            <div class="d-flex gap-3 flex-wrap">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="duty_view_records" id="edit_duty_view_records" value="1">
+                                    <label class="form-check-label text-dark fw-semibold" for="edit_duty_view_records">View Records</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="duty_approve_apps" id="edit_duty_approve_apps" value="1">
+                                    <label class="form-check-label text-dark fw-semibold" for="edit_duty_approve_apps">Approve Applications</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="duty_verify_docs" id="edit_duty_verify_docs" value="1">
+                                    <label class="form-check-label text-dark fw-semibold" for="edit_duty_verify_docs">Document Verification</label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -433,7 +450,7 @@ const editUserModal = document.getElementById('editUserModal');
 const editUserForm = document.getElementById('editUserForm');
 
 document.querySelectorAll('.edit-user').forEach(button => {
-    button.addEventListener('click', function() {
+    button.addEventListener('click', async function() {
         const userId = this.dataset.id;
         const fullName = this.dataset.fullName || '';
         const email = this.dataset.email || '';
@@ -444,9 +461,33 @@ document.querySelectorAll('.edit-user').forEach(button => {
         editUserForm.querySelector('input[name="user_id"]').value = userId;
         editUserForm.querySelector('input[name="full_name"]').value = fullName;
         editUserForm.querySelector('input[name="email"]').value = email;
-        editUserForm.querySelector('select[name="role_id"]').value = roleId;
-        editUserForm.querySelector('select[name="department_id"]').value = departmentId;
+        editUserForm.querySelector('select[name="role_id"]').value = roleId || "";
+        editUserForm.querySelector('select[name="department_id"]').value = departmentId || "";
         editUserForm.querySelector('select[name="account_status"]').value = status;
+
+        // Reset duties checkboxes
+        document.getElementById('edit_duty_view_records').checked = false;
+        document.getElementById('edit_duty_approve_apps').checked = false;
+        document.getElementById('edit_duty_verify_docs').checked = false;
+
+        try {
+            const res = await fetch(`api/user-permissions.php?user_id=${userId}`);
+            const result = await res.json();
+            if (result.success && result.data && result.data.overrides) {
+                const overrides = result.data.overrides;
+                if (overrides.view_applications === 1) {
+                    document.getElementById('edit_duty_view_records').checked = true;
+                }
+                if (overrides.department_review === 1) {
+                    document.getElementById('edit_duty_approve_apps').checked = true;
+                }
+                if (overrides.verify_applicants === 1) {
+                    document.getElementById('edit_duty_verify_docs').checked = true;
+                }
+            }
+        } catch (e) {
+            console.error('Error fetching permissions:', e);
+        }
 
         const modal = new bootstrap.Modal(editUserModal);
         modal.show();

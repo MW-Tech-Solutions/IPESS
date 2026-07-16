@@ -124,6 +124,35 @@ function generate_base32_secret(int $length = 20): string {
     return $secret;
 }
 
+function sync_user_duties(PDO $pdo, int $userId, int $dutyViewRecords, int $dutyApproveApps, int $dutyVerifyDocs): void {
+    $perms = [];
+    if ($dutyViewRecords) {
+        $perms['view_applications'] = 1;
+        $perms['view_applicants'] = 1;
+        $perms['view_dashboard'] = 1;
+    }
+    if ($dutyApproveApps) {
+        $perms['department_review'] = 1;
+        $perms['view_dashboard'] = 1;
+    }
+    if ($dutyVerifyDocs) {
+        $perms['verify_applicants'] = 1;
+        $perms['view_dashboard'] = 1;
+    }
+
+    $keysToDelete = ['view_applications', 'view_applicants', 'view_dashboard', 'department_review', 'verify_applicants'];
+    $inClause = implode(',', array_fill(0, count($keysToDelete), '?'));
+    $delStmt = $pdo->prepare("DELETE FROM user_permissions WHERE user_id = ? AND permission_key IN ($inClause)");
+    $delStmt->execute(array_merge([$userId], $keysToDelete));
+
+    if (!empty($perms)) {
+        $insStmt = $pdo->prepare("INSERT INTO user_permissions (user_id, permission_key, granted) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE granted = 1");
+        foreach ($perms as $key => $granted) {
+            $insStmt->execute([$userId, $key]);
+        }
+    }
+}
+
 try {
 if (!$pdo) {
     echo json_encode(['success' => false, 'message' => 'Database unavailable.']);
@@ -147,20 +176,23 @@ if ($action === 'update') {
     $userId = (int) ($_POST['user_id'] ?? 0);
     $fullName = trim($_POST['full_name'] ?? '');
     $email = trim($_POST['email'] ?? '');
-    $roleId = (int) ($_POST['role_id'] ?? 0);
+    $roleId = !empty($_POST['role_id']) ? (int) $_POST['role_id'] : null;
     $departmentId = !empty($_POST['department_id']) ? (int) $_POST['department_id'] : null;
 
-    if ($userId === 0 || $fullName === '' || $email === '' || $roleId === 0) {
-        echo json_encode(['success' => false, 'message' => 'User, name, email, and role are required.']);
+    if ($userId === 0 || $fullName === '' || $email === '') {
+        echo json_encode(['success' => false, 'message' => 'User, name, and email are required.']);
         exit;
     }
 
-    $roleStmt = $pdo->prepare("SELECT role_key FROM roles WHERE role_id = ?");
-    $roleStmt->execute([$roleId]);
-    $roleKey = $roleStmt->fetchColumn();
-    if (!$roleKey) {
-        echo json_encode(['success' => false, 'message' => 'Invalid role selected.']);
-        exit;
+    $roleKey = null;
+    if ($roleId !== null && $roleId > 0) {
+        $roleStmt = $pdo->prepare("SELECT role_key FROM roles WHERE role_id = ?");
+        $roleStmt->execute([$roleId]);
+        $roleKey = $roleStmt->fetchColumn();
+        if (!$roleKey) {
+            echo json_encode(['success' => false, 'message' => 'Invalid role selected.']);
+            exit;
+        }
     }
 
     if ($roleKey === 'DEPARTMENT_ADMIN' && empty($departmentId)) {
@@ -179,6 +211,11 @@ if ($action === 'update') {
     $stmt = $pdo->prepare($updateSql);
     $stmt->execute([$fullName, $email, $roleId, $departmentId, $accountStatus, $userId]);
 
+    $dutyViewRecords = !empty($_POST['duty_view_records']) ? 1 : 0;
+    $dutyApproveApps = !empty($_POST['duty_approve_apps']) ? 1 : 0;
+    $dutyVerifyDocs = !empty($_POST['duty_verify_docs']) ? 1 : 0;
+    sync_user_duties($pdo, $userId, $dutyViewRecords, $dutyApproveApps, $dutyVerifyDocs);
+
     echo json_encode(['success' => true, 'message' => 'User updated successfully.']);
     exit;
 }
@@ -187,21 +224,24 @@ $firstName = trim($_POST['first_name'] ?? '');
 $lastName = trim($_POST['last_name'] ?? '');
 $fullName = trim($firstName . ' ' . $lastName);
 $email = trim($_POST['email'] ?? '');
-$roleId = (int) ($_POST['role_id'] ?? 0);
+$roleId = !empty($_POST['role_id']) ? (int) $_POST['role_id'] : null;
 $departmentId = !empty($_POST['department_id']) ? (int) $_POST['department_id'] : null;
 
-if ($fullName === '' || $email === '' || $roleId === 0) {
-    echo json_encode(['success' => false, 'message' => 'Name, email, and role are required.']);
+if ($fullName === '' || $email === '') {
+    echo json_encode(['success' => false, 'message' => 'Name and email are required.']);
     exit;
 }
 
-$roleStmt = $pdo->prepare("SELECT role_key FROM roles WHERE role_id = ?");
-$roleStmt->execute([$roleId]);
-$roleKey = $roleStmt->fetchColumn();
+$roleKey = null;
+if ($roleId !== null && $roleId > 0) {
+    $roleStmt = $pdo->prepare("SELECT role_key FROM roles WHERE role_id = ?");
+    $roleStmt->execute([$roleId]);
+    $roleKey = $roleStmt->fetchColumn();
 
-if (!$roleKey) {
-    echo json_encode(['success' => false, 'message' => 'Invalid role selected.']);
-    exit;
+    if (!$roleKey) {
+        echo json_encode(['success' => false, 'message' => 'Invalid role selected.']);
+        exit;
+    }
 }
 
 if ($roleKey === 'DEPARTMENT_ADMIN' && empty($departmentId)) {
@@ -236,6 +276,11 @@ $insertedUserId = (int) $pdo->lastInsertId();
 $tokenHash = hash('sha256', $token);
 $resetStmt = $pdo->prepare("INSERT INTO password_resets (user_id, email, token_hash, expires_at) VALUES (?, ?, ?, ?)");
 $resetStmt->execute([$insertedUserId, $email, $tokenHash, $expires]);
+
+$dutyViewRecords = !empty($_POST['duty_view_records']) ? 1 : 0;
+$dutyApproveApps = !empty($_POST['duty_approve_apps']) ? 1 : 0;
+$dutyVerifyDocs = !empty($_POST['duty_verify_docs']) ? 1 : 0;
+sync_user_duties($pdo, $insertedUserId, $dutyViewRecords, $dutyApproveApps, $dutyVerifyDocs);
 
 $settings = $pdo->query("SELECT * FROM system_settings LIMIT 1")->fetch(PDO::FETCH_ASSOC);
 $issuer = trim($settings['institution_name'] ?? 'JOSTUM PG');

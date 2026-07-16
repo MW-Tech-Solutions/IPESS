@@ -30,6 +30,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $appStmt = $pdo->prepare("SELECT application_id FROM documents WHERE doc_id = ?");
             $appStmt->execute([$doc_id]);
             $applicationId = (int) $appStmt->fetchColumn();
+
+            // Department ownership check for general staff
+            $userDeptId = null;
+            if ($user_id > 0) {
+                $deptStmt = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
+                $deptStmt->execute([$user_id]);
+                $userDeptId = $deptStmt->fetchColumn();
+            }
+            if ($userDeptId) {
+                $checkDeptStmt = $pdo->prepare("
+                    SELECT COUNT(*) 
+                    FROM applications a
+                    LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
+                    WHERE a.application_id = ? AND (pc.department = ? OR a.department_id = ?)
+                ");
+                $checkDeptStmt->execute([$applicationId, $userDeptId, $userDeptId]);
+                if ((int)$checkDeptStmt->fetchColumn() === 0) {
+                    $response['message'] = 'Access Denied: This application does not belong to your department.';
+                    echo json_encode($response);
+                    exit;
+                }
+            }
+
             $missingStage = null;
             if ($applicationId > 0 && !$progManager->canAdvanceToStage($applicationId, ApplicationProgressManager::STAGE_DOC_VERIFY, $missingStage)) {
                 $response['message'] = "Cannot verify documents before the '{$missingStage}' stage is completed.";

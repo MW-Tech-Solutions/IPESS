@@ -109,7 +109,8 @@ try {
         exit();
     }
     $_SESSION['success_message'] = $message;
-    header("Location: ../view.php?app_no=" . urlencode($appNumber));
+    $redirect = !empty($_POST['redirect']) ? $_POST['redirect'] : "../view.php?app_no=" . urlencode($appNumber);
+    header("Location: " . $redirect);
     exit();
 
 } catch (Exception $e) {
@@ -120,6 +121,7 @@ try {
         exit();
     }
     $_SESSION['error'] = $message;
-    header("Location: dashboard.php");
+    $redirect = !empty($_POST['redirect']) ? $_POST['redirect'] : "dashboard.php";
+    header("Location: " . $redirect);
     exit();
 }
