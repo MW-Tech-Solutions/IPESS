@@ -31,7 +31,7 @@ try {
             <p>Please keep this ID safe. You will need it to login to the portal and track your admission status.</p>
             
             <div style='text-align: center; margin: 30px 0;'>
-                <a href='" . app_url('APPLICANT/ADMISSIONS/login.php') . "' style='background-color: #6EB533; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Login to Status Portal</a>
+                <a href='" . app_absolute_url('APPLICANT/ADMISSIONS/login.php') . "' style='background-color: #6EB533; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Login to Status Portal</a>
             </div>
 
             <p style='font-size: 12px; color: #888; border-top: 1px solid #eee; pt-10px;'>

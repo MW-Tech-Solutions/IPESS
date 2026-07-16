@@ -41,10 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("INSERT INTO password_resets (user_id, email, token_hash, expires_at) VALUES (?, ?, ?, ?)");
                 $stmt->execute([(int) $user['user_id'], $email, $tokenHash, $expiresAt]);
 
-                $protocol = function_exists('is_secure_connection') ? (is_secure_connection() ? 'https' : 'http') : ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http');
-                $host = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
-                $basePath = rtrim(dirname($_SERVER['REQUEST_URI'] ?? '/'), '/');
-                $resetLink = $protocol . '://' . $host . $basePath . '/reset-password.php?token=' . urlencode($token);
+                $resetLink = app_absolute_url('ADMIN/reset-password.php?token=' . urlencode($token));
 
                 $body = "<p>We received a request to reset your account password.</p>
                          <p>Click the button below to set a new password. This link expires in 1 hour.</p>
