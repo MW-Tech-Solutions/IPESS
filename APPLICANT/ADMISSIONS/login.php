@@ -336,7 +336,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <footer class="footer-links">
         <a href="./includes/forgot_pass.php" class="forgot-pass">Forgot Password?</a>
-        <a href="register.php">Create account</a>
+        <a href="<?= htmlspecialchars(app_absolute_url('APPLICANT/ADMISSIONS/register.php'), ENT_QUOTES, 'UTF-8'); ?>">Create account</a>
     </footer>
 </main>
 <script>

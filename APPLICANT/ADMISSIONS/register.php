@@ -413,11 +413,11 @@ try {
             </div>
 
             <footer class="footer-links">
-                <a href="<?= htmlspecialchars(app_url('APPLICANT/ADMISSIONS/login.php')) ?>" class="login-link">
-                    <i class="bi bi-person-fill"></i><span>Already Have An Account</span>
+                <a href="<?= htmlspecialchars(app_absolute_url('APPLICANT/ADMISSIONS/login.php')) ?>" class="login-link">
+                    <i class="bi bi-box-arrow-in-right"></i><span>Already Have An Account? Sign In</span>
                 </a>
                 <button type="button" onclick="initiateSignup()" id="sendBtn" class="btn btn-signin">
-                    <span class="create-icon"><i class="bi bi-person-fill"></i></span><span class="create-label">Create</span>
+                    <span class="create-icon"><i class="bi bi-person-plus-fill"></i></span><span class="create-label">Create Account</span>
                 </button>
             </footer>
 
@@ -605,12 +605,12 @@ try {
             } else {
                 showAlert(data.message, "js-error-1");
                 btn.disabled = false;
-                btn.innerHTML = '<span class="create-icon"><i class="bi bi-person-fill"></i></span><span class="create-label">Create</span>';
+                btn.innerHTML = '<span class="create-icon"><i class="bi bi-person-plus-fill"></i></span><span class="create-label">Create Account</span>';
             }
         } catch (e) {
             showAlert("Server connection failed.", "js-error-1");
             btn.disabled = false;
-            btn.innerHTML = '<span class="create-icon"><i class="bi bi-person-fill"></i></span><span class="create-label">Create</span>';
+            btn.innerHTML = '<span class="create-icon"><i class="bi bi-person-plus-fill"></i></span><span class="create-label">Create Account</span>';
         }
     }
 
