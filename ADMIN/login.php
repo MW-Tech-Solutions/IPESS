@@ -228,29 +228,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             try {
                 $user = user_login_query($pdo, $email);
 
-                $allowedRoles = [
-                    'SUPER_ADMIN',
-                    'ICT_ADMIN',
-                    'PORTAL_ADMIN',
-                    'REGISTRY',
-                    'ADMISSIONS_OFFICER',
-                    'BURSARY',
-                    'PG_SCHOOL_OFFICER',
-                    'FACULTY_OFFICER',
-                    'DEPARTMENT_ADMIN',
-                    'HOD',
-                    'SUPERVISOR',
-                    'REVIEWER',
-                    'ADMIN',
-                    'ICT_SUPPORT',
-                    'STUDENT_MANAGER',
-                    'ACADEMIC_MANAGER',
-                    'SUPERVISOR_MANAGER',
-                    'ICT_STAFF',
-                ];
+                $roleKeys = [];
+                try {
+                    $roleKeys = $pdo->query("SELECT role_key FROM roles WHERE role_key != 'STUDENT'")->fetchAll(PDO::FETCH_COLUMN);
+                } catch (Throwable $e) {}
+
+                if (empty($roleKeys)) {
+                    $roleKeys = [
+                        'SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'REGISTRY', 'ADMISSIONS_OFFICER', 
+                        'BURSARY', 'PG_SCHOOL_OFFICER', 'FACULTY_OFFICER', 'DEPARTMENT_ADMIN', 'HOD', 
+                        'SUPERVISOR', 'REVIEWER', 'ADMIN', 'ICT_SUPPORT', 'STUDENT_MANAGER', 
+                        'ACADEMIC_MANAGER', 'SUPERVISOR_MANAGER', 'ICT_STAFF'
+                    ];
+                }
 
                 $loginRole = normalize_role($user['role'] ?? '');
-                if ($user && password_verify($password, $user['password_hash']) && in_array($loginRole, array_map('normalize_role', $allowedRoles), true)) {
+                if ($user && password_verify($password, $user['password_hash']) && in_array($loginRole, array_map('normalize_role', $roleKeys), true)) {
                     ensure_totp_columns($pdo);
 
                     $totpSecret = $user['totp_secret'] ?? '';
