@@ -47,6 +47,7 @@ if (isset($sidebarMap[$userRole])) {
                 </a>
             </li>
 
+            <?php if (has_permission('view_applications')): ?>
             <li class="nav-item">
                 <a class="nav-link <?= ($currentPage == 'application-management.php') ? 'active' : '' ?>"
                    href="application-management.php">
@@ -54,7 +55,9 @@ if (isset($sidebarMap[$userRole])) {
                     <span>Application Management</span>
                 </a>
             </li>
+            <?php endif; ?>
 
+            <?php if (has_permission('verify_applicants')): ?>
             <li class="nav-item">
                 <a class="nav-link <?= ($currentPage == 'document-verification.php') ? 'active' : '' ?>"
                    href="document-verification.php">
@@ -62,7 +65,9 @@ if (isset($sidebarMap[$userRole])) {
                     <span>Document Verification</span>
                 </a>
             </li>
+            <?php endif; ?>
 
+            <?php if (has_permission('department_review') || has_permission('manage_academics')): ?>
             <li class="nav-item">
                 <a class="nav-link <?= ($currentPage == 'academic-review.php') ? 'active' : '' ?>"
                    href="academic-review.php">
@@ -70,7 +75,9 @@ if (isset($sidebarMap[$userRole])) {
                     <span>Academic Review</span>
                 </a>
             </li>
+            <?php endif; ?>
 
+            <?php if (has_permission('view_applications')): ?>
             <li class="nav-item">
                 <a class="nav-link <?= ($currentPage == 'referees.php') ? 'active' : '' ?>"
                    href="referees.php">
@@ -78,7 +85,9 @@ if (isset($sidebarMap[$userRole])) {
                     <span>Referees</span>
                 </a>
             </li>
+            <?php endif; ?>
 
+            <?php if (has_permission('manage_admissions')): ?>
             <li class="nav-item">
                 <a class="nav-link <?= ($currentPage == 'admission-decisions.php') ? 'active' : '' ?>"
                    href="admission-decisions.php">
@@ -86,7 +95,9 @@ if (isset($sidebarMap[$userRole])) {
                     <span>Admission Decisions</span>
                 </a>
             </li>
+            <?php endif; ?>
 
+            <?php if (has_permission('reports')): ?>
             <li class="nav-item">
                 <a class="nav-link <?= ($currentPage == 'reports.php') ? 'active' : '' ?>"
                    href="reports.php">
@@ -94,6 +105,7 @@ if (isset($sidebarMap[$userRole])) {
                     <span>Reports</span>
                 </a>
             </li>
+            <?php endif; ?>
 
         </ul>
     </div>

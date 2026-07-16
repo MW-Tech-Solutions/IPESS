@@ -47,59 +47,75 @@ try {
             </li>
             <?php if (is_module_accessible('admissions')): ?>
             <!-- Stage 1: Application Submitted -->
+            <?php if (has_permission('view_applications')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'application-management.php' ? 'active' : ''; ?>" href="application-management.php">
                     <i class="fas fa-file-alt"></i>
                     <span>Application Management</span>
                 </a>
             </li>
+            <?php endif; ?>
             <!-- Stage 2: Documents Verification -->
+            <?php if (has_permission('verify_applicants')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="document-verification.php">
                     <i class="fas fa-check-circle"></i>
                     <span>Document Verification</span>
                 </a>
             </li>
+            <?php endif; ?>
             <!-- Stage 3: Referee Report -->
+            <?php if (has_permission('view_applications')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'referees.php' ? 'active' : ''; ?>" href="referees.php">
                     <i class="fas fa-user-check"></i>
                     <span>Referees</span>
                 </a>
             </li>
+            <?php endif; ?>
             <!-- Stage 4: Departmental Review -->
+            <?php if (has_permission('department_review') || has_permission('manage_academics')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'academic-review.php' ? 'active' : ''; ?>" href="academic-review.php">
                     <i class="fas fa-book-open"></i>
                     <span>Academic Review</span>
                 </a>
             </li>
+            <?php endif; ?>
             <!-- Stage 5: PG Review -->
+            <?php if (has_permission('review_applications') || has_permission('pg_review')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'assigned-applications.php' ? 'active' : ''; ?>" href="../reviewer/assigned-applications.php">
                     <i class="fas fa-user-shield"></i>
                     <span>PG Review</span>
                 </a>
             </li>
+            <?php endif; ?>
             <!-- Stage 6: Final Decisions -->
+            <?php if (has_permission('manage_admissions')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'admission-decisions.php' ? 'active' : ''; ?>" href="admission-decisions.php">
                     <i class="fas fa-gavel"></i>
                     <span>Admission Decisions</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (has_permission('manage_supervisors') || has_permission('assign_supervisor')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'assign-supervisor.php' ? 'active' : ''; ?>" href="assign-supervisor.php">
                     <i class="fas fa-user-tag"></i>
                     <span>Assign Supervisors</span>
                 </a>
             </li>
+            <?php endif; ?>
+            <?php if (has_permission('reports')): ?>
             <li>
                 <a class="<?php echo $currentPage === 'reports.php' ? 'active' : ''; ?>" href="reports.php">
                     <i class="fas fa-chart-bar"></i>
                     <span>Reports</span>
                 </a>
             </li>
+            <?php endif; ?>
             <?php else: ?>
             <li>
                 <div class="px-3 py-2 text-muted small">
