@@ -353,3 +353,203 @@ window.addEventListener('message', function (evt) {
 </style>
 
             <main class="content-body">
+<?php
+if (basename($_SERVER['PHP_SELF']) === 'dashboard.php') {
+    // Determine the current user's role to identify "extra" non-native permissions
+    $userRole = normalize_role(current_user_role());
+    
+    // We only show extra widgets for non-super admins
+    if (!in_array($userRole, ['SUPER_ADMIN', 'ICT_ADMIN'], true)) {
+        $extraVerifyDocs = false;
+        $extraDeptReview = false;
+        $extraFacultyReview = false;
+        $extraPgReview = false;
+        $extraIctProcessing = false;
+        $extraSupervisor = false;
+        
+        // Define native permissions per role to avoid duplicate cards on the dashboard
+        if ($userRole === 'DEPARTMENT_ADMIN' || $userRole === 'HOD') {
+            $extraVerifyDocs = has_permission('verify_applicants');
+            $extraFacultyReview = has_permission('faculty_review');
+            $extraPgReview = has_permission('pg_review') || has_permission('review_applications') || has_permission('manage_admissions');
+            $extraIctProcessing = has_permission('ict_processing');
+        } elseif ($userRole === 'PG_SCHOOL_OFFICER') {
+            $extraVerifyDocs = has_permission('verify_applicants');
+            $extraDeptReview = has_permission('department_review');
+            $extraFacultyReview = has_permission('faculty_review');
+            $extraIctProcessing = has_permission('ict_processing');
+            $extraSupervisor = has_permission('assign_supervisor') || has_permission('supervisor_management');
+        } elseif ($userRole === 'ICTO') {
+            $extraDeptReview = has_permission('department_review');
+            $extraFacultyReview = has_permission('faculty_review');
+            $extraPgReview = has_permission('pg_review') || has_permission('review_applications') || has_permission('manage_admissions');
+            $extraIctProcessing = has_permission('ict_processing');
+            $extraSupervisor = has_permission('assign_supervisor') || has_permission('supervisor_management');
+        } elseif ($userRole === 'ICT_STAFF') {
+            $extraVerifyDocs = has_permission('verify_applicants');
+            $extraDeptReview = has_permission('department_review');
+            $extraFacultyReview = has_permission('faculty_review');
+            $extraPgReview = has_permission('pg_review') || has_permission('review_applications') || has_permission('manage_admissions');
+            $extraSupervisor = has_permission('assign_supervisor') || has_permission('supervisor_management');
+        } elseif ($userRole === 'FACULTY_OFFICER') {
+            $extraVerifyDocs = has_permission('verify_applicants');
+            $extraDeptReview = has_permission('department_review');
+            $extraPgReview = has_permission('pg_review') || has_permission('review_applications') || has_permission('manage_admissions');
+            $extraIctProcessing = has_permission('ict_processing');
+            $extraSupervisor = has_permission('assign_supervisor') || has_permission('supervisor_management');
+        } elseif ($userRole === 'REVIEWER') {
+            $extraVerifyDocs = has_permission('verify_applicants');
+            $extraDeptReview = has_permission('department_review');
+            $extraFacultyReview = has_permission('faculty_review');
+            $extraIctProcessing = has_permission('ict_processing');
+            $extraSupervisor = has_permission('assign_supervisor') || has_permission('supervisor_management');
+        }
+        
+        $hasExtraDuties = $extraVerifyDocs || $extraDeptReview || $extraFacultyReview || $extraPgReview || $extraIctProcessing || $extraSupervisor;
+        
+        if ($hasExtraDuties):
+            // Include database connection if not set
+            if (!isset($pdo)) {
+                try {
+                    require_once __DIR__ . '/db.php';
+                } catch (Exception $e) {}
+            }
+            
+            // Query count statistics if possible
+            $extraPendingDocs = 0;
+            $extraPendingDept = 0;
+            $extraPendingFaculty = 0;
+            $extraPendingPg = 0;
+            
+            if (isset($pdo)) {
+                try {
+                    $userId = (int) ($_SESSION['user_id'] ?? 0);
+                    $uDeptId = null;
+                    if ($userId > 0) {
+                        $s = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
+                        $s->execute([$userId]);
+                        $uRow = $s->fetch(PDO::FETCH_ASSOC);
+                        if ($uRow) {
+                            $uDeptId = $uRow['department_id'] ? (int) $uRow['department_id'] : null;
+                        }
+                    }
+                    
+                    if ($extraVerifyDocs) {
+                        $sql = "SELECT COUNT(DISTINCT a.application_id)
+                                FROM applications a
+                                JOIN documents d ON a.application_id = d.application_id
+                                LEFT JOIN document_verification dv ON d.doc_id = dv.upload_id
+                                WHERE (dv.verification_status IS NULL OR dv.verification_status = 'Pending')";
+                        if ($uDeptId !== null) {
+                            $sql .= " AND EXISTS (SELECT 1 FROM programme_choices pc WHERE pc.application_id = a.application_id AND (pc.department = ? OR a.department_id = ?))";
+                            $s = $pdo->prepare($sql); $s->execute([$uDeptId, $uDeptId]);
+                        } else {
+                            $s = $pdo->query($sql);
+                        }
+                        $extraPendingDocs = (int) $s->fetchColumn();
+                    }
+                    
+                    if ($extraDeptReview) {
+                        $sql = "SELECT COUNT(DISTINCT a.application_id) FROM applications a
+                                LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
+                                WHERE a.status = 'Submitted'
+                                AND (a.current_status IS NULL OR a.current_status IN ('Submitted','ASSIGNED_TO_DEPARTMENT','UNDER_DEPT_REVIEW'))";
+                        if ($uDeptId !== null) {
+                            $sql .= " AND (pc.department = ? OR a.department_id = ?)";
+                            $s = $pdo->prepare($sql); $s->execute([$uDeptId, $uDeptId]);
+                        } else {
+                            $s = $pdo->query($sql);
+                        }
+                        $extraPendingDept = (int) $s->fetchColumn();
+                    }
+                    
+                    if ($extraFacultyReview) {
+                        $s = $pdo->query("SELECT COUNT(DISTINCT application_id) FROM applications
+                                          WHERE current_status IN ('DEPT_APPROVED','UNDER_FACULTY_REVIEW')");
+                        $extraPendingFaculty = (int) $s->fetchColumn();
+                    }
+                    
+                    if ($extraPgReview) {
+                        $s = $pdo->query("SELECT COUNT(DISTINCT application_id) FROM applications
+                                          WHERE current_status IN ('FACULTY_APPROVED','DEPT_APPROVED','UNDER_PG_REVIEW')");
+                        $extraPendingPg = (int) $s->fetchColumn();
+                    }
+                } catch (PDOException $e) {}
+            }
+            ?>
+            <div class="mb-4 bg-light p-4 rounded-4 shadow-sm border-start border-4 border-primary">
+                <h4 class="mb-3 text-primary fw-bold"><i class="fas fa-tasks me-2"></i>Delegated Modular Duties</h4>
+                <p class="text-muted small">In addition to your role, the system administrator has delegated the following workflows to you:</p>
+                <div class="stat-grid mt-3">
+                    <?php if ($extraVerifyDocs): ?>
+                    <div class="stat-card cursor-pointer bg-white border border-light" onclick="location.href='<?php echo app_url('ADMIN/general/document-verification.php'); ?>'">
+                        <div class="stat-icon bg-info text-white"><i class="fas fa-check-circle"></i></div>
+                        <div>
+                            <div class="stat-title text-muted">Document Verification</div>
+                            <div class="stat-value text-info" style="font-size:1.5rem"><?php echo number_format($extraPendingDocs); ?> Pending</div>
+                            <div class="small text-info mt-1">Verify Uploaded Credentials <i class="fas fa-arrow-right ms-1"></i></div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($extraDeptReview): ?>
+                    <div class="stat-card cursor-pointer bg-white border border-light" onclick="location.href='<?php echo app_url('ADMIN/general/academic-review.php'); ?>'">
+                        <div class="stat-icon bg-success text-white"><i class="fas fa-book-open"></i></div>
+                        <div>
+                            <div class="stat-title text-muted">Departmental Review</div>
+                            <div class="stat-value text-success" style="font-size:1.5rem"><?php echo number_format($extraPendingDept); ?> Pending</div>
+                            <div class="small text-success mt-1">Review &amp; Endorse Applicants <i class="fas fa-arrow-right ms-1"></i></div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($extraFacultyReview): ?>
+                    <div class="stat-card cursor-pointer bg-white border border-light" onclick="location.href='<?php echo app_url('ADMIN/faculty/applications.php'); ?>'">
+                        <div class="stat-icon bg-warning text-white"><i class="fas fa-university"></i></div>
+                        <div>
+                            <div class="stat-title text-muted">Faculty Verification</div>
+                            <div class="stat-value text-warning" style="font-size:1.5rem"><?php echo number_format($extraPendingFaculty); ?> Pending</div>
+                            <div class="small text-warning mt-1">Faculty Endorsement Stage <i class="fas fa-arrow-right ms-1"></i></div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($extraPgReview): ?>
+                    <div class="stat-card cursor-pointer bg-white border border-light" onclick="location.href='<?php echo app_url('ADMIN/pg-admin/applications.php'); ?>'">
+                        <div class="stat-icon bg-purple text-white" style="background:#7c3aed !important"><i class="fas fa-graduation-cap"></i></div>
+                        <div>
+                            <div class="stat-title text-muted">PG School Evaluation</div>
+                            <div class="stat-value" style="font-size:1.5rem;color:#7c3aed"><?php echo number_format($extraPendingPg); ?> Pending</div>
+                            <div class="small mt-1" style="color:#7c3aed">Issue Final Approvals <i class="fas fa-arrow-right ms-1"></i></div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($extraIctProcessing): ?>
+                    <div class="stat-card cursor-pointer bg-white border border-light" onclick="location.href='<?php echo app_url('ADMIN/ict-staff/admissions.php'); ?>'">
+                        <div class="stat-icon bg-secondary text-white"><i class="fas fa-id-card"></i></div>
+                        <div>
+                            <div class="stat-title text-muted">ICT Registration</div>
+                            <div class="stat-value text-secondary" style="font-size:1.5rem">Active</div>
+                            <div class="small text-secondary mt-1">Admissions Processing desk <i class="fas fa-arrow-right ms-1"></i></div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($extraSupervisor): ?>
+                    <div class="stat-card cursor-pointer bg-white border border-light" onclick="location.href='<?php echo app_url('ADMIN/dept-admin/supervisor-management.php'); ?>'">
+                        <div class="stat-icon bg-teal text-white" style="background:#0d9488 !important"><i class="fas fa-user-plus"></i></div>
+                        <div>
+                            <div class="stat-title text-muted">Supervisor Assignment</div>
+                            <div class="stat-value text-teal" style="font-size:1.5rem;color:#0d9488">Active</div>
+                            <div class="small mt-1" style="color:#0d9488">Allocate Supervisors <i class="fas fa-arrow-right ms-1"></i></div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php
+        endif;
+    }
+}
+?>

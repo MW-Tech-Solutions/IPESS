@@ -48,7 +48,7 @@ try {
             
             <?php if (has_permission('verify_applicants')): ?>
             <li>
-                <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/document-verification.php'); ?>">
+                <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/general/document-verification.php'); ?>">
                     <i class="fas fa-check-circle"></i>
                     <span>Document Verification</span>
                 </a>

@@ -26,88 +26,12 @@ if (isset($sidebarMap[$userRole])) {
         return;
     }
 }
-?>
-<nav class="sidebar" id="sidebar">
 
-    <div class="sidebar-header">
-        <a href="dashboard.php" class="sidebar-logo">
-            <i class="fas fa-graduation-cap"></i>
-            <span>JOSTUM PG</span>
-        </a>
-    </div>
-
-    <div class="sidebar-nav">
-        <ul class="nav flex-column">
-
-            <li class="nav-item">
-                <a class="nav-link <?= ($currentPage == 'dashboard.php') ? 'active' : '' ?>"
-                   href="dashboard.php">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-
-            <?php if (has_permission('view_applications')): ?>
-            <li class="nav-item">
-                <a class="nav-link <?= ($currentPage == 'application-management.php') ? 'active' : '' ?>"
-                   href="application-management.php">
-                    <i class="fas fa-file-alt"></i>
-                    <span>Application Management</span>
-                </a>
-            </li>
-            <?php endif; ?>
-
-            <?php if (has_permission('verify_applicants')): ?>
-            <li class="nav-item">
-                <a class="nav-link <?= ($currentPage == 'document-verification.php') ? 'active' : '' ?>"
-                   href="document-verification.php">
-                    <i class="fas fa-check-circle"></i>
-                    <span>Document Verification</span>
-                </a>
-            </li>
-            <?php endif; ?>
-
-            <?php if (has_permission('department_review') || has_permission('manage_academics')): ?>
-            <li class="nav-item">
-                <a class="nav-link <?= ($currentPage == 'academic-review.php') ? 'active' : '' ?>"
-                   href="academic-review.php">
-                    <i class="fas fa-book-open"></i>
-                    <span>Academic Review</span>
-                </a>
-            </li>
-            <?php endif; ?>
-
-            <?php if (has_permission('view_applications')): ?>
-            <li class="nav-item">
-                <a class="nav-link <?= ($currentPage == 'referees.php') ? 'active' : '' ?>"
-                   href="referees.php">
-                    <i class="fas fa-user-check"></i>
-                    <span>Referees</span>
-                </a>
-            </li>
-            <?php endif; ?>
-
-            <?php if (has_permission('manage_admissions')): ?>
-            <li class="nav-item">
-                <a class="nav-link <?= ($currentPage == 'admission-decisions.php') ? 'active' : '' ?>"
-                   href="admission-decisions.php">
-                    <i class="fas fa-gavel"></i>
-                    <span>Admission Decisions</span>
-                </a>
-            </li>
-            <?php endif; ?>
-
-            <?php if (has_permission('reports')): ?>
-            <li class="nav-item">
-                <a class="nav-link <?= ($currentPage == 'reports.php') ? 'active' : '' ?>"
-                   href="reports.php">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Reports</span>
-                </a>
-            </li>
-            <?php endif; ?>
-
-        </ul>
-    </div>
-
-</nav>
+// No mapped role sidebar — use the comprehensive general sidebar
+$generalSidebar = __DIR__ . '/../../ADMIN/general/includes/sidebar.php';
+if (file_exists($generalSidebar)) {
+    require_once $generalSidebar;
+} else {
+    // Ultimate fallback: minimal sidebar
+    echo '<aside class="sidebar" id="sidebar"><div class="sidebar-brand"><div class="brand-text"><span class="brand-name">IPESS FUAM</span></div></div></aside>';
+}
