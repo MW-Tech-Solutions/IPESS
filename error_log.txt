@@ -475,3 +475,9 @@ File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
 [2026-07-14 12:44:43] PHP Error (2): preg_match(): Unknown modifier '*'
 File: C:\xampp\htdocs\JOSTUM\helpers\generate_all_tables.php on line 27
 
+[2026-07-16 15:16:06] Uncaught Exception: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'role_id' in 'field list'
+File: C:\xampp\htdocs\JOSTUM\scratch\check_users_ajasti.php on line 6
+Stack trace:
+#0 C:\xampp\htdocs\JOSTUM\scratch\check_users_ajasti.php(6): PDO->query('SELECT user_id,...')
+#1 {main}
+
