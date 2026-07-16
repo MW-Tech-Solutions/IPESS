@@ -44,7 +44,38 @@ if (!function_exists('normalize_role')) {
 if (!function_exists('current_user_role')) {
     function current_user_role(): string
     {
-        return normalize_role($_SESSION['role'] ?? '');
+        static $cachedRole = null;
+        if ($cachedRole !== null) {
+            return $cachedRole;
+        }
+
+        $sessionRole = $_SESSION['role'] ?? '';
+        $userId = (int) ($_SESSION['user_id'] ?? 0);
+
+        if ($userId > 0) {
+            try {
+                require_once JOSTUM_ROOT . '/app/config/database.php';
+                $pdo = db();
+                $stmt = $pdo->prepare("
+                    SELECT r.role_key 
+                    FROM users u 
+                    LEFT JOIN roles r ON u.role_id = r.role_id 
+                    WHERE u.user_id = ? 
+                    LIMIT 1
+                ");
+                $stmt->execute([$userId]);
+                $dbRole = $stmt->fetchColumn();
+                if ($dbRole) {
+                    $_SESSION['role'] = $dbRole;
+                    $sessionRole = $dbRole;
+                }
+            } catch (Throwable $e) {
+                // Keep session role as fallback if DB isn't available or ready
+            }
+        }
+
+        $cachedRole = normalize_role($sessionRole);
+        return $cachedRole;
     }
 }
 
