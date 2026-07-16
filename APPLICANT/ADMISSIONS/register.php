@@ -295,25 +295,18 @@ try {
         }
 
         .login-link {
-            display: inline-flex;
-            align-items: center;
-            background: var(--primary-green);
-            color: #fff;
-            border-radius: 4px;
-            overflow: hidden;
+            color: var(--accent-burgundy);
+            text-decoration: none;
             font-weight: 600;
-            min-height: 43px;
-            line-height: 1;
-            transition: all 0.2s ease-in-out;
+            font-size: 0.95rem;
+            transition: color 0.2s;
         }
 
         .login-link:hover {
-            background-color: #5c972a;
-            color: white;
-            transform: translateY(-1px);
+            color: var(--primary-green);
+            text-decoration: underline;
         }
 
-        .login-link span,
         .create-label {
             padding: 0 18px;
             display: inline-flex;
@@ -321,7 +314,6 @@ try {
             height: 43px;
         }
 
-        .login-link i,
         .create-icon {
             background: rgba(0, 0, 0, 0.15);
             display: inline-flex;
@@ -345,11 +337,8 @@ try {
             .form-control,
             .form-select { height: 46px; font-size: 1rem !important; }
             .footer-links { flex-direction: column-reverse; align-items: stretch; margin-top: 20px; }
-            .login-link,
             .btn-signin { justify-content: center; width: 100%; }
-            .login-link span,
             .create-label { flex:1; justify-content:center; padding: 0 12px; }
-            .login-link i,
             .create-icon { flex:0 0 42px; }
             .login-title { font-size: 1.45rem; }
             .otp-input { width: 38px; height: 50px; margin: 0 2px; }
@@ -414,7 +403,7 @@ try {
 
             <footer class="footer-links">
                 <a href="<?= htmlspecialchars(app_absolute_url('APPLICANT/ADMISSIONS/login.php')) ?>" class="login-link">
-                    <i class="bi bi-box-arrow-in-right"></i><span>Already Have An Account? Sign In</span>
+                    Already Have An Account? Sign In
                 </a>
                 <button type="button" onclick="initiateSignup()" id="sendBtn" class="btn btn-signin">
                     <span class="create-icon"><i class="bi bi-person-plus-fill"></i></span><span class="create-label">Create Account</span>
