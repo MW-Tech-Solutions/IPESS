@@ -610,7 +610,14 @@ if (!$show_otp && isset($_SESSION['pending_admin_login'])) {
                         $pending = $_SESSION['pending_admin_login'] ?? null;
                         $totpSetup = $pending ? empty($pending['totp_enabled']) : false;
                         $totpSecret = $pending['totp_secret'] ?? '';
-                                                ?>
+                        $totpEmail = $pending['email'] ?? '';
+                        $qrCodeUrl = '';
+                        if ($totpSetup && $totpSecret && $totpEmail) {
+                            $company = 'IPESS JOSTUM';
+                            $otpauthUrl = 'otpauth://totp/' . rawurlencode($company . ':' . $totpEmail) . '?secret=' . rawurlencode($totpSecret) . '&issuer=' . rawurlencode($company);
+                            $qrCodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' . urlencode($otpauthUrl);
+                        }
+                        ?>
                         
                         <div class="auth-header">
                             <a href="login.php?reset=1" class="back-to-login">&larr; Back to login</a>
@@ -623,9 +630,16 @@ if (!$show_otp && isset($_SESSION['pending_admin_login'])) {
                         <?php endif; ?>
 
                         <?php if ($totpSetup && $totpSecret): ?>
-                            <div class="alert alert-warning">
-                                <strong>First-time setup:</strong> Open Google Authenticator and add a manual key using the setup key below.
+                            <div class="alert alert-warning py-2 mb-3" style="font-size: 0.85rem;">
+                                <strong>First-time setup:</strong> Scan the QR code below with Google Authenticator, or enter the manual setup key.
                             </div>
+                            <?php if ($qrCodeUrl): ?>
+                                <div class="text-center mb-3">
+                                    <div style="background: white; padding: 12px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                        <img src="<?php echo htmlspecialchars($qrCodeUrl); ?>" alt="Scan QR Code" style="width: 160px; height: 160px; display: block;">
+                                    </div>
+                                </div>
+                            <?php endif; ?>
                             <div class="totp-key-box">
                                 <div class="text-muted" style="font-size: 0.9rem;">Authenticator setup key</div>
                                 <div class="totp-key"><?php echo htmlspecialchars($totpSecret); ?></div>
