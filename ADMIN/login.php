@@ -145,13 +145,6 @@ function user_login_query(PDO $pdo, string $email): ?array {
     $passwordColumn = $flags['password_hash'] ? 'password_hash' : 'password';
     $totpSelect = $flags['totp_secret'] ? ', u.totp_secret, u.totp_enabled' : '';
 
-    if ($flags['role']) {
-        $stmt = $pdo->prepare("SELECT user_id, {$passwordColumn} AS password_hash, role, full_name{$totpSelect} FROM users WHERE email = :email LIMIT 1");
-        $stmt->bindParam(':email', $email);
-        $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
-    }
-
     if ($flags['role_id']) {
         $stmt = $pdo->prepare("
             SELECT u.user_id, u.{$passwordColumn} AS password_hash, r.role_key AS role, u.full_name{$totpSelect}
@@ -160,6 +153,13 @@ function user_login_query(PDO $pdo, string $email): ?array {
             WHERE u.email = :email
             LIMIT 1
         ");
+        $stmt->bindParam(':email', $email);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    if ($flags['role']) {
+        $stmt = $pdo->prepare("SELECT user_id, {$passwordColumn} AS password_hash, role, full_name{$totpSelect} FROM users WHERE email = :email LIMIT 1");
         $stmt->bindParam(':email', $email);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
