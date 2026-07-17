@@ -413,6 +413,11 @@ if (roleSelect) {
 
 document.getElementById('addUserForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    const btn = this.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creating...';
+
     const formData = new FormData(this);
 
     fetch('api/user-management.php', {
@@ -431,7 +436,7 @@ document.getElementById('addUserForm').addEventListener('submit', function(e) {
         return data;
     })
     .then(data => {
-                if (!data) return;
+        if (!data) return;
         if (!data.success) {
             alert(data.message || 'Unable to create user.');
             return;
@@ -443,7 +448,11 @@ document.getElementById('addUserForm').addEventListener('submit', function(e) {
         }
         window.location.reload();
     })
-    .catch(() => alert('Unable to create user. Please try again.'));
+    .catch(() => alert('Unable to create user. Please try again.'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
 });
 
 const editUserModal = document.getElementById('editUserModal');
@@ -496,6 +505,11 @@ document.querySelectorAll('.edit-user').forEach(button => {
 
 editUserForm.addEventListener('submit', function(e) {
     e.preventDefault();
+    const btn = this.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+
     const formData = new FormData(this);
 
     fetch('api/user-management.php', {
@@ -521,7 +535,11 @@ editUserForm.addEventListener('submit', function(e) {
         }
         window.location.reload();
     })
-    .catch(() => alert('Unable to update user. Please try again.'));
+    .catch(() => alert('Unable to update user. Please try again.'))
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
 });
 
 document.querySelectorAll('.delete-user').forEach(button => {

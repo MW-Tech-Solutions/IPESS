@@ -110,10 +110,6 @@ try {
     if ($status === 'Verified') {
         $message = "You have already completed this verification process. Thank you!";
         $messageType = "success";
-    } elseif (!$progManager->isStageCompleted($appId, ApplicationProgressManager::STAGE_DOC_VERIFY)) {
-        $message = "This application is not yet ready for referee verification. Documents verification must be completed first by the admissions office.";
-        $messageType = "warning";
-        $showForm = false;
     } else {
         $showForm = true;
     }
@@ -157,14 +153,14 @@ try {
         $relationship = trim($_POST['relationship'] ?? '');
         $yearsKnown = filter_input(INPUT_POST, 'years_known', FILTER_VALIDATE_INT) ?: 0;
         
-        $assessCharacter = $_POST['assess_character'] ?? null;
-        $assessCompetence = $_POST['assess_competence'] ?? null;
-        $assessLeadership = $_POST['assess_leadership'] ?? null;
-        $assessCommunication = $_POST['assess_communication'] ?? null;
+        $assessCharacter = $_POST['assess_character_integrity'] ?? null;
+        $assessCompetence = $_POST['assess_professional_competence'] ?? null;
+        $assessLeadership = $_POST['assess_leadership_ability'] ?? null;
+        $assessCommunication = $_POST['assess_communication_skills'] ?? null;
         $assessTeamwork = $_POST['assess_teamwork'] ?? null;
         $assessReliability = $_POST['assess_reliability'] ?? null;
         $assessInitiative = $_POST['assess_initiative'] ?? null;
-        $assessStability = $_POST['assess_stability'] ?? null;
+        $assessStability = $_POST['assess_emotional_stability'] ?? null;
         
         $majorStrengths = trim($_POST['major_strengths'] ?? '');
         $weaknesses = trim($_POST['weaknesses'] ?? '');

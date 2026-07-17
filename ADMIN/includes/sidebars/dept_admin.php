@@ -41,18 +41,9 @@ try {
             
             <?php if (has_permission('department_review') || has_permission('view_applicants')): ?>
             <li>
-                <a class="<?php echo ($currentPage === 'academic-review.php' || $currentPage === 'department-applications.php') ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/academic-review.php'); ?>">
+                <a class="<?php echo ($currentPage === 'academic-review.php' || $currentPage === 'department-applications.php') ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/dept-admin/department-applications.php'); ?>">
                     <i class="fas fa-folder-open"></i>
-                    <span>Department Applications</span>
-                </a>
-            </li>
-            <?php endif; ?>
-
-            <?php if (has_permission('verify_applicants')): ?>
-            <li>
-                <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/general/document-verification.php'); ?>">
-                    <i class="fas fa-check-circle"></i>
-                    <span>Document Verification</span>
+                    <span>Department Vetting</span>
                 </a>
             </li>
             <?php endif; ?>

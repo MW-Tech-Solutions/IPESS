@@ -40,11 +40,34 @@ if ($userDeptId === null) {
     }
 }
 
-// Authentication check (uncomment for production)
-// if (!isset($_SESSION['admin_id'])) { header("Location: login.php"); exit(); }
+function get_back_link($role) {
+    $normRole = normalize_role($role);
+    switch ($normRole) {
+        case 'SUPER_ADMIN':
+        case 'ICT_ADMIN':
+            return app_url('ADMIN/admin/application-management.php');
+        case 'ICTO':
+            return app_url('ADMIN/icto/document-verification.php');
+        case 'HOD':
+        case 'DEPARTMENT_ADMIN':
+            return app_url('ADMIN/dept-admin/department-applications.php');
+        case 'COLLEGE_ADMIN':
+            return app_url('ADMIN/faculty/applications.php');
+        case 'PG_ADMIN':
+        case 'PG_SCHOOL_OFFICER':
+            return app_url('ADMIN/pg-admin/applications.php');
+        case 'CENTER_LEADER':
+            return app_url('ADMIN/center-leader/dashboard.php');
+        case 'GENERAL':
+            return app_url('ADMIN/general/application-management.php');
+        default:
+            return app_url('ADMIN/dashboard.php');
+    }
+}
+$backLink = get_back_link($role);
 
 if (!isset($_GET['app_no'])) {
-    header("Location: application-management.php");
+    header("Location: " . $backLink);
     exit();
 }
 
@@ -104,13 +127,13 @@ try {
 
     if (!$app) {
         $_SESSION['error'] = "Application not submitted yet.";
-        header("Location: application-management.php");
+        header("Location: " . $backLink);
         exit();
     }
 
     if ($userDeptId !== null && (int)$app['department_id'] !== $userDeptId && (int)$app['department'] !== $userDeptId) {
         $_SESSION['error'] = "Access Denied: Application does not belong to your department.";
-        header("Location: " . ($_SERVER['HTTP_REFERER'] ?? "application-management.php"));
+        header("Location: " . ($_SERVER['HTTP_REFERER'] ?? $backLink));
         exit();
     }
 
@@ -471,7 +494,7 @@ try {
 <div class="container-xl mt-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <?php if (!$isEmbed): ?>
-            <a href="application-management.php" class="btn btn-white border-0 ps-0 text-secondary fw-medium d-inline-flex align-items-center back-link">
+            <a href="<?php echo htmlspecialchars($backLink); ?>" class="btn btn-white border-0 ps-0 text-secondary fw-medium d-inline-flex align-items-center back-link">
                 <i class="bi bi-arrow-left me-2"></i>
                 Back to Dashboard
             </a>
@@ -563,7 +586,7 @@ try {
     <div class="col-12">
         <div class="action-bar d-flex flex-column flex-md-row justify-content-between align-items-center shadow-sm">
             <div class="d-flex align-items-center">
-                <a href="application-management.php" class="btn btn-light border me-3 d-none d-md-flex align-items-center justify-content-center" style="width: 42px; height: 42px; border-radius: 10px;" title="Back to Dashboard">
+                <a href="<?php echo htmlspecialchars($backLink); ?>" class="btn btn-light border me-3 d-none d-md-flex align-items-center justify-content-center" style="width: 42px; height: 42px; border-radius: 10px;" title="Back to Dashboard">
                     <i class="bi bi-arrow-left text-secondary"></i>
                 </a>
                 

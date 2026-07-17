@@ -98,29 +98,35 @@ try {
 } catch (PDOException $e) {}
 $referee_ok = ($ref_raw === 'Verified');
 
-// Statuses that indicate departmental / PG review stages reached
-$dept_statuses = ['UNDER_DEPT_REVIEW', 'DEPT_APPROVED', 'REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED', 'SUBMITTED'];
-$pg_statuses   = ['REVIEWER_APPROVED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
-$final_statuses = ['ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
+// Departmental Review fallback code
+$fallback_dept = 'PENDING';
+if (in_array($app_current_status, ['ASSIGNED_TO_DEPARTMENT', 'UNDER_DEPT_REVIEW', 'HOD_VERIFIED', 'COLLEGE_PENDING', 'APPROVED_BY_POSTGRADUATE_SCHOOL', 'REJECTED_BY_POSTGRADUATE_SCHOOL', 'DEPT_APPROVED', 'REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED', 'SUBMITTED'], true)) {
+    $fallback_dept = 'IN PROGRESS';
+}
+if (in_array($app_current_status, ['COLLEGE_PENDING', 'APPROVED_BY_POSTGRADUATE_SCHOOL', 'REJECTED_BY_POSTGRADUATE_SCHOOL', 'DEPT_APPROVED', 'REVIEWER_APPROVED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'], true)) {
+    $fallback_dept = 'COMPLETED';
+}
 
-$dept_ok  = in_array($app_current_status, $dept_statuses, true);
-$pg_ok    = in_array($app_current_status, $pg_statuses, true);
-$final_ok = in_array($app_current_status, $final_statuses, true) || in_array(strtolower($app_status), ['admitted', 'rejected'], true);
+// PG Review fallback code
+$fallback_pg = 'PENDING';
+if (in_array($app_current_status, ['COLLEGE_PENDING', 'APPROVED_BY_POSTGRADUATE_SCHOOL', 'REJECTED_BY_POSTGRADUATE_SCHOOL', 'DEPT_APPROVED', 'REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'], true)) {
+    $fallback_pg = 'IN PROGRESS';
+}
+if (in_array($app_current_status, ['APPROVED_BY_POSTGRADUATE_SCHOOL', 'REJECTED_BY_POSTGRADUATE_SCHOOL', 'REVIEWER_APPROVED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'], true)) {
+    $fallback_pg = 'COMPLETED';
+}
 
 // ─── Build final stage progress array ────────────────────────────────────────
 // Priority: DB row > calculated fallback
-function resolve_stage_status(string $stage, array $progress_map, bool $fallback_done, bool $fallback_approved = false): array {
+function resolve_stage_status(string $stage, array $progress_map, string $fallback_code): array {
     if (isset($progress_map[$stage])) {
         $db_status = $progress_map[$stage]['status'];
         // Map DB enum values to display codes
-        if ($db_status === 'Completed' || $db_status === 'COMPLETED') return ['code' => 'COMPLETED', 'date' => $progress_map[$stage]['date']];
+        if ($db_status === 'Completed' || $db_status === 'COMPLETED' || $db_status === 'APPROVED') return ['code' => 'COMPLETED', 'date' => $progress_map[$stage]['date']];
         if ($db_status === 'In Progress' || $db_status === 'IN_PROGRESS') return ['code' => 'IN PROGRESS', 'date' => $progress_map[$stage]['date']];
         return ['code' => 'PENDING', 'date' => null];
     }
-    // Fallback
-    if ($fallback_approved) return ['code' => 'APPROVED', 'date' => null];
-    if ($fallback_done)     return ['code' => 'COMPLETED', 'date' => null];
-    return ['code' => 'PENDING', 'date' => null];
+    return ['code' => $fallback_code, 'date' => null];
 }
 
 $is_admitted_status = (stripos($app_status, 'admit') !== false || $app_current_status === 'ADMISSION_APPROVED');
@@ -135,11 +141,11 @@ if (isset($progress_map['Final Decisions'])) {
 }
 
 $history_stages = [
-    'Application Submitted' => resolve_stage_status('Application Submitted', $progress_map, $submission_ok),
-    'Documents Verification' => resolve_stage_status('Documents Verification', $progress_map, $docs_ok),
-    'Referee Report'         => resolve_stage_status('Referee Report', $progress_map, $referee_ok),
-    'Departmental Review'    => resolve_stage_status('Departmental Review', $progress_map, $dept_ok, false),
-    'PG Review'              => resolve_stage_status('PG Review', $progress_map, $pg_ok, false),
+    'Application Submitted' => resolve_stage_status('Application Submitted', $progress_map, $submission_ok ? 'COMPLETED' : 'PENDING'),
+    'Documents Verification' => resolve_stage_status('Documents Verification', $progress_map, $docs_ok ? 'COMPLETED' : 'PENDING'),
+    'Referee Report'         => resolve_stage_status('Referee Report', $progress_map, $referee_ok ? 'COMPLETED' : 'PENDING'),
+    'Departmental Review'    => resolve_stage_status('Departmental Review', $progress_map, $fallback_dept),
+    'PG Review'              => resolve_stage_status('PG Review', $progress_map, $fallback_pg),
     'Final Decisions'        => ['code' => $final_override !== 'PENDING' ? $final_override : ($is_admitted_status ? 'APPROVED' : ($is_rejected_status ? 'REJECTED' : 'PENDING')), 'date' => $progress_map['Final Decisions']['date'] ?? null],
 ];
 

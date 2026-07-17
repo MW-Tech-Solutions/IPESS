@@ -291,14 +291,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'finalize') {
         $nextStmt = $pdo->prepare($nextQuery);
         $nextStmt->execute([':app_id' => $appId]);
 
-        // 4. Reset applicant status to Submitted if it was ACTION_REQUIRED_DOCS
-        if ($oldCurrentStatus === 'ACTION_REQUIRED_DOCS') {
-            update_application_status($pdo, $appId, 'SUBMITTED', [
-                'actor_id' => $sessionUserId,
-                'actor_role' => $sessionRole,
-                'note' => 'All documents verified by ICTO. Restored to Submitted.'
-            ]);
-        }
+        // 4. Update overall status to ICT_VETTED
+        update_application_status($pdo, $appId, 'ICT_VETTED', [
+            'actor_id' => $sessionUserId,
+            'actor_role' => $sessionRole,
+            'note' => 'All documents verified by ICTO. Advanced to Departmental level.'
+        ]);
 
         // 5. Update completion weights helper
         if (file_exists(__DIR__ . '/../../../includes/completion_service.php')) {
@@ -461,13 +459,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'bulk') {
                 $nextStmt = $pdo->prepare($nextQuery);
                 $nextStmt->execute([':app_id' => $appId]);
 
-                if ($oldCurrentStatus === 'ACTION_REQUIRED_DOCS') {
-                    update_application_status($pdo, $appId, 'SUBMITTED', [
-                        'actor_id' => $sessionUserId,
-                        'actor_role' => $sessionRole,
-                        'note' => 'Bulk verified. Restored to Submitted.'
-                    ]);
-                }
+                update_application_status($pdo, $appId, 'ICT_VETTED', [
+                    'actor_id' => $sessionUserId,
+                    'actor_role' => $sessionRole,
+                    'note' => 'Bulk verified. Advanced to Departmental level.'
+                ]);
 
                 log_workflow($pdo, $sessionUserId, $sessionRole, "Bulk verified application", $appId, $oldCurrentStatus, "Verified", null, $bulkId);
             } else {

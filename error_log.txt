@@ -481,3 +481,98 @@ Stack trace:
 #0 C:\xampp\htdocs\JOSTUM\scratch\check_users_ajasti.php(6): PDO->query('SELECT user_id,...')
 #1 {main}
 
+[2026-07-17 17:44:14] Uncaught Exception: The PHP GD extension is required, but is not installed.
+File: C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\lib\Cpdf.php on line 6207
+Stack trace:
+#0 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Adapter\CPDF.php(674): Dompdf\Cpdf->addPngFromFile('C:\\Windows\\Temp...', 34.015748031496, 762.3270519685, 39.0, 39.0)
+#1 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer\Image.php(63): Dompdf\Adapter\CPDF->image('C:\\Windows\\Temp...', 34.015748031496, 40.562948031496, 39.0, 39.0, 'normal')
+#2 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(305): Dompdf\Renderer\Image->render(Object(Dompdf\FrameDecorator\Image))
+#3 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(140): Dompdf\Renderer->_render_frame('image', Object(Dompdf\FrameDecorator\Image))
+#4 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Image))
+#5 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableCell))
+#6 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableRow))
+#7 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableRowGroup))
+#8 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Table))
+#9 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Block))
+#10 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\FrameReflower\Page.php(148): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Block))
+#11 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\FrameDecorator\AbstractFrameDecorator.php(915): Dompdf\FrameReflower\Page->reflow(NULL)
+#12 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Dompdf.php(815): Dompdf\FrameDecorator\AbstractFrameDecorator->reflow()
+#13 C:\xampp\htdocs\JOSTUM\ADMIN\super-admin\api\reports.php(147): Dompdf\Dompdf->render()
+#14 {main}
+
+[2026-07-17 17:44:17] Uncaught Exception: The PHP GD extension is required, but is not installed.
+File: C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\lib\Cpdf.php on line 6207
+Stack trace:
+#0 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Adapter\CPDF.php(674): Dompdf\Cpdf->addPngFromFile('C:\\Windows\\Temp...', 34.015748031496, 762.3270519685, 39.0, 39.0)
+#1 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer\Image.php(63): Dompdf\Adapter\CPDF->image('C:\\Windows\\Temp...', 34.015748031496, 40.562948031496, 39.0, 39.0, 'normal')
+#2 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(305): Dompdf\Renderer\Image->render(Object(Dompdf\FrameDecorator\Image))
+#3 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(140): Dompdf\Renderer->_render_frame('image', Object(Dompdf\FrameDecorator\Image))
+#4 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Image))
+#5 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableCell))
+#6 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableRow))
+#7 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableRowGroup))
+#8 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Table))
+#9 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Block))
+#10 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\FrameReflower\Page.php(148): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Block))
+#11 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\FrameDecorator\AbstractFrameDecorator.php(915): Dompdf\FrameReflower\Page->reflow(NULL)
+#12 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Dompdf.php(815): Dompdf\FrameDecorator\AbstractFrameDecorator->reflow()
+#13 C:\xampp\htdocs\JOSTUM\ADMIN\super-admin\api\reports.php(147): Dompdf\Dompdf->render()
+#14 {main}
+
+[2026-07-17 17:44:31] Uncaught Exception: The PHP GD extension is required, but is not installed.
+File: C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\lib\Cpdf.php on line 6207
+Stack trace:
+#0 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Adapter\CPDF.php(674): Dompdf\Cpdf->addPngFromFile('C:\\Windows\\Temp...', 34.015748031496, 762.3270519685, 39.0, 39.0)
+#1 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer\Image.php(63): Dompdf\Adapter\CPDF->image('C:\\Windows\\Temp...', 34.015748031496, 40.562948031496, 39.0, 39.0, 'normal')
+#2 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(305): Dompdf\Renderer\Image->render(Object(Dompdf\FrameDecorator\Image))
+#3 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(140): Dompdf\Renderer->_render_frame('image', Object(Dompdf\FrameDecorator\Image))
+#4 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Image))
+#5 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableCell))
+#6 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableRow))
+#7 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableRowGroup))
+#8 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Table))
+#9 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Block))
+#10 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\FrameReflower\Page.php(148): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Block))
+#11 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\FrameDecorator\AbstractFrameDecorator.php(915): Dompdf\FrameReflower\Page->reflow(NULL)
+#12 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Dompdf.php(815): Dompdf\FrameDecorator\AbstractFrameDecorator->reflow()
+#13 C:\xampp\htdocs\JOSTUM\ADMIN\super-admin\api\reports.php(147): Dompdf\Dompdf->render()
+#14 {main}
+
+[2026-07-17 17:44:33] Uncaught Exception: The PHP GD extension is required, but is not installed.
+File: C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\lib\Cpdf.php on line 6207
+Stack trace:
+#0 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Adapter\CPDF.php(674): Dompdf\Cpdf->addPngFromFile('C:\\Windows\\Temp...', 34.015748031496, 762.3270519685, 39.0, 39.0)
+#1 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer\Image.php(63): Dompdf\Adapter\CPDF->image('C:\\Windows\\Temp...', 34.015748031496, 40.562948031496, 39.0, 39.0, 'normal')
+#2 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(305): Dompdf\Renderer\Image->render(Object(Dompdf\FrameDecorator\Image))
+#3 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(140): Dompdf\Renderer->_render_frame('image', Object(Dompdf\FrameDecorator\Image))
+#4 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Image))
+#5 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableCell))
+#6 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableRow))
+#7 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableRowGroup))
+#8 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Table))
+#9 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Block))
+#10 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\FrameReflower\Page.php(148): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Block))
+#11 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\FrameDecorator\AbstractFrameDecorator.php(915): Dompdf\FrameReflower\Page->reflow(NULL)
+#12 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Dompdf.php(815): Dompdf\FrameDecorator\AbstractFrameDecorator->reflow()
+#13 C:\xampp\htdocs\JOSTUM\ADMIN\super-admin\api\reports.php(147): Dompdf\Dompdf->render()
+#14 {main}
+
+[2026-07-17 17:47:03] Uncaught Exception: The PHP GD extension is required, but is not installed.
+File: C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\lib\Cpdf.php on line 6207
+Stack trace:
+#0 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Adapter\CPDF.php(674): Dompdf\Cpdf->addPngFromFile('C:\\Windows\\Temp...', 34.015748031496, 762.3270519685, 39.0, 39.0)
+#1 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer\Image.php(63): Dompdf\Adapter\CPDF->image('C:\\Windows\\Temp...', 34.015748031496, 40.562948031496, 39.0, 39.0, 'normal')
+#2 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(305): Dompdf\Renderer\Image->render(Object(Dompdf\FrameDecorator\Image))
+#3 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(140): Dompdf\Renderer->_render_frame('image', Object(Dompdf\FrameDecorator\Image))
+#4 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Image))
+#5 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableCell))
+#6 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableRow))
+#7 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\TableRowGroup))
+#8 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Table))
+#9 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Renderer.php(207): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Block))
+#10 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\FrameReflower\Page.php(148): Dompdf\Renderer->render(Object(Dompdf\FrameDecorator\Block))
+#11 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\FrameDecorator\AbstractFrameDecorator.php(915): Dompdf\FrameReflower\Page->reflow(NULL)
+#12 C:\xampp\htdocs\JOSTUM\ADMIN\vendor\dompdf\dompdf\src\Dompdf.php(815): Dompdf\FrameDecorator\AbstractFrameDecorator->reflow()
+#13 C:\xampp\htdocs\JOSTUM\ADMIN\super-admin\api\reports.php(147): Dompdf\Dompdf->render()
+#14 {main}
+

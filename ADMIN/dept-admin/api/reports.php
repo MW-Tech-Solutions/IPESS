@@ -56,16 +56,23 @@ if ($action === 'generate') {
         fclose($handle);
     } else {
         $html = buildBrandedReportHtml($title, $type, $metricRows);
+        $written = false;
         if (file_exists(__DIR__ . '/../../vendor/autoload.php')) {
             require_once __DIR__ . '/../../vendor/autoload.php';
             if (class_exists('Dompdf\\Dompdf')) {
-                $dompdf = new Dompdf\Dompdf();
-                $dompdf->loadHtml($html);
-                $dompdf->setPaper('A4');
-                $dompdf->render();
-                file_put_contents($full, $dompdf->output());
+                try {
+                    $dompdf = new Dompdf\Dompdf();
+                    $dompdf->loadHtml($html);
+                    $dompdf->setPaper('A4');
+                    $dompdf->render();
+                    file_put_contents($full, $dompdf->output());
+                    $written = true;
+                } catch (Throwable $e) {
+                    error_log("Dompdf failed in dept-admin reports: " . $e->getMessage() . ". Falling back to HTML format.");
+                }
             }
-        } else {
+        }
+        if (!$written) {
             file_put_contents($full, $html);
         }
     }

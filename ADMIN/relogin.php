@@ -17,24 +17,11 @@ $error = '';
 $email = '';
 
 function admin_redirect_by_role(string $role): void {
-    switch ($role) {
-        case 'SUPER_ADMIN':
-            redirect_to('ADMIN/super-admin/dashboard.php');
-            break;
-        case 'ADMIN':
-            redirect_to('ADMIN/admin/dashboard.php');
-            break;
-        case 'DEPARTMENT_ADMIN':
-            redirect_to('ADMIN/dept-admin/dashboard.php');
-            break;
-        case 'SUPERVISOR':
-            redirect_to('ADMIN/supervisor/dashboard.php');
-            break;
-        case 'REVIEWER':
-            redirect_to('ADMIN/reviewer/dashboard.php');
-            break;
-        default:
-            redirect_to('ADMIN/index.php');
+    $dashboard = dashboard_for_role($role);
+    if ($dashboard !== 'ADMIN/login.php' && $dashboard !== '') {
+        redirect_to($dashboard);
+    } else {
+        redirect_to('ADMIN/index.php');
     }
 }
 

@@ -391,17 +391,17 @@ try {
             exit;
         }
 
-        update_application_status($pdo, $appId, 'DEPT_APPROVED', [
+        update_application_status($pdo, $appId, 'HOD_VERIFIED', [
             'actor_id' => $_SESSION['user_id'] ?? null,
-            'actor_role' => $_SESSION['role'] ?? 'ADMIN',
-            'note' => 'Application approved by Department'
+            'actor_role' => $_SESSION['role'] ?? 'HOD',
+            'note' => 'Academic records verified by Department HOD.'
         ]);
 
         $stmt = $pdo->prepare("SELECT u.user_id FROM applications a JOIN users u ON a.user_id = u.user_id WHERE a.application_id = ? LIMIT 1");
         $stmt->execute([$appId]);
         $userId = (int) $stmt->fetchColumn();
         if ($userId > 0) {
-            notify_user($pdo, $userId, 'Department Approved', 'Your application has been approved by the department and forwarded to the PG School.');
+            notify_user($pdo, $userId, 'Academic Records Verified', 'Your academic records have been verified by the department HOD and are awaiting supervisor allocation.');
         }
 
         echo json_encode(['success' => true]);
@@ -472,16 +472,16 @@ try {
                     'note' => 'Requested documents in Academic Review'
                 ]);
             } elseif ($bulkAction === 'accept_application') {
-                update_application_status($pdo, $appId, 'DEPT_APPROVED', [
+                update_application_status($pdo, $appId, 'HOD_VERIFIED', [
                     'actor_id' => $_SESSION['user_id'] ?? null,
-                    'actor_role' => $_SESSION['role'] ?? 'ADMIN',
-                    'note' => 'Application approved by Department'
+                    'actor_role' => $_SESSION['role'] ?? 'HOD',
+                    'note' => 'Academic records verified by Department HOD.'
                 ]);
                 $stmt = $pdo->prepare("SELECT u.user_id, u.email, CONCAT(p.first_name, ' ', p.surname) AS name FROM applications a JOIN users u ON a.user_id = u.user_id JOIN personal_details p ON a.application_id = p.application_id WHERE a.application_id = ? LIMIT 1");
                 $stmt->execute([$appId]);
                 $row = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($row && !empty($row['user_id'])) {
-                    notify_user($pdo, (int) $row['user_id'], 'Department Approved', 'Your application has been approved by the department and forwarded to the PG School.');
+                    notify_user($pdo, (int) $row['user_id'], 'Academic Records Verified', 'Your academic records have been verified by the department HOD and are awaiting supervisor allocation.');
                 }
             } elseif ($bulkAction === 'reject_application') {
                 update_application_status($pdo, $appId, 'ADMISSION_REJECTED', [

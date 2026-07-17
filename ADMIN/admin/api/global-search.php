@@ -30,6 +30,16 @@ function search_role_url(string $role, string $type, int $applicationId = 0): st
     $role = strtoupper($role);
     $type = strtolower($type);
 
+    if ($role === 'ICT_ADMIN') {
+        if ($type === 'application') {
+            return app_url('ADMIN/general/application-management.php' . ($applicationId > 0 ? '?app_no=' . urlencode($applicationId) : ''));
+        }
+        if ($type === 'referee') {
+            return app_url('ADMIN/admin/referees.php');
+        }
+        return app_url('ADMIN/ict-admin/dashboard.php');
+    }
+
     if ($role === 'SUPER_ADMIN') {
         if ($type === 'application' || $type === 'referee') {
             return app_url('ADMIN/super-admin/applications.php' . ($applicationId > 0 ? '?application_id=' . $applicationId : ''));

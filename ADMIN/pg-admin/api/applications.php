@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'details') {
             LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
             LEFT JOIN courses c ON pc.course = c.course_id
             LEFT JOIN student_profiles sp ON (sp.student_id = a.application_number OR sp.email = u.email)
-            LEFT JOIN supervisor_students sa ON (sa.application_id = a.application_id OR sa.application_number = a.application_number)
+            LEFT JOIN supervisor_students sa ON (sa.student_id = a.application_number OR sa.application_id = a.application_id OR sa.application_number = a.application_number)
             WHERE a.application_id = ?
             LIMIT 1
         ");
@@ -196,6 +196,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'decision') {
             $newStatus = 'APPROVED_BY_POSTGRADUATE_SCHOOL';
         } elseif ($decision === 'reject') {
             $newStatus = 'REJECTED_BY_POSTGRADUATE_SCHOOL';
+            try {
+                $pdo->prepare("UPDATE application_progress SET stage_status = 'Completed', stage_updated_at = NOW() WHERE application_id = ? AND stage = 'PG School Review'")->execute([$appId]);
+            } catch (Throwable $e) {}
         } else {
             // Correction requested
             $newStatus = 'ACTION_REQUIRED_DOCS';
@@ -314,7 +317,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'bulk') {
             $statusStmt->execute([$appId]);
             $oldStatus = $statusStmt->fetchColumn() ?: 'SUBMITTED';
 
-            $newStatus = ($bulkAction === 'approve') ? 'APPROVED_BY_POSTGRADUATE_SCHOOL' : 'REJECTED_BY_POSTGRADUATE_SCHOOL';
+             if ($bulkAction === 'approve') {
+                $newStatus = 'APPROVED_BY_POSTGRADUATE_SCHOOL';
+             } else {
+                $newStatus = 'REJECTED_BY_POSTGRADUATE_SCHOOL';
+                try {
+                    $pdo->prepare("UPDATE application_progress SET stage_status = 'Completed', stage_updated_at = NOW() WHERE application_id = ? AND stage = 'PG School Review'")->execute([$appId]);
+                } catch (Throwable $e) {}
+             }
 
             $progManager = new ApplicationProgressManager($pdo);
             $missingStage = null;

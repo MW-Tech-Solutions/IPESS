@@ -75,15 +75,102 @@ try {
             break;
 
         case 2: 
-            $sql = "INSERT INTO programme_choices (application_id, faculty, department,degree_type, mode_of_study,course)
-                    VALUES (?, ?, ?, ?, ?,?)
+            $raw_faculty = $_POST['faculty'] ?? '';
+            $raw_dept = $_POST['department'] ?? '';
+            $raw_degree = $_POST['degree_type'] ?? '';
+            $raw_course = $_POST['course'] ?? '';
+            $raw_mode = $_POST['mode'] ?? '';
+
+            // 1. Resolve Department
+            $dept_id = null;
+            if ($raw_dept !== '') {
+                if (is_numeric($raw_dept)) {
+                    $dept_id = (int)$raw_dept;
+                } else {
+                    $dept_name = $raw_dept;
+                    if ($raw_dept === 'Department of Procurement Standards') {
+                        $dept_name = 'Procurement';
+                    } elseif ($raw_dept === 'Department of Environmental Standards') {
+                        $dept_name = 'Environmental Standard';
+                    } elseif ($raw_dept === 'Department of Social Standards') {
+                        $dept_name = 'Social Standard';
+                    }
+                    $stmt = $pdo->prepare("SELECT dept_id FROM departments WHERE dept_name = ? LIMIT 1");
+                    $stmt->execute([$dept_name]);
+                    $dept_id = (int)$stmt->fetchColumn() ?: null;
+                }
+            }
+
+            // 2. Resolve Faculty
+            $faculty_id = null;
+            if ($raw_faculty !== '') {
+                if (is_numeric($raw_faculty)) {
+                    $faculty_id = (int)$raw_faculty;
+                } else {
+                    if ($dept_id) {
+                        $stmt = $pdo->prepare("SELECT faculty_id FROM departments WHERE dept_id = ? LIMIT 1");
+                        $stmt->execute([$dept_id]);
+                        $faculty_id = (int)$stmt->fetchColumn() ?: null;
+                    }
+                }
+            }
+
+            // 3. Resolve Degree Type
+            $degree_id = null;
+            if ($raw_degree !== '') {
+                if (is_numeric($raw_degree)) {
+                    $degree_id = (int)$raw_degree;
+                } else {
+                    $stmt = $pdo->prepare("SELECT degree_id FROM degree_types WHERE degree_name = ? LIMIT 1");
+                    $stmt->execute([$raw_degree]);
+                    $degree_id = (int)$stmt->fetchColumn() ?: null;
+                }
+            }
+
+            // 4. Resolve Course
+            $course_id = null;
+            if ($raw_course !== '') {
+                if (is_numeric($raw_course)) {
+                    $course_id = (int)$raw_course;
+                } else {
+                    $course_name = $raw_course;
+                    if (strcasecmp($raw_course, 'PROCUREMENT MANAGEMENT') === 0) {
+                        $course_name = 'Procurement';
+                    } elseif (strcasecmp($raw_course, 'ENVIRONMENTAL SUSTAINABILITY') === 0) {
+                        $course_name = 'Environmental Sustainability';
+                    } elseif (strcasecmp($raw_course, 'SUSTAINABLE SOCIAL DEVELOPMENT') === 0) {
+                        $course_name = 'Social Standard';
+                    }
+                    $stmt = $pdo->prepare("SELECT course_id FROM courses WHERE course_title = ? LIMIT 1");
+                    $stmt->execute([$course_name]);
+                    $course_id = (int)$stmt->fetchColumn() ?: null;
+                }
+            }
+
+            // 5. Resolve Mode of Study
+            $mode_id = null;
+            if ($raw_mode !== '') {
+                if (is_numeric($raw_mode)) {
+                    $mode_id = (int)$raw_mode;
+                } else {
+                    $stmt = $pdo->prepare("SELECT mode_id FROM study_modes WHERE mode_name = ? LIMIT 1");
+                    $stmt->execute([$raw_mode]);
+                    $mode_id = (int)$stmt->fetchColumn() ?: null;
+                }
+            }
+
+            $sql = "INSERT INTO programme_choices (application_id, faculty, department, degree_type, mode_of_study, course)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE 
-                    faculty=VALUES(faculty), department=VALUES(department), 
-                    degree_type=VALUES(degree_type), mode_of_study=VALUES(mode_of_study)";
+                    faculty=VALUES(faculty), 
+                    department=VALUES(department), 
+                    degree_type=VALUES(degree_type), 
+                    mode_of_study=VALUES(mode_of_study),
+                    course=VALUES(course)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
-                $application_id, $_POST['faculty'], $_POST['department'], 
-                $_POST['degree_type'], $_POST['mode'],$_POST['course']
+                $application_id, $faculty_id, $dept_id, 
+                $degree_id, $mode_id, $course_id
             ]);
             break;
 

@@ -298,7 +298,7 @@ function updateSelectedList() {
 }
 
 function viewApplication(appCode) {
-    window.open(`/ADMIN/view.php?app_no=${encodeURIComponent(appCode)}`, '_blank');
+    window.open(`../view.php?app_no=${encodeURIComponent(appCode)}`, '_blank');
 }
 
 function changeReviewer() {

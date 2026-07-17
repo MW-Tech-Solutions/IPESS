@@ -119,16 +119,18 @@ function loadFaculties() {
                 opt2.textContent = faculty.faculty_name;
                 filterFaculty.appendChild(opt2);
             });
-            // Default to IPESS (faculty_id = 6) and load departments
-            const defaultId = 6;
+            // Default to first available faculty and load departments
+            const defaultId = data.data[0].faculty_id;
             facultySelect.value = defaultId;
             filterFaculty.value = defaultId;
             loadDepartments(defaultId, deptSelect);
             loadDepartments(defaultId, filterDepartment);
+            loadCourses({ faculty_id: defaultId });
         });
 }
 
-function loadDepartments(facultyId = 6, target = deptSelect) {
+function loadDepartments(facultyId, target = deptSelect) {
+    if (!facultyId) return;
     fetch(`api/manage-entities.php?entity=departments&action=list&faculty_id=${facultyId}`)
         .then(response => response.json())
         .then(data => {
@@ -162,7 +164,7 @@ function loadCourses(filters = {}) {
     const params = new URLSearchParams({
         entity: 'courses',
         action: 'list',
-        faculty_id: 6,
+        faculty_id: filters.faculty_id || filterFaculty.value || '',
         department_id: filters.department_id || '',
         programme_id: filters.programme_id || ''
     });
@@ -210,24 +212,34 @@ courseForm.addEventListener('submit', function(e) {
                 alert(data.message || 'Unable to add course.');
                 return;
             }
+            const savedFaculty = facultySelect.value;
             const savedDept = deptSelect.value;
             const savedProg = programmeSelect.value;
             courseForm.reset();
-            facultySelect.value = 6;
+            facultySelect.value = savedFaculty;
             deptSelect.value = savedDept;
             programmeSelect.value = savedProg;
             loadCourses();
         });
 });
 
-refreshCoursesBtn.addEventListener('click', loadCourses);
+facultySelect.addEventListener('change', function() {
+    loadDepartments(facultySelect.value, deptSelect);
+});
+
+filterFaculty.addEventListener('change', function() {
+    loadDepartments(filterFaculty.value, filterDepartment);
+    loadCourses({ faculty_id: filterFaculty.value });
+});
+
+refreshCoursesBtn.addEventListener('click', () => loadCourses());
 loadFaculties();
 loadProgrammes(programmeSelect);
 loadProgrammes(filterProgramme);
-loadCourses();
 
 applyCourseFiltersBtn.addEventListener('click', () => {
     loadCourses({
+        faculty_id: filterFaculty.value,
         department_id: filterDepartment.value,
         programme_id: filterProgramme.value
     });

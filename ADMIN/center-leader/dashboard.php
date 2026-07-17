@@ -1,12 +1,15 @@
 <?php
+require_once __DIR__ . '/../../app/bootstrap.php';
+enforce_session_timeout(900, 'ADMIN/login.php');
+require_role('CENTER_LEADER', 'ADMIN/login.php');
 
-$pageTitle = 'Admin Dashboard';
-$pageSubtitle = 'Admissions activity, verification flow, and application throughput.';
+$pageTitle = 'Center Leader Command Center';
+$pageSubtitle = 'Strictly read-only monitoring dashboard of admissions activity and statistics.';
 
-require_once 'includes/header.php';
-require_once 'includes/sidebar.php';
-require_once 'includes/topbar.php';
-require_once 'includes/db.php';
+require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/sidebar.php';
+require_once __DIR__ . '/../includes/topbar.php';
+require_once __DIR__ . '/../../ADMIN/admin/includes/db.php';
 
 $stats = ['total' => 0, 'pending' => 0, 'admitted' => 0, 'rejected' => 0];
 $chart_labels = [];
@@ -52,7 +55,7 @@ if (isset($pdo)) {
                    f.faculty_name, d.dept_name, c.course_title
             FROM applications a
             LEFT JOIN personal_details p ON a.application_id = p.application_id
-            LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
+            LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
             LEFT JOIN faculties f ON pc.faculty = f.faculty_id
             LEFT JOIN departments d ON pc.department = d.dept_id
             LEFT JOIN courses c ON pc.course = c.course_id
@@ -63,22 +66,15 @@ if (isset($pdo)) {
         $recentApplications = $pdo->query($recentSql)->fetchAll(PDO::FETCH_ASSOC);
 
     } catch (PDOException $e) {
+        error_log("Center Leader dashboard query error: " . $e->getMessage());
     }
 }
-
 ?>
-
-
-
 
 <section class="page-hero">
     <div>
-        <h1>Admissions Admin Overview</h1>
-        <p class="panel-muted">Stay on top of submissions, approvals, and verification queues.</p>
-    </div>
-    <div class="hero-actions">
-        <a class="btn btn-outline-primary" href="reports.php">Generate Report</a>
-        <a class="btn btn-primary" href="application-management.php">Review Applications</a>
+        <h1>Center Leader Command Center</h1>
+        <p class="panel-muted">Monitor postgraduate enrollment activity, metrics, and admission status in real-time.</p>
     </div>
 </section>
 
@@ -140,9 +136,8 @@ if (isset($pdo)) {
     <div class="panel-header">
         <div>
             <h3 class="panel-title">Recent Applications</h3>
-            <div class="panel-muted">Latest submissions awaiting action.</div>
+            <div class="panel-muted">Latest submissions received by the institution.</div>
         </div>
-        <a class="btn btn-outline-primary btn-sm" href="application-management.php">View All</a>
     </div>
     <div class="panel-body">
         <div class="table-responsive">
@@ -256,4 +251,4 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 
-<?php require_once 'includes/footer.php'; ?>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>

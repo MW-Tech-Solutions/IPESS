@@ -19,6 +19,18 @@ set_error_handler(function ($severity, $message, $file, $line) {
 });
 
 
+if (!function_exists('table_exists')) {
+    function table_exists(PDO $pdo, string $table): bool {
+        try {
+            $sanitizedTable = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+            $pdo->query("SELECT 1 FROM `{$sanitizedTable}` LIMIT 0");
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+}
+
 function ensure_totp_columns(PDO $pdo): void {
     try {
         $hasSecret = $pdo->query("SELECT 1 FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'totp_secret'")->fetchColumn();
@@ -211,6 +223,30 @@ if ($action === 'update') {
     $stmt = $pdo->prepare($updateSql);
     $stmt->execute([$fullName, $email, $roleId, $departmentId, $accountStatus, $userId]);
 
+    // Synchronize supervisor_profiles
+    if (table_exists($pdo, 'supervisor_profiles')) {
+        if ($roleKey === 'SUPERVISOR') {
+            $stmtCheck = $pdo->prepare("SELECT supervisor_id FROM supervisor_profiles WHERE email = ? LIMIT 1");
+            $stmtCheck->execute([$email]);
+            $supId = $stmtCheck->fetchColumn();
+
+            if ($supId) {
+                // Update existing supervisor profile
+                $pdo->prepare("UPDATE supervisor_profiles SET full_name = ?, department_id = ?, status = 'Active' WHERE supervisor_id = ?")
+                    ->execute([$fullName, $departmentId, $supId]);
+            } else {
+                // Insert new supervisor profile
+                $newSupId = 'SUP-' . time() . '-' . rand(100, 999);
+                $pdo->prepare("INSERT INTO supervisor_profiles (supervisor_id, full_name, email, department_id, status) VALUES (?, ?, ?, ?, 'Active')")
+                    ->execute([$newSupId, $fullName, $email, $departmentId]);
+            }
+        } else {
+            // Deactivate supervisor profile if role changed from SUPERVISOR
+            $pdo->prepare("UPDATE supervisor_profiles SET status = 'Inactive' WHERE email = ?")
+                ->execute([$email]);
+        }
+    }
+
     $dutyViewRecords = !empty($_POST['duty_view_records']) ? 1 : 0;
     $dutyApproveApps = !empty($_POST['duty_approve_apps']) ? 1 : 0;
     $dutyVerifyDocs = !empty($_POST['duty_verify_docs']) ? 1 : 0;
@@ -271,6 +307,13 @@ $insertSql = "
 ";
 $stmt = $pdo->prepare($insertSql);
 $stmt->execute([$email, $fullName, $roleId, $departmentId, $accountStatus, $passwordHash, $token, $expires, $totpSecret, 0]);
+
+// Synchronize supervisor_profiles
+if ($roleKey === 'SUPERVISOR' && table_exists($pdo, 'supervisor_profiles')) {
+    $newSupId = 'SUP-' . time() . '-' . rand(100, 999);
+    $pdo->prepare("INSERT INTO supervisor_profiles (supervisor_id, full_name, email, department_id, status) VALUES (?, ?, ?, ?, 'Active')")
+        ->execute([$newSupId, $fullName, $email, $departmentId]);
+}
 
 $insertedUserId = (int) $pdo->lastInsertId();
 $tokenHash = hash('sha256', $token);

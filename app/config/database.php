@@ -146,8 +146,21 @@ function ensure_database_compatibility(PDO $pdo): void {
         try {
             $pdo->exec("
                 CREATE OR REPLACE VIEW supervisors AS 
-                SELECT supervisor_id, full_name, email, phone, specialization, status 
-                FROM supervisor_profiles;
+                SELECT 
+                    sp.supervisor_id, 
+                    u.user_id, 
+                    sp.department_id, 
+                    sp.full_name, 
+                    sp.specialization, 
+                    sp.specialization AS specialization_keywords, 
+                    sp.max_capacity, 
+                    sp.current_students, 
+                    sp.status, 
+                    sp.created_at,
+                    sp.email,
+                    sp.phone
+                FROM supervisor_profiles sp
+                LEFT JOIN users u ON sp.email = u.email;
             ");
         } catch (Throwable $e) {}
     } catch (Throwable $e) {

@@ -93,6 +93,27 @@ function log_workflow($pdo, $userId, $role, $action, $applicantId, $oldStatus, $
     }
 }
 
+function activate_student_account(PDO $pdo, int $appId, int $studentUserId, string $fullName, string $email, string $matric) {
+    try {
+        $studentRoleId = (int)$pdo->query("SELECT role_id FROM roles WHERE role_key = 'STUDENT'")->fetchColumn();
+        if ($studentRoleId > 0) {
+            $pdo->prepare("UPDATE users SET role_id = ?, account_status = 'Active' WHERE user_id = ?")
+                ->execute([$studentRoleId, $studentUserId]);
+        }
+        
+        $subject = "Postgraduate Admission Confirmed & Student Portal Activated";
+        $body = "Dear {$fullName},<br><br>";
+        $body .= "Congratulations! Your admission into JOSTUM Postgraduate School has been confirmed.<br>";
+        $body .= "Your Matriculation Number is: <strong>{$matric}</strong><br>";
+        $body .= "Your Student Portal has been activated. You can now log in using your registered credentials to access your Student Dashboard.<br><br>";
+        $body .= "Regards,<br>IPESS JOSTUM Admin";
+        
+        portal_send_mail($email, $fullName, $subject, $body, "Student admission and matriculation notice");
+    } catch (Throwable $e) {
+        error_log("Failed to activate student account: " . $e->getMessage());
+    }
+}
+
 $action = $_GET['action'] ?? ($_POST['action'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'details') {
@@ -283,7 +304,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save') {
 
         // 5. Update/Create Student Profile
         $userStmt = $pdo->prepare("
-            SELECT a.application_number, pd.first_name, pd.surname, u.email, c.course_title, pc.department
+            SELECT a.application_number, pd.first_name, pd.surname, u.email, c.course_title, pc.department, a.user_id
             FROM applications a
             JOIN users u ON a.user_id = u.user_id
             JOIN personal_details pd ON a.application_id = pd.application_id
@@ -299,6 +320,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save') {
             $fullName = $studentRow['first_name'] . ' ' . $studentRow['surname'];
             $email = $studentRow['email'];
             $programme = $studentRow['course_title'];
+            $studentUserId = (int)$studentRow['user_id'];
 
             $insProfile = "
                 INSERT INTO student_profiles 
@@ -316,6 +338,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'save') {
                 ':email' => $email,
                 ':prog' => $programme
             ]);
+
+            // Activate student dashboard and send notice
+            activate_student_account($pdo, $appId, $studentUserId, $fullName, $email, $matric);
         }
 
         // Recalculate helper
@@ -481,12 +506,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'bulk') {
 
                 // Profile sync
                 $userStmt = $pdo->prepare("
-                    SELECT a.application_number, pd.first_name, pd.surname, u.email, c.course_title
+                    SELECT a.application_number, pd.first_name, pd.surname, u.email, c.course_title, a.user_id, ap.matric_number
                     FROM applications a
                     JOIN users u ON a.user_id = u.user_id
                     JOIN personal_details pd ON a.application_id = pd.application_id
                     JOIN programme_choices pc ON a.application_id = pc.application_id
                     JOIN courses c ON pc.course = c.course_id
+                    LEFT JOIN admission_processing ap ON a.application_id = ap.application_id
                     WHERE a.application_id = ? LIMIT 1
                 ");
                 $userStmt->execute([$appId]);
@@ -497,6 +523,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'bulk') {
                     $fullName = $studentRow['first_name'] . ' ' . $studentRow['surname'];
                     $email = $studentRow['email'];
                     $programme = $studentRow['course_title'];
+                    $studentUserId = (int)$studentRow['user_id'];
+                    $matricVal = $studentRow['matric_number'] ?: 'N/A';
 
                     $insProfile = "
                         INSERT INTO student_profiles 
@@ -514,6 +542,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'bulk') {
                         ':email' => $email,
                         ':prog' => $programme
                     ]);
+
+                    // Activate student dashboard and send notice
+                    activate_student_account($pdo, $appId, $studentUserId, $fullName, $email, $matricVal);
                 }
 
                 log_workflow($pdo, $sessionUserId, $sessionRole, "Bulk activated admission letters", $appId, $oldStatus, "Admitted", null, $bulkId);

@@ -89,7 +89,7 @@ try {
             'type' => 'Application',
             'label' => ($row['application_number'] ?: ('App #' . (int) $row['application_id'])) . ' - ' . ($row['applicant_name'] ?: $row['email']),
             'meta' => 'Status: ' . ($row['status'] ?: 'Draft'),
-            'url' => '/ADMIN/view.php?app_no=' . urlencode($row['application_number'])
+            'url' => app_url('ADMIN/view.php?app_no=' . urlencode($row['application_number']))
         ];
     }
 
@@ -119,7 +119,7 @@ try {
             'type' => 'Referee',
             'label' => ($row['full_name'] ?: 'Referee') . ' (' . ($row['email'] ?: 'No email') . ')',
             'meta' => 'Application: ' . ($row['application_number'] ?: ('#' . (int) $row['application_id'])),
-            'url' => '/ADMIN/view.php?app_no=' . urlencode($row['application_number'])
+            'url' => app_url('ADMIN/view.php?app_no=' . urlencode($row['application_number']))
         ];
     }
 

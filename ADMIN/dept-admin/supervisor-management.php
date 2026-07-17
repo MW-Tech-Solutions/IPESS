@@ -643,6 +643,11 @@ async function saveSupervisor() {
         form.reportValidity();
         return;
     }
+    const btn = document.querySelector('#supervisorModal .modal-footer .btn-primary');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+
     const supervisorId = document.getElementById('supervisorId').value || `SUP-${Date.now()}`;
     const fullName = `${document.getElementById('firstName').value.trim()} ${document.getElementById('lastName').value.trim()}`.trim();
 
@@ -661,14 +666,21 @@ async function saveSupervisor() {
     formData.append('notes', document.getElementById('notes').value);
     formData.append('last_active', 'just now');
 
-    const res = await fetch('api/supervisors.php', { method: 'POST', body: formData });
-    const data = await res.json();
-    if (!data.success) {
-        alert(data.message || 'Unable to save supervisor.');
-        return;
+    try {
+        const res = await fetch('api/supervisors.php', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.message || 'Unable to save supervisor.');
+            return;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('supervisorModal')).hide();
+        loadSupervisors();
+    } catch (e) {
+        alert('An error occurred while saving the supervisor.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
     }
-    bootstrap.Modal.getInstance(document.getElementById('supervisorModal')).hide();
-    loadSupervisors();
 }
 
 async function balanceWorkload() {

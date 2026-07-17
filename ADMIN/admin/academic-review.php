@@ -323,7 +323,7 @@ function renderStudents(list) {
             <td><span class="status-chip ${statusChipClass(item)}">${getStatusLabel(item)}</span></td>
             <td class="text-end">
                 ${canAccept(item) ? `<button class="btn btn-sm btn-success me-2" onclick="acceptApplication(${item.application_id})"><i class="fas fa-check"></i></button>` : ''}
-                <button class="btn btn-sm btn-outline-primary" onclick="viewStudent('${item.application_number}')"><i class="fas fa-eye"></i></button>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewStudent(${item.application_id})"><i class="fas fa-eye"></i></button>
             </td>
         </tr>
     `).join('');
@@ -493,8 +493,44 @@ function renderReferees(refs = []) {
     `).join('');
 }
 
-function viewStudent(appNo) {
-    window.open(`/ADMIN/view.php?app_no=${encodeURIComponent(appNo)}`, '_blank');
+async function viewStudent(appId) {
+    const data = await fetchJson(`api/academic-review.php?action=student_detail&application_id=${appId}`);
+    setText('detailName', data.full_name);
+    setText('detailRef', data.application_number);
+    setText('detailEmail', data.email);
+    setText('detailProgramme', data.programme);
+    setText('detailCourse', data.course);
+    
+    let completionValue = data.completion;
+    if ((completionValue === null || completionValue === undefined || Number(completionValue) === 0) && data.document_total && data.document_verified_count) {
+        if (Number(data.document_verified_count) >= Number(data.document_total)) {
+            completionValue = 100;
+        }
+    }
+    setText('detailCompletion', (completionValue ?? '-') + '%');
+    setText('detailDocs', data.document_status || 'Pending');
+    setText('detailReferee', data.referee_status || 'Pending');
+    setText('detailTopic', data.topic || 'N/A');
+    setText('detailFacultyDept', [data.faculty, data.department].filter(Boolean).join(' • ') || '-');
+    setHtml('detailDegrees', renderHigherEducation(data.degrees || []));
+    setHtml('detailOlevel', renderOlevel(data.olevel || []));
+    setHtml('detailDocuments', renderDocuments(data.documents || []));
+    setHtml('detailCv', renderCv(data.cv_document));
+    setHtml('detailReferees', renderReferees(data.referees || []));
+    setPreview('', '');
+
+    const statusBadge = document.getElementById('detailStatus');
+    if (statusBadge) {
+        const status = (data.current_status || data.status || 'Pending').toString();
+        statusBadge.textContent = status.replace(/_/g, ' ');
+        statusBadge.className = 'badge';
+        if (/reject/i.test(status)) statusBadge.classList.add('bg-danger');
+        else if (/approve|admit|submitted/i.test(status)) statusBadge.classList.add('bg-success');
+        else statusBadge.classList.add('bg-secondary');
+    }
+
+    setModalActions(data, appId);
+    new bootstrap.Modal(document.getElementById('studentModal')).show();
 }
 
 function setModalActions(data, appId) {

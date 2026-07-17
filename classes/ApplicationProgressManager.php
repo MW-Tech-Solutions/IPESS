@@ -34,8 +34,11 @@ class ApplicationProgressManager {
 
  
     public function initializeApplication(int $appId): bool {
+        $inTransaction = $this->pdo->inTransaction();
         try {
-            $this->pdo->beginTransaction();
+            if (!$inTransaction) {
+                $this->pdo->beginTransaction();
+            }
 
             $sql = "INSERT IGNORE INTO application_progress (application_id, stage, stage_status, stage_updated_at) VALUES (?, ?, ?, NOW())";
             $stmt = $this->pdo->prepare($sql);
@@ -50,10 +53,14 @@ class ApplicationProgressManager {
                 $stmt->execute([$appId, $stage, $status]);
             }
 
-            $this->pdo->commit();
+            if (!$inTransaction) {
+                $this->pdo->commit();
+            }
             return true;
         } catch (Exception $e) {
-            $this->pdo->rollBack();
+            if (!$inTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
             error_log("Progress Init Error: " . $e->getMessage());
             return false;
         }

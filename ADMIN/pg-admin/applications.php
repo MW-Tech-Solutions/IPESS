@@ -50,7 +50,7 @@ if (isset($pdo)) {
 
         // PG evaluation status filter
         if ($filterStatus === 'Pending') {
-            $whereClauses[] = "a.current_status IN ('DEPT_APPROVED', 'FACULTY_APPROVED', 'UNDER_PG_REVIEW')";
+            $whereClauses[] = "a.current_status IN ('COLLEGE_PENDING', 'HOD_VERIFIED', 'DEPT_APPROVED', 'FACULTY_APPROVED', 'UNDER_PG_REVIEW')";
         } elseif ($filterStatus === 'Approved') {
             $whereClauses[] = "a.current_status IN ('APPROVED_BY_POSTGRADUATE_SCHOOL', 'ADMISSION_APPROVED', 'Admitted')";
         } elseif ($filterStatus === 'Rejected') {
@@ -85,7 +85,7 @@ if (isset($pdo)) {
             LEFT JOIN faculties f ON pc.faculty = f.faculty_id
             LEFT JOIN courses c ON pc.course = c.course_id
             LEFT JOIN student_profiles sp ON (sp.student_id = a.application_number OR sp.email = u.email)
-            LEFT JOIN supervisor_students sa ON (sa.application_id = a.application_id OR sa.application_number = a.application_number)
+            LEFT JOIN supervisor_students sa ON (sa.student_id = a.application_number OR sa.application_id = a.application_id OR sa.application_number = a.application_number)
             WHERE {$whereSql}
             GROUP BY a.application_id
             ORDER BY a.submitted_at DESC

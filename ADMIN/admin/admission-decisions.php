@@ -410,20 +410,6 @@ require_once 'includes/topbar.php';
     </div>
 
     <script>
-    // Sidebar toggle functionality
-    const sidebarToggle = document.getElementById('sidebar-toggle');
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener('click', function() {
-            const sidebar = document.getElementById('sidebar');
-            const mainWrapper = document.getElementById('main-wrapper');
-            if (sidebar && mainWrapper) {
-                sidebar.classList.toggle('collapsed');
-                mainWrapper.classList.toggle('sidebar-collapsed');
-            }
-        });
-    }
-
-
     const filters = {
         faculty: document.getElementById('filterFaculty'),
         department: document.getElementById('filterDepartment'),

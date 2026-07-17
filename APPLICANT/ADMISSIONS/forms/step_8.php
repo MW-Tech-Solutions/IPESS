@@ -79,7 +79,7 @@ function field_attrs(string $fieldName, bool $requiredWhenNoRejections = false):
 <?php endif; ?>
 
 <div class="row g-4">
-    <div class="col-md-6">
+    <div class="col-md-12">
         <label class="form-label fw-bold">Passport Photograph <span class="text-danger">*</span></label>
         <div class="input-group">
             <span class="input-group-text bg-light"><i class="bi bi-person-bounding-box"></i></span>
@@ -90,25 +90,6 @@ function field_attrs(string $fieldName, bool $requiredWhenNoRejections = false):
                    <?php echo field_attrs('passport_file', true); ?>>
         </div>
         <?php echo getFileStatus('passport_file', $data); ?>
-    </div>
-
-    <div class="col-md-6">
-        <label class="form-label fw-bold">Dashboard Profile Passport <span class="text-danger">*</span></label>
-        <div class="input-group">
-            <span class="input-group-text bg-light"><i class="bi bi-person-circle"></i></span>
-            <input type="file"
-                   class="form-control"
-                   name="passport_profile_file"
-                   accept=".jpg,.jpeg,.png"
-                   <?php echo field_attrs('passport_profile_file', true); ?>>
-        </div>
-        <?php echo getFileStatus('passport_profile_file', $data); ?>
-        <?php if (!empty($data['passport_profile_file'])): ?>
-            <div class="mt-2">
-                <img src="<?php echo htmlspecialchars(app_url($data['passport_profile_file'])); ?>" alt="Profile Passport" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0;">
-            </div>
-        <?php endif; ?>
-        <small class="text-muted d-block mt-1">This image will be used on your dashboard top bar.</small>
     </div>
 
     <div class="col-12 mt-4">

@@ -23,16 +23,18 @@ if ($userId > 0 && isset($pdo)) {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($row) {
             $userDeptId = $row['department_id'] ? (int) $row['department_id'] : null;
-            $userDeptName = $row['dept_name'] ?? '';
         }
     } catch (PDOException $e) {
     }
 }
+$userRole = normalize_role(current_user_role());
+$isDeptRestricted = in_array($userRole, ['HOD', 'DEPARTMENT_ADMIN'], true) && ($userDeptId !== null);
+
 
 $faculties = [];
 $departments = [];
 try {
-    if ($userDeptId === null) {
+    if (!$isDeptRestricted) {
         $facStmt = $pdo->query("SELECT faculty_id, faculty_name FROM faculties ORDER BY faculty_name ASC");
         $faculties = $facStmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -56,7 +58,7 @@ if (isset($pdo)) {
             FROM applications a
             LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
         ";
-        if ($userDeptId !== null) {
+        if ($isDeptRestricted) {
             $statsSql .= " WHERE (pc.department = ? OR a.department_id = ?)";
             $statsStmt = $pdo->prepare($statsSql);
             $statsStmt->execute([$userDeptId, $userDeptId]);
@@ -332,7 +334,7 @@ require_once 'includes/topbar.php';
                             </span>
                         </td>
                         <td class="text-end" style="padding-right: 1.5rem;">
-                            <a href="/ADMIN/view.php?app_no=<?php echo urlencode($row['application_number']); ?>" class="btn btn-sm btn-outline-primary border-0" target="_blank">
+                            <a href="<?php echo app_url('ADMIN/view.php?app_no=' . urlencode($row['application_number'])); ?>" class="btn btn-sm btn-outline-primary border-0" target="_blank">
                                 <i class="bi bi-eye"></i> View
                             </a>
                         </td>

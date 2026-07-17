@@ -67,39 +67,88 @@ try {
             break;
 
         case 2: // Programme Info
-            $faculty_id = 0;
-            if (!empty($_POST['faculty'])) {
-                $stmt = $pdo->prepare("SELECT faculty_id FROM faculties WHERE faculty_name = ? LIMIT 1");
-                $stmt->execute([$_POST['faculty']]);
-                $faculty_id = (int)$stmt->fetchColumn() ?: 0;
+            $raw_faculty = $_POST['faculty'] ?? '';
+            $raw_dept = $_POST['department'] ?? '';
+            $raw_degree = $_POST['degree_type'] ?? '';
+            $raw_course = $_POST['course'] ?? '';
+            $raw_mode = $_POST['mode'] ?? '';
+
+            // 1. Resolve Department
+            $dept_id = null;
+            if ($raw_dept !== '') {
+                if (is_numeric($raw_dept)) {
+                    $dept_id = (int)$raw_dept;
+                } else {
+                    $dept_name = $raw_dept;
+                    if ($raw_dept === 'Department of Procurement Standards') {
+                        $dept_name = 'Procurement';
+                    } elseif ($raw_dept === 'Department of Environmental Standards') {
+                        $dept_name = 'Environmental Standard';
+                    } elseif ($raw_dept === 'Department of Social Standards') {
+                        $dept_name = 'Social Standard';
+                    }
+                    $stmt = $pdo->prepare("SELECT dept_id FROM departments WHERE dept_name = ? LIMIT 1");
+                    $stmt->execute([$dept_name]);
+                    $dept_id = (int)$stmt->fetchColumn() ?: null;
+                }
             }
 
-            $dept_id = 0;
-            if (!empty($_POST['department'])) {
-                $stmt = $pdo->prepare("SELECT dept_id FROM departments WHERE dept_name = ? LIMIT 1");
-                $stmt->execute([$_POST['department']]);
-                $dept_id = (int)$stmt->fetchColumn() ?: 0;
+            // 2. Resolve Faculty
+            $faculty_id = null;
+            if ($raw_faculty !== '') {
+                if (is_numeric($raw_faculty)) {
+                    $faculty_id = (int)$raw_faculty;
+                } else {
+                    if ($dept_id) {
+                        $stmt = $pdo->prepare("SELECT faculty_id FROM departments WHERE dept_id = ? LIMIT 1");
+                        $stmt->execute([$dept_id]);
+                        $faculty_id = (int)$stmt->fetchColumn() ?: null;
+                    }
+                }
             }
 
-            $degree_id = 0;
-            if (!empty($_POST['degree_type'])) {
-                $stmt = $pdo->prepare("SELECT degree_id FROM degree_types WHERE degree_name = ? OR (degree_name = 'Msc' AND ? = 'MSc') LIMIT 1");
-                $stmt->execute([$_POST['degree_type'], $_POST['degree_type']]);
-                $degree_id = (int)$stmt->fetchColumn() ?: 0;
+            // 3. Resolve Degree Type
+            $degree_id = null;
+            if ($raw_degree !== '') {
+                if (is_numeric($raw_degree)) {
+                    $degree_id = (int)$raw_degree;
+                } else {
+                    $stmt = $pdo->prepare("SELECT degree_id FROM degree_types WHERE degree_name = ? LIMIT 1");
+                    $stmt->execute([$raw_degree]);
+                    $degree_id = (int)$stmt->fetchColumn() ?: null;
+                }
             }
 
-            $course_id = 0;
-            if (!empty($_POST['course'])) {
-                $stmt = $pdo->prepare("SELECT course_id FROM courses WHERE course_title = ? OR course_title LIKE ? LIMIT 1");
-                $stmt->execute([$_POST['course'], '%' . $_POST['course']]);
-                $course_id = (int)$stmt->fetchColumn() ?: 0;
+            // 4. Resolve Course
+            $course_id = null;
+            if ($raw_course !== '') {
+                if (is_numeric($raw_course)) {
+                    $course_id = (int)$raw_course;
+                } else {
+                    $course_name = $raw_course;
+                    if (strcasecmp($raw_course, 'PROCUREMENT MANAGEMENT') === 0) {
+                        $course_name = 'Procurement';
+                    } elseif (strcasecmp($raw_course, 'ENVIRONMENTAL SUSTAINABILITY') === 0) {
+                        $course_name = 'Environmental Sustainability';
+                    } elseif (strcasecmp($raw_course, 'SUSTAINABLE SOCIAL DEVELOPMENT') === 0) {
+                        $course_name = 'Social Standard';
+                    }
+                    $stmt = $pdo->prepare("SELECT course_id FROM courses WHERE course_title = ? LIMIT 1");
+                    $stmt->execute([$course_name]);
+                    $course_id = (int)$stmt->fetchColumn() ?: null;
+                }
             }
 
-            $mode_id = 0;
-            if (!empty($_POST['mode'])) {
-                $stmt = $pdo->prepare("SELECT mode_id FROM study_modes WHERE mode_name = ? LIMIT 1");
-                $stmt->execute([$_POST['mode']]);
-                $mode_id = (int)$stmt->fetchColumn() ?: 0;
+            // 5. Resolve Mode of Study
+            $mode_id = null;
+            if ($raw_mode !== '') {
+                if (is_numeric($raw_mode)) {
+                    $mode_id = (int)$raw_mode;
+                } else {
+                    $stmt = $pdo->prepare("SELECT mode_id FROM study_modes WHERE mode_name = ? LIMIT 1");
+                    $stmt->execute([$raw_mode]);
+                    $mode_id = (int)$stmt->fetchColumn() ?: null;
+                }
             }
 
             $sql = "INSERT INTO programme_choices (application_id, faculty, department, degree_type, mode_of_study, course)
@@ -398,6 +447,29 @@ try {
                 );
 
                 update_completion($pdo, $application_id);
+
+                // Auto-trigger emails to all added referees
+                try {
+                    require_once __DIR__ . '/../../includes/referee_service.php';
+                    $refStmt = $pdo->prepare("SELECT referee_id FROM referees WHERE application_id = ?");
+                    $refStmt->execute([$application_id]);
+                    $referees = $refStmt->fetchAll(PDO::FETCH_COLUMN);
+                    foreach ($referees as $refId) {
+                        $checkReq = $pdo->prepare("SELECT token FROM referee_requests WHERE referee_id = ? AND application_id = ? LIMIT 1");
+                        $checkReq->execute([$refId, $application_id]);
+                        $existingToken = $checkReq->fetchColumn();
+                        if ($existingToken) {
+                            $token = $existingToken;
+                        } else {
+                            $request = create_referee_request($pdo, (int)$refId, (int)$application_id, (int)$user_id);
+                            $token = $request['token'];
+                        }
+                        $vLink = app_absolute_url("referee_verify.php?token=" . urlencode($token));
+                        send_referee_request_email($pdo, (int)$refId, $vLink);
+                    }
+                } catch (Throwable $refEx) {
+                    error_log("Referee email auto-trigger failed: " . $refEx->getMessage());
+                }
 
                 $pdo->commit(); 
                 unset($_SESSION['form_data']);

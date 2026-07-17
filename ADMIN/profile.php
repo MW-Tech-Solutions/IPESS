@@ -99,14 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $displayName = (string) ($user['full_name'] ?: $user['email']);
 $avatarInitial = strtoupper(substr($displayName, 0, 1));
 $roleKey = strtoupper((string) ($_SESSION['role'] ?? ''));
-$dashboardMap = [
-    'SUPER_ADMIN' => 'ADMIN/super-admin/dashboard.php',
-    'ADMIN' => 'ADMIN/admin/dashboard.php',
-    'DEPARTMENT_ADMIN' => 'ADMIN/dept-admin/dashboard.php',
-    'SUPERVISOR' => 'ADMIN/supervisor/dashboard.php',
-    'REVIEWER' => 'ADMIN/reviewer/dashboard.php'
-];
-$backUrl = app_url($dashboardMap[$roleKey] ?? 'ADMIN/login.php');
+$backUrl = app_url(dashboard_for_role($roleKey) ?: 'ADMIN/login.php');
 ?>
 <!DOCTYPE html>
 <html lang="en">

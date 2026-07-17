@@ -140,13 +140,21 @@ if ($format === 'EXCEL') {
     fclose($handle);
 } else {
     if ($dompdfAvailable) {
-        $html = buildReportHtml($reportData);
-        $dompdf = new Dompdf\Dompdf();
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-        if (file_put_contents($fullPath, $dompdf->output()) === false) {
-            json_error('Unable to write report file.');
+        try {
+            $html = buildReportHtml($reportData);
+            $dompdf = new Dompdf\Dompdf();
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            if (file_put_contents($fullPath, $dompdf->output()) === false) {
+                json_error('Unable to write report file.');
+            }
+        } catch (Throwable $e) {
+            error_log("Dompdf failed in super-admin/reports: " . $e->getMessage() . ". Falling back to simple PDF.");
+            $pdf = buildSimplePdf($lines);
+            if (file_put_contents($fullPath, $pdf) === false) {
+                json_error('Unable to write report file.');
+            }
         }
     } else {
         $pdf = buildSimplePdf($lines);

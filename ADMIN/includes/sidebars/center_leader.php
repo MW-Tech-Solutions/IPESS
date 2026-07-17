@@ -1,6 +1,6 @@
 <?php
 $currentPage = basename($_SERVER['PHP_SELF']);
-$sidebarDisplayName = 'ICTO';
+$sidebarDisplayName = 'Center Leader';
 try {
     require_once __DIR__ . '/../../admin/includes/db.php';
     $sessionUserId = (int) ($_SESSION['user_id'] ?? 0);
@@ -25,35 +25,18 @@ try {
         </div>
         <div class="brand-text">
             <span class="brand-name">IPESS FUAM</span>
-            <span class="brand-sub">ICTO Suite</span>
+            <span class="brand-sub">Center Leader Desk</span>
         </div>
     </div>
     <div class="sidebar-section">
         <div class="sidebar-label">Core</div>
         <ul class="sidebar-nav">
             <li>
-                <a class="<?php echo $currentPage === 'dashboard.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/icto/dashboard.php'); ?>">
+                <a class="<?php echo $currentPage === 'dashboard.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/center-leader/dashboard.php'); ?>">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
             </li>
-            <?php if (has_permission('verify_applicants')): ?>
-            <li>
-                <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/icto/document-verification.php'); ?>">
-                    <i class="fas fa-check-circle"></i>
-                    <span>Document Verification</span>
-                </a>
-            </li>
-            <?php endif; ?>
-            
-            <?php if (has_permission('view_applications') || has_permission('view_applicants')): ?>
-            <li>
-                <a class="<?php echo $currentPage === 'application-management.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/general/application-management.php'); ?>">
-                    <i class="fas fa-file-alt"></i>
-                    <span>Application Management</span>
-                </a>
-            </li>
-            <?php endif; ?>
         </ul>
     </div>
     <div class="sidebar-footer">

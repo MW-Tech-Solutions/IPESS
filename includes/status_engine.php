@@ -17,6 +17,11 @@ function workflow_status_map(): array {
         'REVIEWER_APPROVED' => ['label' => 'Reviewer Approved', 'category' => 'admission'],
         'REVIEWER_REJECTED' => ['label' => 'Reviewer Rejected', 'category' => 'admission'],
         'ACTION_REQUIRED_REVIEW' => ['label' => 'Action Required (Review)', 'category' => 'admission'],
+        'ICT_VETTED' => ['label' => 'ICT Vetted', 'category' => 'admission'],
+        'HOD_VERIFIED' => ['label' => 'HOD Verified', 'category' => 'admission'],
+        'COLLEGE_PENDING' => ['label' => 'College Pending', 'category' => 'admission'],
+        'APPROVED_BY_POSTGRADUATE_SCHOOL' => ['label' => 'Approved by PG School', 'category' => 'admission'],
+        'REJECTED_BY_POSTGRADUATE_SCHOOL' => ['label' => 'Rejected by PG School', 'category' => 'admission'],
         'ADMIN_FINAL_REVIEW' => ['label' => 'Admin Final Review', 'category' => 'admission'],
         'ADMISSION_APPROVED' => ['label' => 'Admission Approved', 'category' => 'admission'],
         'ADMISSION_REJECTED' => ['label' => 'Admission Rejected', 'category' => 'admission'],
@@ -184,9 +189,11 @@ function update_application_status(PDO $pdo, int $application_id, string $new_st
         $updateSql .= ", department_id = ?";
         $params[] = (int) $context['department_id'];
     }
-    if (!empty($context['assigned_reviewer_id'])) {
-        $updateSql .= ", assigned_reviewer_id = ?";
-        $params[] = (int) $context['assigned_reviewer_id'];
+    // Support both keys and map to database column reviewer_id
+    $revId = $context['reviewer_id'] ?? $context['assigned_reviewer_id'] ?? null;
+    if (!empty($revId)) {
+        $updateSql .= ", reviewer_id = ?";
+        $params[] = (int) $revId;
     }
 
     $updateSql .= " WHERE application_id = ?";
@@ -214,19 +221,19 @@ function update_application_status(PDO $pdo, int $application_id, string $new_st
             };
 
             // Departmental Review
-            $dept_done_statuses = ['DEPT_APPROVED', 'REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
+            $dept_done_statuses = ['DEPT_APPROVED', 'COLLEGE_PENDING', 'REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
             if (in_array($new_status, $dept_done_statuses, true)) {
                 $setStageProgress($application_id, 'Departmental Review', 'Completed');
-            } elseif ($new_status === 'UNDER_DEPT_REVIEW') {
+            } elseif (in_array($new_status, ['ASSIGNED_TO_DEPARTMENT', 'UNDER_DEPT_REVIEW', 'HOD_VERIFIED'], true)) {
                 $setStageProgress($application_id, 'Departmental Review', 'In Progress');
             }
 
             // PG Review
-            $pg_done_statuses = ['REVIEWER_APPROVED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
+            $pg_done_statuses = ['APPROVED_BY_POSTGRADUATE_SCHOOL', 'REJECTED_BY_POSTGRADUATE_SCHOOL', 'REVIEWER_APPROVED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
             if (in_array($new_status, $pg_done_statuses, true)) {
                 $setStageProgress($application_id, 'PG Review', 'Completed');
                 $setStageProgress($application_id, 'PG School Review', 'Completed');
-            } elseif (in_array($new_status, ['REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW'], true)) {
+            } elseif (in_array($new_status, ['COLLEGE_PENDING', 'REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW'], true)) {
                 $setStageProgress($application_id, 'PG Review', 'In Progress');
                 $setStageProgress($application_id, 'PG School Review', 'In Progress');
             }

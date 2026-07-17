@@ -223,6 +223,23 @@ if ($qrPath !== '' && file_exists($qrPath)) {
     exit;
 }
 
+if ($action === 'toggle_totp') {
+    $userId = (int) ($_POST['user_id'] ?? 0);
+    if ($userId === 0) {
+        echo json_encode(['success' => false, 'message' => 'Invalid user id.']);
+        exit;
+    }
+    ensure_totp_columns($pdo);
+    $stmt = $pdo->prepare("SELECT totp_enabled FROM users WHERE user_id = ?");
+    $stmt->execute([$userId]);
+    $current = (int) $stmt->fetchColumn();
+    $newVal = $current === 1 ? 0 : 1;
+    $updateStmt = $pdo->prepare("UPDATE users SET totp_enabled = ? WHERE user_id = ?");
+    $updateStmt->execute([$newVal, $userId]);
+    echo json_encode(['success' => true, 'message' => 'TOTP status toggled.', 'totp_enabled' => $newVal]);
+    exit;
+}
+
 if (in_array($action, ['lock', 'unlock', 'suspend', 'activate'], true)) {
     $userId = (int) ($_POST['user_id'] ?? 0);
     if ($userId == 0) {

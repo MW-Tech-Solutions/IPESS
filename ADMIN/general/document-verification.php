@@ -23,11 +23,13 @@ if ($userId > 0 && isset($pdo)) {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($row) {
             $userDeptId = $row['department_id'] ? (int) $row['department_id'] : null;
-            $userDeptName = $row['dept_name'] ?? '';
         }
     } catch (PDOException $e) {
     }
 }
+$userRole = normalize_role(current_user_role());
+$isDeptRestricted = in_array($userRole, ['HOD', 'DEPARTMENT_ADMIN'], true) && ($userDeptId !== null);
+
 
 if (isset($_GET['ajax_fetch_applicant'])) {
     $filterStatus = $_GET['status'] ?? 'all';
@@ -69,7 +71,7 @@ if (isset($_GET['ajax_fetch_applicant'])) {
         $params[':searchTerm'] = '%' . $searchTerm . '%';
     }
 
-    if ($userDeptId !== null) {
+    if ($isDeptRestricted) {
         $whereClauses[] = "(pc.department = :userDeptId OR a.department_id = :userDeptId)";
         $params[':userDeptId'] = $userDeptId;
     }
@@ -201,7 +203,7 @@ try {
         LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
         WHERE DATE(dv.verified_at) = CURDATE()
     ";
-    if ($userDeptId !== null) {
+    if ($isDeptRestricted) {
         $completedTodayQuery .= " AND (pc.department = $userDeptId OR a.department_id = $userDeptId)";
     }
     $compStmt = $pdo->query($completedTodayQuery);
@@ -216,7 +218,7 @@ try {
         LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
         WHERE (dv.verification_status IS NULL OR dv.verification_status = 'Pending')
     ";
-    if ($userDeptId !== null) {
+    if ($isDeptRestricted) {
         $pendingQuery .= " AND (pc.department = $userDeptId OR a.department_id = $userDeptId)";
     }
     $totalPending = $pdo->query($pendingQuery)->fetchColumn();
@@ -268,7 +270,7 @@ if (!empty($searchTerm)) {
     $params[':searchTerm'] = '%' . $searchTerm . '%';
 }
 
-if ($userDeptId !== null) {
+if ($isDeptRestricted) {
     $whereClauses[] = "(pc.department = :userDeptId OR a.department_id = :userDeptId)";
     $params[':userDeptId'] = $userDeptId;
 }

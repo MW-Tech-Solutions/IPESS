@@ -147,7 +147,7 @@ function user_login_query(PDO $pdo, string $email): ?array {
 
     if ($flags['role_id']) {
         $stmt = $pdo->prepare("
-            SELECT u.user_id, u.{$passwordColumn} AS password_hash, r.role_key AS role, u.full_name{$totpSelect}
+            SELECT u.user_id, u.{$passwordColumn} AS password_hash, r.role_key AS role, u.full_name, u.account_status{$totpSelect}
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.role_id
             WHERE u.email = :email
@@ -159,7 +159,7 @@ function user_login_query(PDO $pdo, string $email): ?array {
     }
 
     if ($flags['role']) {
-        $stmt = $pdo->prepare("SELECT user_id, {$passwordColumn} AS password_hash, role, full_name{$totpSelect} FROM users WHERE email = :email LIMIT 1");
+        $stmt = $pdo->prepare("SELECT user_id, {$passwordColumn} AS password_hash, role, full_name, account_status{$totpSelect} FROM users WHERE email = :email LIMIT 1");
         $stmt->bindParam(':email', $email);
         $stmt->execute();
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
@@ -244,31 +244,45 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 $loginRole = normalize_role($user['role'] ?? '');
                 if ($user && password_verify($password, $user['password_hash']) && in_array($loginRole, array_map('normalize_role', $roleKeys), true)) {
-                    ensure_totp_columns($pdo);
+                    // Check if account status is Active
+                    $accStatus = $user['account_status'] ?? 'Active';
+                    if (strtolower($accStatus) !== 'active') {
+                        $error = "This account is currently {$accStatus}. Please contact the Super Admin.";
+                    } else {
+                        ensure_totp_columns($pdo);
 
-                    $totpSecret = $user['totp_secret'] ?? '';
-                    $totpEnabled = (int) ($user['totp_enabled'] ?? 0);
+                        $totpSecret = $user['totp_secret'] ?? '';
+                        $totpEnabled = (int) ($user['totp_enabled'] ?? 0);
 
-                    if ($totpSecret === '') {
-                        $totpSecret = generate_base32_secret();
-                        try {
-                            $stmt = $pdo->prepare("UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE user_id = ?");
-                            $stmt->execute([$totpSecret, (int) $user['user_id']]);
-                            $totpEnabled = 0;
-                        } catch (PDOException $e) {
+                        if ($totpSecret === '') {
+                            $totpSecret = generate_base32_secret();
+                            try {
+                                $stmt = $pdo->prepare("UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE user_id = ?");
+                                $stmt->execute([$totpSecret, (int) $user['user_id']]);
+                                $totpEnabled = 0;
+                            } catch (PDOException $e) {
+                            }
+                        }
+
+                        if ($totpEnabled === 0) {
+                            // Bypass OTP and log in immediately
+                            $_SESSION['user_id'] = (int) $user['user_id'];
+                            $_SESSION['role'] = $loginRole;
+                            $_SESSION['last_activity'] = time();
+                            session_write_close();
+                            admin_redirect_by_role($loginRole);
+                        } else {
+                            $_SESSION['pending_admin_login'] = [
+                                'user_id' => (int) $user['user_id'],
+                                'role' => $loginRole,
+                                'email' => $email,
+                                'name' => $user['full_name'] ?? 'Admin User',
+                                'totp_secret' => $totpSecret,
+                                'totp_enabled' => $totpEnabled
+                            ];
+                            $show_otp = true;
                         }
                     }
-
-                    $_SESSION['pending_admin_login'] = [
-                        'user_id' => (int) $user['user_id'],
-                        'role' => $loginRole,
-                        'email' => $email,
-                        'name' => $user['full_name'] ?? 'Admin User',
-                        'totp_secret' => $totpSecret,
-                        'totp_enabled' => $totpEnabled
-                    ];
-
-                    $show_otp = true;
                 } else {
                     $error = 'Invalid credentials provided.';
                 }

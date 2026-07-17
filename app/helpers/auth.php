@@ -27,9 +27,20 @@ const JOSTUM_ROLES = [
 ];
 
 const JOSTUM_LEGACY_ROLE_MAP = [
-    'ADMIN' => 'PG_SCHOOL_OFFICER',
-    'DEPT_ADMIN' => 'DEPARTMENT_ADMIN',
+    'ADMIN' => 'PG_ADMIN',
+    'PG_SCHOOL_OFFICER' => 'PG_ADMIN',
+    'PG_ADMIN' => 'PG_ADMIN',
+    'FACULTY_OFFICER' => 'COLLEGE_ADMIN',
+    'COLLEGE_ADMIN' => 'COLLEGE_ADMIN',
+    'DEPT_ADMIN' => 'HOD',
+    'DEPARTMENT_ADMIN' => 'HOD',
+    'HOD' => 'HOD',
     'APPLICANT' => 'STUDENT',
+    'STUDENT' => 'STUDENT',
+    'ADMISSIONS_OFFICER' => 'SUPER_ADMIN',
+    'PORTAL_ADMIN' => 'SUPER_ADMIN',
+    'ICT_STAFF' => 'ICT_ADMIN',
+    'ICT_ADMIN' => 'ICT_ADMIN'
 ];
 
 if (!function_exists('normalize_role')) {
@@ -230,7 +241,8 @@ if (!function_exists('dashboard_for_role')) {
         $role = normalize_role($role ?? current_user_role());
         
         $dashboard = match ($role) {
-            'SUPER_ADMIN', 'ICT_ADMIN' => 'ADMIN/super-admin/dashboard.php',
+            'SUPER_ADMIN'        => 'ADMIN/super-admin/dashboard.php',
+            'ICT_ADMIN'          => 'ADMIN/ict-admin/dashboard.php',
             'PORTAL_ADMIN'       => 'ADMIN/portal-admin/dashboard.php',
             'REGISTRY'           => 'modules/registry/dashboard.php',
             'ICTO'               => 'ADMIN/icto/dashboard.php',

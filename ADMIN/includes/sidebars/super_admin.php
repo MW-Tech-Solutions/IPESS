@@ -1,2 +1,275 @@
 <?php
-require_once __DIR__ . '/../../super-admin/includes/sidebar.php';
+$currentPage = basename($_SERVER['PHP_SELF']);
+$sidebarDisplayName = 'Super Admin';
+try {
+    require_once __DIR__ . '/../../admin/includes/db.php';
+    $sessionUserId = (int) ($_SESSION['user_id'] ?? 0);
+    if ($sessionUserId > 0 && isset($pdo)) {
+        $stmt = $pdo->prepare("SELECT full_name, email FROM users WHERE user_id = ? LIMIT 1");
+        $stmt->execute([$sessionUserId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $name = trim((string) ($row['full_name'] ?? ''));
+        $email = trim((string) ($row['email'] ?? ''));
+        if ($name !== '') {
+            $sidebarDisplayName = $name;
+        } elseif ($email !== '') {
+            $sidebarDisplayName = $email;
+        }
+    }
+} catch (Exception $e) {
+}
+?>
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-mark">
+            <img src="<?php echo app_url('ADMIN/images/ipess_logo.png'); ?>" alt="IPESS Logo" class="sidebar-brand-logo">
+        </div>
+        <div class="brand-text">
+            <span class="brand-name">IPESS FUAM</span>
+            <span class="brand-sub">Super Admin Suite</span>
+        </div>
+    </div>
+    <div class="sidebar-section">
+        <div class="sidebar-label">Core</div>
+        <ul class="sidebar-nav">
+            <li>
+                <a class="<?php echo $currentPage === 'dashboard.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/dashboard.php'); ?>">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Command Center</span>
+                </a>
+            </li>
+            <?php if (has_permission('manage_users')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'user-management.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/user-management.php'); ?>">
+                    <i class="fas fa-users"></i>
+                    <span>User Management</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (has_permission('manage_students') || has_permission('view_students')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'manage-students.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/manage-students.php'); ?>">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>Manage Students</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (has_permission('manage_roles')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'role-management.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/role-management.php'); ?>">
+                    <i class="fas fa-user-shield"></i>
+                    <span>Role Management</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (has_permission('view_audit_logs')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'audit-logs.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/audit-logs.php'); ?>">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Audit Intelligence</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (has_permission('settings')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'settings.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/settings.php'); ?>">
+                    <i class="fas fa-cog"></i>
+                    <span>System Settings</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (has_permission('manage_portal_content')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'content-management.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/portal-admin/content-management.php'); ?>">
+                    <i class="fas fa-bullhorn"></i>
+                    <span>Portal Content</span>
+                </a>
+            </li>
+            <?php endif; ?>
+        </ul>
+    </div>
+    <?php if (has_permission('reset_authenticator') || normalize_role(current_user_role()) === 'SUPER_ADMIN'): ?>
+    <div class="sidebar-section">
+        <div class="sidebar-label">ICT Tools</div>
+        <ul class="sidebar-nav">
+            <?php if (has_permission('reset_authenticator')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'reset-authenticator.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/reset-authenticator.php'); ?>">
+                    <i class="fas fa-mobile-alt"></i>
+                    <span>Reset Authenticator</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (normalize_role(current_user_role()) === 'SUPER_ADMIN'): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'modules.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/modules.php'); ?>">
+                    <i class="fas fa-cubes"></i>
+                    <span>Module Settings</span>
+                </a>
+            </li>
+            <?php endif; ?>
+        </ul>
+    </div>
+    <?php endif; ?>
+    <?php 
+    $canViewAdmissionsSec = has_permission('view_applications') || has_permission('verify_applicants') || has_permission('department_review') || has_permission('pg_review') || has_permission('manage_admissions') || has_permission('ict_processing');
+    if ($canViewAdmissionsSec && is_module_accessible('admissions')): 
+    ?>
+    <div class="sidebar-section">
+        <div class="sidebar-label">Admissions</div>
+        <ul class="sidebar-nav">
+            <!-- Stage 1: Application Submitted -->
+            <?php if (has_permission('view_applications')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'application-management.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/application-management.php'); ?>">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Application Management</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <!-- Stage 2: Documents Verification -->
+            <?php if (has_permission('verify_applicants')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'document-verification.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/document-verification.php'); ?>">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Document Verification</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <!-- Stage 3: Referee Report -->
+            <?php if (has_permission('view_applications')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'referees.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/referees.php'); ?>">
+                    <i class="fas fa-user-check"></i>
+                    <span>Referees</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <!-- Stage 4: Departmental Review -->
+            <?php if (has_permission('department_review') || has_permission('manage_academics')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'academic-review.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/academic-review.php'); ?>">
+                    <i class="fas fa-book-open"></i>
+                    <span>Academic Review</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <!-- Stage 5: PG Review -->
+            <?php if (has_permission('review_applications') || has_permission('pg_review')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'assigned-applications.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/reviewer/assigned-applications.php'); ?>">
+                    <i class="fas fa-user-shield"></i>
+                    <span>PG Review</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <!-- Stage 6: Final Decisions -->
+            <?php if (has_permission('manage_admissions')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'admission-decisions.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/admin/admission-decisions.php'); ?>">
+                    <i class="fas fa-gavel"></i>
+                    <span>Admission Decisions</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <!-- Activate Admissions -->
+            <?php if (has_permission('ict_processing') || has_permission('generate_matric_number') || has_permission('admission_letter') || has_permission('acceptance_letter')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'activate-admissions.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/activate-admissions.php'); ?>">
+                    <i class="fas fa-toggle-on"></i>
+                    <span>Activate Admissions</span>
+                </a>
+            </li>
+            <?php endif; ?>
+        </ul>
+    </div>
+    <?php endif; ?>
+    <?php 
+    $canViewAcademicsSec = has_permission('manage_faculties') || has_permission('manage_departments') || has_permission('manage_programmes') || has_permission('manage_courses') || has_permission('manage_academics') || has_permission('manage_supervisors') || has_permission('assign_supervisor');
+    if ($canViewAcademicsSec): 
+    ?>
+    <div class="sidebar-section">
+        <div class="sidebar-label">Academics</div>
+        <ul class="sidebar-nav">
+            <?php if (has_permission('manage_faculties') || has_permission('manage_academics')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'faculties.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/faculties.php'); ?>">
+                    <i class="fas fa-university"></i>
+                    <span>Manage Faculties</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (has_permission('manage_departments') || has_permission('manage_academics')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'departments.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/departments.php'); ?>">
+                    <i class="fas fa-building"></i>
+                    <span>Manage Departments</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (has_permission('manage_programmes') || has_permission('manage_academics')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'programmes.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/programmes.php'); ?>">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Manage Programmes</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (has_permission('manage_courses') || has_permission('manage_academics')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'courses.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/courses.php'); ?>">
+                    <i class="fas fa-book"></i>
+                    <span>Manage Courses</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (has_permission('manage_academics')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'capacities.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/capacities.php'); ?>">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Programme Capacity</span>
+                </a>
+            </li>
+            <?php endif; ?>
+            <?php if (has_permission('manage_supervisors') || has_permission('assign_supervisor')): ?>
+            <li>
+                <a class="<?php echo $currentPage === 'assign-supervisor.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/assign-supervisor.php'); ?>">
+                    <i class="fas fa-user-tie"></i>
+                    <span>Manage Supervisors</span>
+                </a>
+            </li>
+            <?php endif; ?>
+        </ul>
+    </div>
+    <?php endif; ?>
+    <?php if (has_permission('reports')): ?>
+    <div class="sidebar-section">
+        <div class="sidebar-label">Analysis & Reports</div>
+        <ul class="sidebar-nav">
+            <li>
+                <a class="<?php echo $currentPage === 'reports.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/reports.php'); ?>">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Reports</span>
+                </a>
+            </li>
+            <li>
+                <a class="<?php echo $currentPage === 'analytics.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/super-admin/analytics.php'); ?>">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+    <?php endif; ?>
+    <div class="sidebar-footer">
+        <div><?php echo htmlspecialchars($sidebarDisplayName, ENT_QUOTES, 'UTF-8'); ?></div>
+    </div>
+</aside>
+<style>
+.sidebar-brand-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+}
+</style>

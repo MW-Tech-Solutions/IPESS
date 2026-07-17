@@ -677,57 +677,100 @@ try {
     }
 
     if ($action === 'verify') {
-        $refId = (int) ($_POST['referee_id'] ?? 0);
-        if ($refId <= 0) {
-            echo json_encode(['success' => false, 'message' => 'Invalid referee.']);
+        $refIds = [];
+        if (isset($_POST['referee_ids']) && is_array($_POST['referee_ids'])) {
+            $refIds = array_map('intval', $_POST['referee_ids']);
+        } elseif (isset($_POST['referee_id'])) {
+            $refIds[] = (int)$_POST['referee_id'];
+        }
+
+        if (empty($refIds)) {
+            echo json_encode(['success' => false, 'message' => 'No referees selected.']);
             exit;
         }
+
         if (!$hasUploads) {
             echo json_encode(['success' => false, 'message' => 'Referee uploads table missing.']);
             exit;
         }
 
-        $stmt = $pdo->prepare("SELECT application_id FROM referees WHERE referee_id = ? LIMIT 1");
-        $stmt->execute([$refId]);
-        $appId = (int) $stmt->fetchColumn();
-        
-        if ($appId > 0) {
-            require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
-            $progManager = new ApplicationProgressManager($pdo);
-            $missingStage = null;
-            if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_REFEREES, $missingStage)) {
-                echo json_encode(['success' => false, 'message' => "Cannot verify referee reports before the '{$missingStage}' stage is completed."]);
-                exit;
+        $userRole = normalize_role($_SESSION['role'] ?? '');
+        require_once __DIR__ . '/../../../classes/ApplicationProgressManager.php';
+        $progManager = new ApplicationProgressManager($pdo);
+
+        $successCount = 0;
+        foreach ($refIds as $refId) {
+            if ($refId <= 0) continue;
+
+            $stmt = $pdo->prepare("SELECT application_id FROM referees WHERE referee_id = ? LIMIT 1");
+            $stmt->execute([$refId]);
+            $appId = (int) $stmt->fetchColumn();
+            
+            if ($appId > 0 && $userRole !== 'SUPER_ADMIN' && $userRole !== 'ICT_ADMIN') {
+                $missingStage = null;
+                if (!$progManager->canAdvanceToStage($appId, ApplicationProgressManager::STAGE_REFEREES, $missingStage)) {
+                    continue; // Skip verifying this one if constraint fails
+                }
             }
+
+            $pdo->prepare("UPDATE referee_uploads SET verified_status = 'Verified', verified_by = ?, verified_at = NOW() WHERE referee_id = ?")
+                ->execute([$_SESSION['user_id'] ?? null, $refId]);
+
+            if ($appId > 0) {
+                // Update Application Progress
+                $stmtProgress = $pdo->prepare("
+                    INSERT INTO application_progress (application_id, stage, stage_status, stage_updated_at) 
+                    VALUES (?, 'Referee Report', 'Completed', NOW())
+                    ON DUPLICATE KEY UPDATE stage_status = 'Completed', stage_updated_at = NOW()
+                ");
+                $stmtProgress->execute([$appId]);
+
+                // Advance next stage to In Progress
+                $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, ApplicationProgressManager::STATUS_IN_PROGRESS);
+
+                // Auto-assign chosen department and set status to ASSIGNED_TO_DEPARTMENT
+                try {
+                    $stmtApp = $pdo->prepare("SELECT department_id, current_status FROM applications WHERE application_id = ? LIMIT 1");
+                    $stmtApp->execute([$appId]);
+                    $appInfo = $stmtApp->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($appInfo) {
+                        $currDept = $appInfo['department_id'];
+                        
+                        if (empty($currDept)) {
+                            $stmtPc = $pdo->prepare("SELECT department FROM programme_choices WHERE application_id = ? LIMIT 1");
+                            $stmtPc->execute([$appId]);
+                            $chosenDept = $stmtPc->fetchColumn();
+                            
+                            if ($chosenDept !== false && $chosenDept !== null && (int)$chosenDept > 0) {
+                                require_once __DIR__ . '/../../../includes/status_engine.php';
+                                update_application_status($pdo, $appId, 'ASSIGNED_TO_DEPARTMENT', [
+                                    'actor_id' => $_SESSION['user_id'] ?? null,
+                                    'actor_role' => $_SESSION['role'] ?? 'SYSTEM',
+                                    'department_id' => (int)$chosenDept,
+                                    'note' => 'Automatically assigned to chosen department upon referee verification.'
+                                ]);
+                            }
+                        }
+                    }
+                } catch (Throwable $ex) {
+                    error_log("Failed auto-assigning department: " . $ex->getMessage());
+                }
+
+                // Update completion weights
+                update_completion($pdo, $appId);
+
+                $stmt = $pdo->prepare("SELECT user_id FROM applications WHERE application_id = ? LIMIT 1");
+                $stmt->execute([$appId]);
+                $userId = (int) $stmt->fetchColumn();
+                if ($userId > 0) {
+                    notify_user($pdo, $userId, 'Referee Verified', 'Your referee submission has been verified.');
+                }
+            }
+            $successCount++;
         }
 
-        $pdo->prepare("UPDATE referee_uploads SET verified_status = 'Verified', verified_by = ?, verified_at = NOW() WHERE referee_id = ?")
-            ->execute([$_SESSION['user_id'] ?? null, $refId]);
-
-        if ($appId > 0) {
-            // Update Application Progress
-            $stmtProgress = $pdo->prepare("
-                INSERT INTO application_progress (application_id, stage, stage_status, stage_updated_at) 
-                VALUES (?, 'Referee Report', 'Completed', NOW())
-                ON DUPLICATE KEY UPDATE stage_status = 'Completed', stage_updated_at = NOW()
-            ");
-            $stmtProgress->execute([$appId]);
-
-            // Advance the next stage (Departmental Review) to In Progress
-            $progManager->updateStageStatus($appId, ApplicationProgressManager::STAGE_DEPT_REVIEW, ApplicationProgressManager::STATUS_IN_PROGRESS);
-
-            // Update completion weights
-            update_completion($pdo, $appId);
-
-            $stmt = $pdo->prepare("SELECT user_id FROM applications WHERE application_id = ? LIMIT 1");
-            $stmt->execute([$appId]);
-            $userId = (int) $stmt->fetchColumn();
-            if ($userId > 0) {
-                notify_user($pdo, $userId, 'Referee Verified', 'Your referee submission has been verified.');
-            }
-        }
-
-        echo json_encode(['success' => true]);
+        echo json_encode(['success' => true, 'verified_count' => $successCount]);
         exit;
     }
 

@@ -264,7 +264,7 @@ require_once 'includes/topbar.php';
                                 <td><span class="status-chip <?php echo $statusClass; ?>"><?php echo htmlspecialchars($app['status'] ?? 'Draft'); ?></span></td>
                                 <td><?php echo $app['submitted_at'] ? date('M d, Y', strtotime($app['submitted_at'])) : 'Not submitted'; ?></td>
                                 <td class="text-end">
-                                    <a class="btn btn-outline-primary btn-sm me-1" href="/ADMIN/view.php?app_no=<?php echo urlencode($app['application_number'] ?? ''); ?>" target="_blank">
+                                    <a class="btn btn-outline-primary btn-sm me-1" href="<?php echo app_url('ADMIN/view.php?app_no=' . urlencode($app['application_number'] ?? '')); ?>" target="_blank">
                                         <i class="fas fa-eye me-1"></i> View
                                     </a>
                                     <a class="btn btn-light btn-sm" href="api/download-documents.php?app_id=<?php echo (int) $app['application_id']; ?>">

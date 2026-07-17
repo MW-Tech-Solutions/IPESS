@@ -69,7 +69,7 @@ if (isset($pdo)) {
                         <div class="activity-content">
                             <p>
                                 Application ' . htmlspecialchars($app['status']) . ' for <strong>' . htmlspecialchars($app['first_name'] . ' ' . $app['surname']) . '</strong>
-                                (<a href="/ADMIN/view.php?app_no=' . urlencode($app['application_number']) . '">' . htmlspecialchars($app['application_number']) . '</a>)
+                                (<a href="' . app_url('ADMIN/view.php?app_no=' . urlencode($app['application_number'])) . '">' . htmlspecialchars($app['application_number']) . '</a>)
                             </p>
                             <small class="text-muted">' . date('M d, Y, h:i A', strtotime($app['submitted_at'])) . '</small>
                         </div>

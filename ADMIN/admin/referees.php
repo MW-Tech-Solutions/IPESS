@@ -14,6 +14,11 @@ require_once 'includes/topbar.php';
         <p class="panel-muted">Send verification links and review referee submissions.</p>
     </div>
     <div class="hero-actions d-flex gap-2 flex-wrap">
+        <?php if (in_array(normalize_role(current_user_role()), ['SUPER_ADMIN', 'ICT_ADMIN'], true)): ?>
+        <button class="btn btn-success" id="bulkVerifyRefereesBtn" onclick="bulkVerifySelectedReferees()">
+            <i class="fas fa-check-double me-1"></i> Bulk Verify Selected
+        </button>
+        <?php endif; ?>
         <button class="btn btn-primary" id="contactAllPendingBtn" onclick="contactAllPendingReferees()">
             <i class="fas fa-paper-plane me-1"></i> Contact All Pending Referees
         </button>
@@ -48,6 +53,7 @@ require_once 'includes/topbar.php';
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAllReferees" class="form-check-input" onclick="toggleSelectAllReferees(this)"></th>
                         <th>Applicant</th>
                         <th>Programme</th>
                         <th>Referee Status</th>
@@ -234,6 +240,66 @@ require_once 'includes/topbar.php';
 </div>
 
 <script>
+const CURRENT_USER_ROLE = '<?php echo normalize_role(current_user_role()); ?>';
+
+function toggleSelectAllReferees(masterCheckbox) {
+    const checkboxes = document.querySelectorAll('.referee-checkbox');
+    checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+}
+
+async function bulkVerifySelectedReferees() {
+    const checkedBoxes = document.querySelectorAll('.referee-checkbox:checked');
+    let refereeIds = [];
+    checkedBoxes.forEach(cb => {
+        if (cb.value) {
+            cb.value.split(',').forEach(id => {
+                const parsed = parseInt(id);
+                if (parsed > 0) refereeIds.push(parsed);
+            });
+        }
+    });
+
+    if (refereeIds.length === 0) {
+        alert('Please select at least one applicant to verify.');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to verify all referee reports for the ${checkedBoxes.length} selected applicant(s)?`)) {
+        return;
+    }
+
+    const btn = document.getElementById('bulkVerifyRefereesBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Verifying...';
+
+    const formData = new FormData();
+    formData.append('action', 'verify');
+    refereeIds.forEach(id => formData.append('referee_ids[]', id));
+
+    try {
+        const res = await fetch('api/referees.php', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`Successfully verified ${data.verified_count || refereeIds.length} referee report(s).`);
+            loadReferees();
+        } else {
+            alert(data.message || 'Bulk verification failed.');
+        }
+    } catch (err) {
+        console.error(err);
+        alert('An error occurred during bulk verification.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        const selectAll = document.getElementById('selectAllReferees');
+        if (selectAll) selectAll.checked = false;
+    }
+}
+
 const refereeTable = document.getElementById('refereeTable');
 const refereeMeta = document.getElementById('refereeMeta');
 const filterStatus = document.getElementById('filterStatus');
@@ -259,13 +325,18 @@ async function loadReferees() {
     }
     const data = await fetchJson(`api/referees.php?action=list&status=${encodeURIComponent(status)}&faculty_id=${encodeURIComponent(facultyId)}&department_id=${encodeURIComponent(departmentId)}&programme_id=${encodeURIComponent(programmeId)}&course_id=${encodeURIComponent(courseId)}`);
     if (!data || !data.data) {
-        refereeTable.innerHTML = '<tr><td colspan="5" class="text-muted">No data available.</td></tr>';
+        refereeTable.innerHTML = '<tr><td colspan="6" class="text-muted">No data available.</td></tr>';
         return;
     }
     const list = data.data;
     refereeMeta.textContent = `${list.length} applicants loaded`;
-    refereeTable.innerHTML = list.map(item => `
+    refereeTable.innerHTML = list.map(item => {
+        const refereeIds = (item.referees || []).map(r => r.referee_id).filter(Boolean).join(',');
+        return `
         <tr>
+            <td>
+                <input type="checkbox" class="referee-checkbox form-check-input" value="${refereeIds}">
+            </td>
             <td>
                 <div class="fw-semibold">${escapeHtml(item.applicant_name)}</div>
                 <div class="text-muted small">${escapeHtml(item.application_number)}</div>
@@ -286,7 +357,7 @@ async function loadReferees() {
                 </button>
             </td>
         </tr>
-    `).join('');
+    `; }).join('');
 }
 
 function badgeClass(status) {
@@ -499,7 +570,9 @@ function fillReferee(index, ref) {
 
     const actionContainer = document.getElementById(`ref${index}ActionContainer`);
     if (actionContainer) {
-        if (status === 'Submitted' && ref.referee_id) {
+        const isIctOrSuper = ['SUPER_ADMIN', 'ICT_ADMIN'].includes(CURRENT_USER_ROLE);
+        const canVerify = (status === 'Submitted' || (isIctOrSuper && status !== 'Verified' && status !== 'Rejected')) && ref.referee_id;
+        if (canVerify) {
             actionContainer.style.display = 'block';
             actionContainer.dataset.refereeId = ref.referee_id;
         } else {
