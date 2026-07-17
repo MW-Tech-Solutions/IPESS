@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once __DIR__ . '/../../app/bootstrap.php';
 require_once __DIR__ . '/../../includes/admissions_content.php';
 require_once __DIR__ . '/../../includes/portal_page_sections.php';
@@ -21,7 +21,7 @@ $notice = $admissionsContent['notice'] ?? [];
 
 $footerYear = date('Y');
 $topbarContent = $admissionPageContent['topbar'] ?? [
-    'meta' => ['+234 704 366 7952', 'admissions@cipessfuam.edu.ng'],
+    'meta' => ['+234 704 366 7952', 'admissions@cipessjostum.edu.ng'],
     'social' => ['Facebook', 'Twitter', 'LinkedIn']
 ];
 $navbarContent = $admissionPageContent['navbar'] ?? [];
@@ -34,7 +34,7 @@ $heroImages = [
 
 $heroContent = [
     'title' => 'Center of Excellence in Sustainable Procurement, Environmental & Social Standards',
-    'text' => 'Empowering professionals with international standards in Procurement, Environmental, and Social Standards Enhancement (SPESSE) at Federal University of Agriculture Makurdi (FUAM).',
+    'text' => 'Empowering professionals with international standards in Procurement, Environmental, and Social Standards Enhancement (SPESSE) at Joseph Sarwuan Tarka University Makurdi (JOSTUM).',
     'primary_label' => 'Start Application',
     'primary_url' => 'register.php',
     'secondary_label' => 'Student Login',
@@ -50,7 +50,7 @@ $vcContent = [
         "The raison d'etre of any government is the pursuit of the happiness of its citizenry. This way, the government adds value to the quality of life of its people in all strata of society. One of the ways of doing this is via standardization. In recent times, interest in the fields of procurement, environmental management and social safeguards have increased. This has necessitated the need for concomitant capacity building in minimum benchmarks to decrease the negative consequences linked to the absence of standards in the tripartite areas of procurement, environment and social safeguards.",
     ],
     'signature_name' => '',
-    'signature_role' => 'Center Leader, IPESS FUAM',
+    'signature_role' => 'Center Leader, IPESS JOSTUM',
 ];
 
 $statsContent = [
@@ -84,7 +84,7 @@ $portalLinks = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="<?php echo app_url('asset/homepage/ipess_logo.png'); ?>">
-    <title>IPESS FUAM Postgraduate Admissions</title>
+    <title>IPESS JOSTUM Postgraduate Admissions</title>
     <style>
         @import url("https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+3:wght@400;500;600;700&display=swap");
         :root { 
@@ -239,7 +239,7 @@ $portalLinks = [
 <body>
     <div class="preloader" id="preloader" aria-label="Loading homepage">
         <div class="preloader-box">
-            <img class="preloader-logo" src="<?php echo htmlspecialchars($officialLogo); ?>" alt="IPESS FUAM Logo">
+            <img class="preloader-logo" src="<?php echo htmlspecialchars($officialLogo); ?>" alt="IPESS JOSTUM Logo">
             <div class="preloader-ring" aria-hidden="true"></div>
         </div>
     </div>
@@ -248,10 +248,10 @@ $portalLinks = [
         <div class="container content">
             <div class="meta">
                 <span><i class="fas fa-phone"></i> +234 704 366 7952</span>
-                <span><i class="fas fa-envelope"></i> admissions@cipessfuam.edu.ng</span>
+                <span><i class="fas fa-envelope"></i> admissions@cipessjostum.edu.ng</span>
             </div>
             <div class="social">
-                <span>portal.cipessfuam.edu.ng</span>
+                <span>portal.cipessjostum.edu.ng</span>
             </div>
         </div>
     </div>
@@ -259,9 +259,9 @@ $portalLinks = [
     <header class="header">
         <div class="container content">
             <div class="brand">
-                <img src="<?php echo htmlspecialchars($officialLogo); ?>" alt="IPESS FUAM Logo">
+                <img src="<?php echo htmlspecialchars($officialLogo); ?>" alt="IPESS JOSTUM Logo">
                 <div class="brand-text">
-                    <span class="brand-name">IPESS FUAM </span>
+                    <span class="brand-name">IPESS JOSTUM </span>
                     <span class="brand-sub">Center of Excellence in Sustainable Procurement, Environmental & Social Standards</span>
                 </div>
             </div>
@@ -477,8 +477,8 @@ $portalLinks = [
                 <h4>Contact IPESS Admissions</h4>
                 <ul>
                     <li><i class="fas fa-phone"></i> +234 704 366 7952</li>
-                    <li><i class="fas fa-envelope"></i> admissions@cipessfuam.edu.ng</li>
-                    <li><i class="fas fa-map-marker-alt"></i> CIPESS Center, FUAM, Makurdi</li>
+                    <li><i class="fas fa-envelope"></i> admissions@cipessjostum.edu.ng</li>
+                    <li><i class="fas fa-map-marker-alt"></i> CIPESS Center, JOSTUM, Makurdi</li>
                 </ul>
             </div>
             <div>
@@ -492,14 +492,14 @@ $portalLinks = [
             <div>
                 <h4>Useful Links</h4>
                 <ul>
-                    <li><a href="https://portal.cipessfuam.edu.ng/">CIPESS Portal Home</a></li>
-                    <li><a href="http://uam.edu.ng/">FUAM Main Website</a></li>
+                    <li><a href="https://portal.cipessjostum.edu.ng/">CIPESS Portal Home</a></li>
+                    <li><a href="https://jostum.edu.ng/">JOSTUM Main Website</a></li>
                     <li><a href="<?php echo rtrim(app_url('ADMIN'), '/'); ?>">Admin Login</a></li>
                 </ul>
             </div>
         </div>
         <div class="footer-bottom">
-            &copy; <?php echo htmlspecialchars((string) $footerYear); ?> Center for Innovation in Procurement, Environmental and Social Standards (CIPESS), FUAM. Powered by ICT Directorate. All Rights Reserved.
+            &copy; <?php echo htmlspecialchars((string) $footerYear); ?> Center for Innovation in Procurement, Environmental and Social Standards (CIPESS), JOSTUM. Powered by ICT Directorate. All Rights Reserved.
         </div>
     </footer>
 

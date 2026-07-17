@@ -97,7 +97,7 @@ function portal_page_section_defaults(string $pageKey): array
                 ['image' => 'APPLICANT/ADMISSIONS/images/jostumhall.png', 'image_alt' => 'IPESS', 'meta' => 'IPESS • October 3, 2025', 'title' => 'Stronger country systems: How Nigeria is building a skilled workforce for the future', 'description' => 'Highlights from the IPESS capacity development initiative and its impact.'],
                 ['image' => 'APPLICANT/ADMISSIONS/images/jostumgate.png', 'image_alt' => 'IPESS Graduates', 'meta' => 'IPESS • September 21, 2025', 'title' => 'IPESS JOSTUM graduates 140 trainees in Minna and Lokoja', 'description' => 'Valedictory sessions celebrate new professionals trained across two states.'],
                 ['image' => 'APPLICANT/ADMISSIONS/images/jostumstudents.png', 'image_alt' => 'Engineering Homecoming', 'meta' => 'College News • September 9, 2025', 'title' => 'Homecoming: Engineering family in JOSTUM receive Engr. Prof. Itodo', 'description' => 'A warm reception honoring leadership and service to the university.'],
-                ['image' => 'APPLICANT/ADMISSIONS/images/jostumm.jpeg', 'image_alt' => 'Campus', 'meta' => 'IPESS • August 6, 2025', 'title' => 'SPESSE Project: IPESS – FUAM breaking new grounds in human capacity', 'description' => 'Strategic programs expand professional training opportunities.'],
+                ['image' => 'APPLICANT/ADMISSIONS/images/jostumm.jpeg', 'image_alt' => 'Campus', 'meta' => 'IPESS • August 6, 2025', 'title' => 'SPESSE Project: IPESS – JOSTUM breaking new grounds in human capacity', 'description' => 'Strategic programs expand professional training opportunities.'],
             ],
             'stats' => [
                 ['key' => 'colleges', 'label' => 'Total Colleges'],

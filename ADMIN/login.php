@@ -304,7 +304,7 @@ if (!$show_otp && isset($_SESSION['pending_admin_login'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="/asset/homepage/ipess_logo.png">
-    <title>Login - IPESS FUAM Portal</title>
+    <title>Login - IPESS JOSTUM Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="assets/css/style.css">
@@ -597,11 +597,11 @@ if (!$show_otp && isset($_SESSION['pending_admin_login'])) {
             <!-- LEFT BRANDING PANEL -->
             <div class="branding-panel">
                 <div class="university-name">
-                    FEDERAL UNIVERSITY OF AGRICULTURE MAKURDI
+                    JOSEPH SARWUAN TARKA UNIVERSITY MAKURDI
                 </div>
 
                 <div class="postgraduate-badge">
-                    IPESS FUAM
+                    IPESS JOSTUM
                 </div>
 
                 <div class="logo-container">
@@ -726,7 +726,7 @@ if (!$show_otp && isset($_SESSION['pending_admin_login'])) {
                 </div>
 
                 <div class="footer-text">
-                    © 2026 IPESS FUAM
+                    © 2026 IPESS JOSTUM
                 </div>
 
             </div>

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>">
-<title>IPESS FUAM Postgraduate Application Form</title>
+<title>IPESS JOSTUM Postgraduate Application Form</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <style>
@@ -188,7 +188,7 @@
         <div class="col-lg-12">
             <div class="form-container">
                 
-                <h3 class="text-center mb-2 text-primary">IPESS FUAM Postgraduate Application</h3>
+                <h3 class="text-center mb-2 text-primary">IPESS JOSTUM Postgraduate Application</h3>
                 <p class="text-center text-muted mb-4">Complete the form below to apply</p>
 
                 <div class="progress mb-4" style="height: 5px;">

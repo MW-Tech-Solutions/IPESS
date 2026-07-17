@@ -19,7 +19,7 @@ if ($admissions_closed) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admissions Closed - IPESS FUAM</title>
+    <title>Admissions Closed - IPESS JOSTUM</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -79,7 +79,7 @@ try {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Create Account - IPESS FUAM</title>
+    <title>Create Account - IPESS JOSTUM</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
     <link rel="icon" type="image/png" href="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -352,7 +352,7 @@ try {
     <div id="step1-container">
         <header>
             <div class="logo-container">
-                <img src="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="IPESS FUAM Logo" class="uni-logo">
+                <img src="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="IPESS JOSTUM Logo" class="uni-logo">
             </div>
             <h1 class="login-title">IPESS JOSTUM <h5> Create Account</h5></h1>
         </header>

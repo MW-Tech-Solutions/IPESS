@@ -30,12 +30,12 @@ $admissionOpen = in_array($currentPage, ['admission-landing-page.php', 'content-
             <img src="../images/ipess_logo.png" alt="IPESS Logo" class="sidebar-brand-logo">
         </div>
         <div class="brand-text">
-            <span class="brand-name">IPESS FUAM</span>
+            <span class="brand-name">IPESS JOSTUM</span>
             <span class="brand-sub">Portal Admin</span>
         </div>
     </div>
     <div class="sidebar-section">
-        <div class="sidebar-label">Portal Content</div>
+        <!-- <div class="sidebar-label">Portal Content</div> -->
         <ul class="sidebar-nav portal-admin-nav">
             <li>
                 <a class="<?php echo $currentPage === 'dashboard.php' ? 'active' : ''; ?>" href="dashboard.php">

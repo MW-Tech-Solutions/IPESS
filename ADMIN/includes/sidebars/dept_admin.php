@@ -24,7 +24,7 @@ try {
             <img src="<?php echo app_url('ADMIN/images/ipess_logo.png'); ?>" alt="IPESS Logo" class="sidebar-brand-logo">
         </div>
         <div class="brand-text">
-            <span class="brand-name">IPESS FUAM</span>
+            <span class="brand-name">IPESS JOSTUM</span>
             <span class="brand-sub">Dept Admin Suite</span>
         </div>
     </div>

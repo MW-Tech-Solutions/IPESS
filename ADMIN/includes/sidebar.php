@@ -36,5 +36,5 @@ if (file_exists($generalSidebar)) {
     require_once $generalSidebar;
 } else {
     // Ultimate fallback: minimal sidebar
-    echo '<aside class="sidebar" id="sidebar"><div class="sidebar-brand"><div class="brand-text"><span class="brand-name">IPESS FUAM</span></div></div></aside>';
+    echo '<aside class="sidebar" id="sidebar"><div class="sidebar-brand"><div class="brand-text"><span class="brand-name">IPESS JOSTUM</span></div></div></aside>';
 }

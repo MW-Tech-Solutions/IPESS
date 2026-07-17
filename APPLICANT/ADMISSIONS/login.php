@@ -159,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Student Login - IPESS FUAM</title>
+    <title>Student Login - IPESS JOSTUM</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
     <link rel="icon" type="image/png" href="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -307,7 +307,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <main class="login-card">
     <header>
         <div class="logo-container">
-            <img src="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="IPESS FUAM Logo" class="uni-logo">
+            <img src="<?= htmlspecialchars(app_url('asset/homepage/ipess_logo.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="IPESS JOSTUM Logo" class="uni-logo">
         </div>
         <h1 class="login-title">IPESS Student Login</h1>
     </header>

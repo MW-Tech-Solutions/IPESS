@@ -56,7 +56,7 @@ class RefereeMailer {
                 {$content}
             </div>
             <div style='background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 0.8em; color: #888;'>
-                <p style='margin: 0;'>&copy; {$year} IPESS FUAM.</p>
+                <p style='margin: 0;'>&copy; {$year} IPESS JOSTUM.</p>
                 <p style='margin: 5px 0;'>This is an automated message. Please do not reply.</p>
             </div>
         </div>";
@@ -70,7 +70,7 @@ class RefereeMailer {
 
             $content = "
                 <p>Dear <strong>{$refereeName}</strong>,</p>
-                <p>You have been nominated as a referee for an applicant seeking admission into the <strong>Institute of Procurement, Environmental and Social Standards (IPESS), FUAM</strong>.</p>
+                <p>You have been nominated as a referee for an applicant seeking admission into the <strong>Institute of Procurement, Environmental and Social Standards (IPESS), JOSTUM</strong>.</p>
                 <div style='background-color: #f8f9fa; border-left: 4px solid #782D32; padding: 15px; margin: 20px 0;'>
                     <p style='margin: 0;'><strong>Applicant:</strong> {$applicantData['name']}</p>
                     <p style='margin: 5px 0;'><strong>Email:</strong> {$applicantData['email']}</p>
@@ -83,7 +83,7 @@ class RefereeMailer {
                 </div>
                 <p style='font-size: 0.8em; color: #782D32; word-break: break-all;'>{$verificationLink}</p>";
 
-            $mail->Body = self::getHtmlTemplate('IPESS FUAM', $content);
+            $mail->Body = self::getHtmlTemplate('IPESS JOSTUM', $content);
             $mail->AltBody = "Dear {$refereeName}, please visit {$verificationLink} to verify your referee request for {$applicantData['name']}.";
 
             $mail->send();

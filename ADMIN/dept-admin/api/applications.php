@@ -145,7 +145,7 @@ function send_grouped_supervisor_emails(PDO $pdo, array $notifications) {
         $body .= "The Department has assigned the following postgraduate students to you for supervision:<br><br>";
         $body .= "<ul>{$studentsList}</ul><br>";
         $body .= "Please log in to your Supervisor Dashboard to review their details.<br><br>";
-        $body .= "Regards,<br>IPESS FUAM Portal";
+        $body .= "Regards,<br>IPESS JOSTUM Portal";
         
         portal_send_mail($email, $supName, $subject, $body, "Postgraduate student supervision assignment");
     }

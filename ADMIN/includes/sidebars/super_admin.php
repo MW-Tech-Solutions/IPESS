@@ -25,7 +25,7 @@ try {
             <img src="<?php echo app_url('ADMIN/images/ipess_logo.png'); ?>" alt="IPESS Logo" class="sidebar-brand-logo">
         </div>
         <div class="brand-text">
-            <span class="brand-name">IPESS FUAM</span>
+            <span class="brand-name">IPESS JOSTUM</span>
             <span class="brand-sub">Super Admin Suite</span>
         </div>
     </div>
@@ -80,10 +80,10 @@ try {
             <?php endif; ?>
             <?php if (has_permission('manage_portal_content')): ?>
             <li>
-                <a class="<?php echo $currentPage === 'content-management.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/portal-admin/content-management.php'); ?>">
+                <!-- <a class="<?php echo $currentPage === 'content-management.php' ? 'active' : ''; ?>" href="<?php echo app_url('ADMIN/portal-admin/content-management.php'); ?>">
                     <i class="fas fa-bullhorn"></i>
                     <span>Portal Content</span>
-                </a>
+                </a> -->
             </li>
             <?php endif; ?>
         </ul>
