@@ -484,8 +484,12 @@ try {
     programmeOption?.addEventListener('change', populateProgrammes);
     populateProgrammes();
 
-    function showAlert(msg, targetId) {
-        document.getElementById(targetId).innerHTML = `<div class="alert alert-danger py-2 small" style="border-radius:10px;"><i class="bi bi-exclamation-circle me-1"></i> ${msg}</div>`;
+    function showAlert(msg, targetId, type = 'danger') {
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const icon = type === 'success' ? 'bi-check-circle' : 'bi-exclamation-circle';
+        target.innerHTML = `<div class="alert ${alertClass} py-2 small" style="border-radius:10px;"><i class="bi ${icon} me-1"></i> ${msg}</div>`;
     }
 
     function clearErrors() {
@@ -588,7 +592,7 @@ try {
 
             if (data.success) {
                 if (data.verification_disabled) {
-                    showAlert("Account created successfully! Redirecting to login...", "js-success");
+                    showAlert("Account created successfully! Redirecting to login...", "js-error-1", "success");
                     setTimeout(() => {
                         window.location.href = "login.php?registered=1";
                     }, 2000);
