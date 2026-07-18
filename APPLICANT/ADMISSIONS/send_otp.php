@@ -61,12 +61,11 @@ try {
 
 $verificationActive = 1;
 try {
-    $settingsStmt = $pdo->query("SELECT student_verification_active FROM system_settings LIMIT 1");
-    if ($settingsStmt) {
-        $val = $settingsStmt->fetchColumn();
-        if ($val !== false) {
-            $verificationActive = (int)$val;
-        }
+    $moduleStmt = $pdo->prepare("SELECT is_active FROM system_modules WHERE module_key = 'student_verification' LIMIT 1");
+    $moduleStmt->execute();
+    $val = $moduleStmt->fetchColumn();
+    if ($val !== false) {
+        $verificationActive = (int)$val;
     }
 } catch (Throwable $se) {
     // Ignore setting query failures

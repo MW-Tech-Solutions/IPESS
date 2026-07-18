@@ -11,6 +11,45 @@ $pageSubtitle = 'Institution profile, access controls, and operational defaults.
 
 require_once 'includes/db.php';
 
+// Self-healing database migration for system_settings table to prevent 500 errors on the live site
+if ($pdo) {
+    try {
+        // 1. Check primary key name and rename if setting_id
+        $q = $pdo->query("SHOW COLUMNS FROM system_settings LIKE 'setting_id'");
+        if ($q && $q->fetch()) {
+            $pdo->exec("ALTER TABLE system_settings CHANGE COLUMN setting_id settings_id INT(11) NOT NULL AUTO_INCREMENT");
+        }
+
+        // 2. Add missing columns if they do not exist
+        $cols = [
+            'support_email' => "VARCHAR(150) DEFAULT ''",
+            'phone' => "VARCHAR(50) DEFAULT ''",
+            'website_url' => "VARCHAR(255) DEFAULT ''",
+            'address' => "TEXT DEFAULT NULL",
+            'password_min_length' => "INT(11) DEFAULT 8",
+            'lockout_attempts' => "INT(11) DEFAULT 5",
+            'session_timeout' => "INT(11) DEFAULT 60",
+            'two_factor_policy' => "VARCHAR(50) DEFAULT 'REQUIRED'",
+            'audit_level' => "VARCHAR(50) DEFAULT 'STANDARD'",
+            'smtp_host' => "VARCHAR(150) DEFAULT ''",
+            'smtp_port' => "INT(11) DEFAULT 587",
+            'smtp_encryption' => "VARCHAR(50) DEFAULT 'TLS'",
+            'system_email' => "VARCHAR(150) DEFAULT ''",
+            'reply_to_email' => "VARCHAR(150) DEFAULT ''",
+            'student_verification_active' => "TINYINT(1) NOT NULL DEFAULT 1"
+        ];
+
+        foreach ($cols as $colName => $def) {
+            $check = $pdo->query("SHOW COLUMNS FROM system_settings LIKE '{$colName}'");
+            if ($check && !$check->fetch()) {
+                $pdo->exec("ALTER TABLE system_settings ADD COLUMN {$colName} {$def}");
+            }
+        }
+    } catch (Throwable $migrationEx) {
+        error_log("Settings self-healing migration failed: " . $migrationEx->getMessage());
+    }
+}
+
 $defaultSettings = [
     'institution_name' => 'JOSTUM PG School',
     'support_email' => 'admin@jostum.edu.ng',
@@ -50,8 +89,7 @@ if ($pdo) {
             'smtp_port' => (int) ($_POST['smtp_port'] ?? $defaultSettings['smtp_port']),
             'smtp_encryption' => $_POST['smtp_encryption'] ?? $defaultSettings['smtp_encryption'],
             'system_email' => trim($_POST['system_email'] ?? $defaultSettings['system_email']),
-            'reply_to_email' => trim($_POST['reply_to_email'] ?? $defaultSettings['reply_to_email']),
-            'student_verification_active' => isset($_POST['student_verification_active']) ? 1 : 0
+            'reply_to_email' => trim($_POST['reply_to_email'] ?? $defaultSettings['reply_to_email'])
         ];
 
         $existingId = $pdo->query("SELECT settings_id FROM system_settings LIMIT 1")->fetchColumn();
@@ -60,8 +98,7 @@ if ($pdo) {
                 UPDATE system_settings
                 SET institution_name = ?, support_email = ?, phone = ?, website_url = ?, address = ?,
                     password_min_length = ?, lockout_attempts = ?, session_timeout = ?, two_factor_policy = ?,
-                    audit_level = ?, smtp_host = ?, smtp_port = ?, smtp_encryption = ?, system_email = ?, reply_to_email = ?,
-                    student_verification_active = ?
+                    audit_level = ?, smtp_host = ?, smtp_port = ?, smtp_encryption = ?, system_email = ?, reply_to_email = ?
                 WHERE settings_id = ?
             ";
             $stmt = $pdo->prepare($updateSql);
@@ -81,16 +118,14 @@ if ($pdo) {
                 $payload['smtp_encryption'],
                 $payload['system_email'],
                 $payload['reply_to_email'],
-                $payload['student_verification_active'],
                 $existingId
             ]);
         } else {
             $insertSql = "
                 INSERT INTO system_settings
                 (institution_name, support_email, phone, website_url, address, password_min_length, lockout_attempts,
-                 session_timeout, two_factor_policy, audit_level, smtp_host, smtp_port, smtp_encryption, system_email, reply_to_email,
-                 student_verification_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 session_timeout, two_factor_policy, audit_level, smtp_host, smtp_port, smtp_encryption, system_email, reply_to_email)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ";
             $stmt = $pdo->prepare($insertSql);
             $stmt->execute([
@@ -108,8 +143,7 @@ if ($pdo) {
                 $payload['smtp_port'],
                 $payload['smtp_encryption'],
                 $payload['system_email'],
-                $payload['reply_to_email'],
-                $payload['student_verification_active']
+                $payload['reply_to_email']
             ]);
         }
         $saved = true;
@@ -211,13 +245,6 @@ require_once 'includes/topbar.php';
                             <option value="<?php echo $value; ?>" <?php echo ($settings['audit_level'] === $value) ? 'selected' : ''; ?>><?php echo $label; ?></option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-                <div class="col-12 mt-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="student_verification_active" name="student_verification_active" value="1" <?php echo (!empty($settings['student_verification_active'])) ? 'checked' : ''; ?>>
-                        <label class="form-check-label fw-bold text-danger" for="student_verification_active">Mandatory Applicant Account Verification</label>
-                        <div class="form-text">If enabled, students must verify their email/phone via OTP after registration before they can log in and apply. If disabled, they can log in and apply immediately.</div>
-                    </div>
                 </div>
             </div>
         </div>

@@ -31,6 +31,18 @@ $bsJsSrc    = $localBsJs  ? $bsJs   : $bsJsFallback;
 $faHref     = $localFa    ? $faUrl  : $faUrlFallback;
 
 $pdo = db();
+
+// Self-healing: Ensure student_verification module is in the system_modules table
+try {
+    $checkMod = $pdo->prepare("SELECT COUNT(*) FROM system_modules WHERE module_key = 'student_verification'");
+    $checkMod->execute();
+    if ((int)$checkMod->fetchColumn() === 0) {
+        $pdo->prepare("INSERT INTO system_modules (module_key, module_name, is_active) VALUES ('student_verification', 'Applicant Account Verification', 1)")->execute();
+    }
+} catch (Throwable $e) {
+    error_log("Failed to insert student_verification module: " . $e->getMessage());
+}
+
 $modules = $pdo->query("SELECT * FROM system_modules ORDER BY module_name ASC")->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
