@@ -1,5 +1,5 @@
 <?php
-require_once 'admin/includes/db.php';
+require_once __DIR__ . '/ADMIN/includes/db.php';
 require_once __DIR__ . '/includes/referee_service.php';
 require_once __DIR__ . '/includes/status_engine.php';
 require_once __DIR__ . '/ADMIN/includes/mailer.php';

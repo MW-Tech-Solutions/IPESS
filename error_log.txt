@@ -576,3 +576,15 @@ Stack trace:
 #13 C:\xampp\htdocs\JOSTUM\ADMIN\super-admin\api\reports.php(147): Dompdf\Dompdf->render()
 #14 {main}
 
+[2026-07-18 01:08:39] PHP Error (2): Undefined array key "REQUEST_METHOD"
+File: C:\xampp\htdocs\JOSTUM\referee_verify.php on line 118
+
+[2026-07-18 01:08:39] PHP Error (2): Undefined array key "REQUEST_METHOD"
+File: C:\xampp\htdocs\JOSTUM\referee_verify.php on line 144
+
+[2026-07-18 01:09:37] PHP Error (2): Undefined array key "REQUEST_METHOD"
+File: C:\xampp\htdocs\JOSTUM\referee_verify.php on line 118
+
+[2026-07-18 01:09:37] PHP Error (2): Undefined array key "REQUEST_METHOD"
+File: C:\xampp\htdocs\JOSTUM\referee_verify.php on line 144
+

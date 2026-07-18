@@ -386,6 +386,10 @@ try {
                     'note' => 'Application submitted'
                 ]);
 
+                require_once __DIR__ . '/../../classes/ApplicationProgressManager.php';
+                $progManager = new ApplicationProgressManager($pdo);
+                $progManager->initializeApplication($application_id);
+
                 $deptStmt = $pdo->prepare("SELECT department_id FROM applications WHERE application_id = ?");
                 $deptStmt->execute([$application_id]);
                 $deptId = $deptStmt->fetchColumn();

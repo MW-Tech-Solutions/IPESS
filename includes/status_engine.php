@@ -220,6 +220,11 @@ function update_application_status(PDO $pdo, int $application_id, string $new_st
                 }
             };
 
+            // Application Submitted
+            if (in_array($new_status, ['SUBMITTED', 'ASSIGNED_TO_DEPARTMENT', 'UNDER_DEPT_REVIEW', 'HOD_VERIFIED', 'DEPT_APPROVED', 'COLLEGE_PENDING', 'APPROVED_BY_POSTGRADUATE_SCHOOL', 'REJECTED_BY_POSTGRADUATE_SCHOOL', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'], true)) {
+                $setStageProgress($application_id, 'Application Submitted', 'Completed');
+            }
+
             // Departmental Review
             $dept_done_statuses = ['DEPT_APPROVED', 'COLLEGE_PENDING', 'REVIEWER_ASSIGNED', 'UNDER_REVIEWER_REVIEW', 'REVIEWER_APPROVED', 'REVIEWER_REJECTED', 'ADMIN_FINAL_REVIEW', 'ADMISSION_APPROVED', 'ADMISSION_REJECTED'];
             if (in_array($new_status, $dept_done_statuses, true)) {

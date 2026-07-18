@@ -40,17 +40,38 @@ class ApplicationProgressManager {
                 $this->pdo->beginTransaction();
             }
 
-            $sql = "INSERT IGNORE INTO application_progress (application_id, stage, stage_status, stage_updated_at) VALUES (?, ?, ?, NOW())";
-            $stmt = $this->pdo->prepare($sql);
+            // Check if application is submitted
+            $isSubmitted = false;
+            $stmtStatus = $this->pdo->prepare("SELECT status FROM applications WHERE application_id = ?");
+            $stmtStatus->execute([$appId]);
+            $rawStatus = strtolower($stmtStatus->fetchColumn() ?: '');
+            if ($rawStatus !== '' && $rawStatus !== 'draft' && $rawStatus !== 'pending') {
+                $isSubmitted = true;
+            }
+
+            $checkStmt = $this->pdo->prepare("SELECT COUNT(*) FROM application_progress WHERE application_id = ? AND stage = ?");
+            $insertStmt = $this->pdo->prepare("INSERT INTO application_progress (application_id, stage, stage_status, stage_updated_at) VALUES (?, ?, ?, NOW())");
 
             foreach (self::ALL_STAGES as $stage) {
-                $status = self::STATUS_PENDING;
-                
-                if ($stage === self::STAGE_SUBMITTED) {
-                    $status = self::STATUS_COMPLETED;
-                }
+                $checkStmt->execute([$appId, $stage]);
+                if ((int)$checkStmt->fetchColumn() === 0) {
+                    $status = self::STATUS_PENDING;
+                    
+                    if ($stage === self::STAGE_SUBMITTED) {
+                        $status = $isSubmitted ? self::STATUS_COMPLETED : self::STATUS_PENDING;
+                    }
 
-                $stmt->execute([$appId, $stage, $status]);
+                    $insertStmt->execute([$appId, $stage, $status]);
+                }
+            }
+
+            // Self-healing: Update existing Application Submitted to Completed if it is submitted in applications
+            if ($isSubmitted) {
+                $this->pdo->prepare("
+                    UPDATE application_progress 
+                    SET stage_status = ? 
+                    WHERE application_id = ? AND stage = ? AND stage_status = ?
+                ")->execute([self::STATUS_COMPLETED, $appId, self::STAGE_SUBMITTED, self::STATUS_PENDING]);
             }
 
             if (!$inTransaction) {
@@ -134,11 +155,10 @@ class ApplicationProgressManager {
     }
 
     public function canAdvanceToStage(int $appId, string $stageName, &$missingStage = null): bool {
+        // Self-heal: ensure all standard stages are initialized
+        $this->initializeApplication($appId);
+        
         $history = $this->getAllProgress($appId);
-        if (empty($history)) {
-            $this->initializeApplication($appId);
-            $history = $this->getAllProgress($appId);
-        }
         foreach (self::ALL_STAGES as $stage) {
             if ($stage === $stageName) {
                 break;
@@ -147,6 +167,13 @@ class ApplicationProgressManager {
                 continue;
             }
             if ($stage === self::STAGE_ICT_PROCESSING) {
+                continue;
+            }
+            // Decouple Referee Report and Documents Verification from blocking each other
+            if ($stage === self::STAGE_DOC_VERIFY && $stageName === self::STAGE_REFEREES) {
+                continue;
+            }
+            if ($stage === self::STAGE_REFEREES && $stageName === self::STAGE_DOC_VERIFY) {
                 continue;
             }
             $status = strtoupper(trim($history[$stage]['status'] ?? ''));
