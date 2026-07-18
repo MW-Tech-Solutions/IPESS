@@ -107,9 +107,10 @@ try {
     $appId = (int) $data['application_id'];
 
     $status = $data['verified_status'] ?? '';
-    if ($status === 'Verified') {
+    if ($status === 'Verified' || $status === 'Submitted' || $status === 'Approved') {
         $message = "You have already completed this verification process. Thank you!";
         $messageType = "success";
+        $showForm = false;
     } else {
         $showForm = true;
     }

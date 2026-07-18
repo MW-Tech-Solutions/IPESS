@@ -171,13 +171,12 @@ try {
         }
         if (table_exists_local($pdo, 'courses')) {
             $stmt = $pdo->prepare("
-                SELECT DISTINCT c.course_id AS id, c.course_title AS name
-                FROM programme_choices pc
-                JOIN courses c ON pc.course = c.course_id
-                WHERE pc.faculty = ? AND pc.department = ? AND c.degree_id = ?
-                ORDER BY c.course_title ASC
+                SELECT course_id AS id, course_title AS name
+                FROM courses
+                WHERE dept_id = ? AND degree_id = ?
+                ORDER BY course_title ASC
             ");
-            $stmt->execute([$facultyId, $departmentId, $programmeId]);
+            $stmt->execute([$departmentId, $programmeId]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         } else {
             $stmt = $pdo->prepare("

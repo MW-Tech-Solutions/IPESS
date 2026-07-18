@@ -94,9 +94,11 @@ try {
         die("Referee record not found or link expired.");
     }
 
-    if ($data['verified_status'] === 'Verified') {
+    $status = $data['verified_status'] ?? '';
+    if ($status === 'Verified' || $status === 'Submitted' || $status === 'Approved') {
         $message = "You have already completed this verification process. Thank you!";
         $messageType = "success";
+        $showForm = false;
     } else {
         $showForm = true;
     }
