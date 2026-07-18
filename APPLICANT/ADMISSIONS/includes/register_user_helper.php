@@ -95,7 +95,7 @@ function register_new_student(PDO $pdo, array $signupData) {
                     $applicationId,
                     $signupData['surname'] ?? '',
                     $signupData['first_name'] ?? '',
-                    $signupData['other_name'] ?: null,
+                    ($signupData['other_name'] ?? null) ?: null,
                     '1900-01-01',
                     $signupData['phone'] ?? '',
                 ]);

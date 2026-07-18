@@ -604,7 +604,8 @@ try {
                 btn.innerHTML = '<span class="create-icon"><i class="bi bi-person-plus-fill"></i></span><span class="create-label">Create Account</span>';
             }
         } catch (e) {
-            showAlert("Server connection failed.", "js-error-1");
+            console.error("Signup error details:", e);
+            showAlert("Server connection failed: " + e.message, "js-error-1");
             btn.disabled = false;
             btn.innerHTML = '<span class="create-icon"><i class="bi bi-person-plus-fill"></i></span><span class="create-label">Create Account</span>';
         }
@@ -687,7 +688,7 @@ try {
             } catch (e) {
                 spinner.style.display = 'none';
                 inputs.forEach(inp => inp.readOnly = false);
-                showAlert("Verification failed.", "js-error-2");
+                showAlert("Verification failed: " + e.message, "js-error-2");
             }
         }
     }

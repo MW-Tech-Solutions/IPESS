@@ -3,17 +3,28 @@
 require 'db.php';
 header('Content-Type: application/json');
 
+ob_start();
+
+function send_json_response(array $response) {
+    if (ob_get_length()) {
+        $extraOutput = ob_get_clean();
+        if (trim($extraOutput) !== '') {
+            error_log("Captured extra output in send_otp.php: " . $extraOutput);
+        }
+    }
+    echo json_encode($response);
+    exit;
+}
+
 $data = json_decode(file_get_contents("php://input"), true);
 
 if (!$data || !isset($data['email'])) {
-    echo json_encode(['success' => false, 'message' => 'Email not received']);
-    exit;
+    send_json_response(['success' => false, 'message' => 'Email not received']);
 }
 
 $email = filter_var($data['email'], FILTER_VALIDATE_EMAIL);
 if (!$email) {
-    echo json_encode(['success' => false, 'message' => 'Invalid email address.']);
-    exit;
+    send_json_response(['success' => false, 'message' => 'Invalid email address.']);
 }
 
 $isResend = !empty($data['resend']);
@@ -31,19 +42,16 @@ if (!$isResend) {
 
     foreach ($requiredFields as $field => $label) {
         if (trim((string) ($data[$field] ?? '')) === '') {
-            echo json_encode(['success' => false, 'message' => $label . ' is required.']);
-            exit;
+            send_json_response(['success' => false, 'message' => $label . ' is required.']);
         }
     }
 
     if (strlen((string) $data['password']) < 6) {
-        echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters.']);
-        exit;
+        send_json_response(['success' => false, 'message' => 'Password must be at least 6 characters.']);
     }
 
     if (($data['password'] ?? '') !== ($data['confirm'] ?? '')) {
-        echo json_encode(['success' => false, 'message' => 'Passwords do not match.']);
-        exit;
+        send_json_response(['success' => false, 'message' => 'Passwords do not match.']);
     }
 }
 
@@ -51,12 +59,10 @@ try {
     $stmt = $pdo->prepare("SELECT user_id FROM users WHERE email = ?");
     $stmt->execute([$email]);
     if ($stmt->rowCount() > 0) {
-        echo json_encode(['success' => false, 'message' => 'Email already exists.']);
-        exit;
+        send_json_response(['success' => false, 'message' => 'Email already exists.']);
     }
 } catch (PDOException $e) {
-    echo json_encode(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
-    exit;
+    send_json_response(['success' => false, 'message' => 'Database error: ' . $e->getMessage()]);
 }
 
 $verificationActive = 1;
@@ -88,13 +94,12 @@ if ($verificationActive === 0 && !$isResend) {
     ];
     $regResult = register_new_student($pdo, $signupData);
     if ($regResult['success']) {
-        echo json_encode(['success' => true, 'verification_disabled' => true]);
-        exit;
+        send_json_response(['success' => true, 'verification_disabled' => true]);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Registration failed: ' . $regResult['message']]);
-        exit;
+        send_json_response(['success' => false, 'message' => 'Registration failed: ' . $regResult['message']]);
     }
 }
+
 $otp = rand(100000, 999999);
 
 $_SESSION['auth_otp'] = $otp;   
@@ -124,7 +129,7 @@ $contentText = "Your OTP is: $otp. Valid for 5 minutes.";
 $result = portal_send_mail($email, $email, $subject, $contentHtml, $contentText);
 
 if ($result['success']) {
-    echo json_encode(['success' => true, 'message' => 'OTP sent successfully']);
+    send_json_response(['success' => true, 'message' => 'OTP sent successfully']);
 } else {
-    echo json_encode(['success' => false, 'message' => 'Mailer Error: ' . $result['message']]);
+    send_json_response(['success' => false, 'message' => 'Mailer Error: ' . $result['message']]);
 }
