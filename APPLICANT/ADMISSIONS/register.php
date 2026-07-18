@@ -587,10 +587,17 @@ try {
             const data = await response.json();
 
             if (data.success) {
-                document.getElementById('step1-container').style.display = 'none';
-                document.getElementById('step2-container').style.display = 'block';
-                inputs[0].focus();
-                startResendTimer();
+                if (data.verification_disabled) {
+                    showAlert("Account created successfully! Redirecting to login...", "js-success");
+                    setTimeout(() => {
+                        window.location.href = "login.php?registered=1";
+                    }, 2000);
+                } else {
+                    document.getElementById('step1-container').style.display = 'none';
+                    document.getElementById('step2-container').style.display = 'block';
+                    inputs[0].focus();
+                    startResendTimer();
+                }
             } else {
                 showAlert(data.message, "js-error-1");
                 btn.disabled = false;

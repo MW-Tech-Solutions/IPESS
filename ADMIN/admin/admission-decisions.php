@@ -801,6 +801,14 @@ require_once 'includes/topbar.php';
         }
     `;
     document.head.appendChild(style);
+
+    // Accessibility fix: Remove focus from elements inside modals when hiding them
+    // to avoid the "Blocked aria-hidden on an element because its descendant retained focus" warning.
+    document.addEventListener('hide.bs.modal', function (event) {
+        if (document.activeElement && event.target.contains(document.activeElement)) {
+            document.activeElement.blur();
+        }
+    });
 </script>
 
 <div class="modal fade" id="decisionViewModal" tabindex="-1" aria-hidden="true">
