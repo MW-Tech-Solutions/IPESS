@@ -9,10 +9,13 @@ $admissionPageContent = portal_page_get_content($pdo ?? null, 'admission_landing
 $programmes = [
     ['title' => 'PGD PROCUREMENT MANAGEMENT', 'description' => 'Specialized training in public and corporate procurement systems, bidding processes, and contract management.'],
     ['title' => 'MSc PROCUREMENT MANAGEMENT', 'description' => 'Advanced academic and professional development in sustainable procurement strategies, logistics, and supply chain governance.'],
+    ['title' => 'PhD PROCUREMENT MANAGEMENT', 'description' => 'Doctoral research focusing on strategic procurement systems, policy design, institutional governance, and sustainable supply chains.'],
     ['title' => 'PGD ENVIRONMENTAL SUSTAINABILITY', 'description' => 'Practical entry-level training on environmental impact assessment, standard audits, and sustainable ecosystem management.'],
     ['title' => 'MSc ENVIRONMENTAL SUSTAINABILITY', 'description' => 'Research and development standards for ecological preservation, environmental governance, and resource management.'],
+    ['title' => 'PhD ENVIRONMENTAL SUSTAINABILITY', 'description' => 'Advanced doctoral studies in environmental impact policy, ecosystem protection standards, and climate resilience frameworks.'],
     ['title' => 'PGD SUSTAINABLE SOCIAL DEVELOPMENT', 'description' => 'Skills to design and monitor social safeguards, community development programs, and corporate social policies.'],
-    ['title' => 'MSc SUSTAINABLE SOCIAL DEVELOPMENT', 'description' => 'Advanced study in social risk assessment, safeguard standards enhancement, and community welfare strategies.']
+    ['title' => 'MSc SUSTAINABLE SOCIAL DEVELOPMENT', 'description' => 'Advanced study in social risk assessment, safeguard standards enhancement, and community welfare strategies.'],
+    ['title' => 'PhD SUSTAINABLE SOCIAL DEVELOPMENT', 'description' => 'Doctoral level research in social risk governance, community safeguard frameworks, and inclusive social policies.']
 ];
 $requirements = $admissionsContent['requirements'] ?? [];
 $importantDates = $admissionsContent['important_dates'] ?? [];
@@ -55,7 +58,7 @@ $vcContent = [
 
 $statsContent = [
     ['value' => 'Center of Excellence', 'label' => 'World Bank Assisted'],
-    ['value' => '6+', 'label' => 'Academic Courses Offered'],
+    ['value' => '9+', 'label' => 'Academic Courses Offered'],
     ['value' => '30+', 'label' => 'Industry Expert Faculty'],
     ['value' => '12+', 'label' => 'Global Partners'],
 ];
@@ -158,6 +161,13 @@ $portalLinks = [
         .signature { font-weight: 800; color: var(--green-700) !important; margin-bottom: .2rem !important; }
         
         .grid-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+        .programmes-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; }
+        @media (min-width: 992px) {
+            .programmes-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1.25rem; }
+            .programmes-grid .card-item { padding: 1.35rem 1.15rem; }
+            .programmes-grid .card-item h5 { font-size: 1rem; margin-bottom: 0.6rem; }
+            .programmes-grid .card-item p { font-size: 0.86rem; line-height: 1.45; }
+        }
         .card-item { background: var(--white); border-radius: 4px; box-shadow: 0 8px 24px rgba(15,23,42,.09); border: 1px solid #edf1ef; padding: 1.75rem; transition: transform 0.25s ease, box-shadow 0.25s ease; }
         .card-item:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(15,23,42,.15); }
         .card-item h5 { font-size: 1.15rem; color: var(--green-900); margin-bottom: 0.75rem; font-weight: 700; }
@@ -328,7 +338,7 @@ $portalLinks = [
         <div class="container">
             <h2 class="section-title">Available Postgraduate Programmes</h2>
             <p class="text-muted">Explore the specialized postgraduate courses currently offered by the Center of Excellence:</p>
-            <div class="grid-layout">
+            <div class="grid-layout programmes-grid">
                 <?php if (!empty($programmes)): ?>
                     <?php foreach ($programmes as $prog): ?>
                         <div class="card-item">

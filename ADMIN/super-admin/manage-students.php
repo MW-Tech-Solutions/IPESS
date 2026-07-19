@@ -209,7 +209,7 @@ require_once 'includes/topbar.php';
                     <tr>
                         <th>Student</th>
                         <th>Application No</th>
-                        <th>Reference</th>
+                        <!-- <th>Reference</th> -->
                         <th>Phone</th>
                         <th>Programme</th>
                         <th>Status</th>
@@ -243,7 +243,7 @@ require_once 'includes/topbar.php';
                                     <div class="small text-muted"><?php echo htmlspecialchars((string) ($student['email'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></div>
                                 </td>
                                 <td><?php echo htmlspecialchars((string) ($student['application_number'] ?: 'N/A'), ENT_QUOTES, 'UTF-8'); ?></td>
-                                <td>#<?php echo (int) ($student['application_id'] ?? 0); ?></td>
+                                <!-- <td>#<?php echo (int) ($student['application_id'] ?? 0); ?></td> -->
                                 <td><?php echo htmlspecialchars((string) ($student['phone'] ?: 'N/A'), ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><?php echo htmlspecialchars($programmeLabel, ENT_QUOTES, 'UTF-8'); ?></td>
                                 <td><span class="status-chip <?php echo $statusClass; ?>"><?php echo htmlspecialchars((string) ($student['application_status'] ?: 'Unknown'), ENT_QUOTES, 'UTF-8'); ?></span></td>
