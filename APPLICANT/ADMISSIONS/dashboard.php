@@ -127,11 +127,11 @@ if (!isset($_SESSION['form_data']) && isset($_SESSION['application_id'])) {
         $course_clean = preg_replace('/^(PGD|MSC)\s+/i', '', $course_title);
 
         $_SESSION['form_data']['step_2'] = [
-            'faculty' => $pc['faculty_name'] ?? '',
-            'department' => $pc['dept_name'] ?? '',
-            'degree_type' => ($pc['degree_name'] == 'Msc') ? 'MSc' : ($pc['degree_name'] ?? ''),
-            'course' => $course_clean,
-            'mode' => $pc['mode_name'] ?? ''
+            'faculty' => $pc['faculty'] ?? '',
+            'department' => $pc['department'] ?? '',
+            'degree_type' => $pc['degree_type'] ?? '',
+            'course' => $pc['course'] ?? '',
+            'mode' => $pc['mode_of_study'] ?? ''
         ];
     }
 

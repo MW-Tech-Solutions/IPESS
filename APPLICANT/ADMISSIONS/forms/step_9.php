@@ -1,5 +1,39 @@
 <?php 
+require_once __DIR__ . '/../db.php';
 $all_data = $_SESSION['form_data'] ?? []; 
+$step2 = $all_data['step_2'] ?? [];
+
+$faculty_name = $step2['faculty'] ?? '';
+$dept_name = $step2['department'] ?? '';
+$degree_name = $step2['degree_type'] ?? '';
+$course_title = $step2['course'] ?? '';
+$mode_name = $step2['mode'] ?? '';
+
+if (is_numeric($faculty_name)) {
+    $stmt = $pdo->prepare("SELECT faculty_name FROM faculties WHERE faculty_id = ?");
+    $stmt->execute([$faculty_name]);
+    $faculty_name = $stmt->fetchColumn() ?: "N/A";
+}
+if (is_numeric($dept_name)) {
+    $stmt = $pdo->prepare("SELECT dept_name FROM departments WHERE dept_id = ?");
+    $stmt->execute([$dept_name]);
+    $dept_name = $stmt->fetchColumn() ?: "N/A";
+}
+if (is_numeric($degree_name)) {
+    $stmt = $pdo->prepare("SELECT degree_name FROM degree_types WHERE degree_id = ?");
+    $stmt->execute([$degree_name]);
+    $degree_name = $stmt->fetchColumn() ?: "N/A";
+}
+if (is_numeric($course_title)) {
+    $stmt = $pdo->prepare("SELECT course_title FROM courses WHERE course_id = ?");
+    $stmt->execute([$course_title]);
+    $course_title = $stmt->fetchColumn() ?: "N/A";
+}
+if (is_numeric($mode_name)) {
+    $stmt = $pdo->prepare("SELECT mode_name FROM study_modes WHERE mode_id = ?");
+    $stmt->execute([$mode_name]);
+    $mode_name = $stmt->fetchColumn() ?: "N/A";
+}
 ?>
 <h5 class="mb-4 text-success">Review Application</h5>
 <p>Please review your information carefully before submitting. You cannot edit after submission.</p>
@@ -35,10 +69,11 @@ $all_data = $_SESSION['form_data'] ?? [];
         <div id="collapse2" class="accordion-collapse collapse" data-bs-parent="#reviewAccordion">
             <div class="accordion-body">
                 <table class="table table-sm table-borderless">
-                    <tr><td class="text-muted w-25">Faculty:</td><td class="fw-bold"><?php echo $all_data['step_2']['faculty'] ?? ''; ?></td></tr>
-                    <tr><td class="text-muted">Department:</td><td class="fw-bold"><?php echo $all_data['step_2']['department'] ?? ''; ?></td></tr>
-                    <tr><td class="text-muted">Degree:</td><td class="fw-bold"><?php echo $all_data['step_2']['degree_type'] ?? ''; ?></td></tr>
-                    <tr><td class="text-muted">Mode:</td><td class="fw-bold"><?php echo $all_data['step_2']['mode'] ?? ''; ?></td></tr>
+                    <tr><td class="text-muted w-25">Faculty:</td><td class="fw-bold"><?php echo htmlspecialchars($faculty_name); ?></td></tr>
+                    <tr><td class="text-muted">Department:</td><td class="fw-bold"><?php echo htmlspecialchars($dept_name); ?></td></tr>
+                    <tr><td class="text-muted">Course:</td><td class="fw-bold"><?php echo htmlspecialchars($course_title); ?></td></tr>
+                    <tr><td class="text-muted">Degree:</td><td class="fw-bold"><?php echo htmlspecialchars($degree_name); ?></td></tr>
+                    <tr><td class="text-muted">Mode:</td><td class="fw-bold"><?php echo htmlspecialchars($mode_name); ?></td></tr>
                 </table>
                 <a href="?step=2" class="btn btn-sm btn-outline-primary">Edit Step 2</a>
             </div>
@@ -132,8 +167,7 @@ $all_data = $_SESSION['form_data'] ?? [];
                     if (!empty($all_data['step_3']['ssce2_school'])) {
                         $labels['olevel_file_2'] = 'O-Level Result (Sitting 2)';
                     }
-                    $degreeType = $all_data['step_2']['degree_type'] ?? '';
-                    if ($degreeType === 'PhD') {
+                    if (($degree_name ?? '') === 'PhD') {
                         $labels['proposal_file'] = 'Research Proposal';
                     }
 

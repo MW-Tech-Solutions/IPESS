@@ -212,13 +212,21 @@ if(scaleSelect && cgpaInput) {
 
 function rehydrateTable(tableId, prefix, subjectsArray, gradesArray) {
     const tableBody = document.getElementById(tableId).querySelector('tbody');
-    tableBody.innerHTML = ''; 
+    tableBody.innerHTML = '';
 
     subjectsArray.forEach((subject, index) => {
         addOLevelRow(tableId);
         const rows = tableBody.querySelectorAll('tr');
         const lastRow = rows[rows.length - 1];
-        lastRow.querySelector(`select[name="${prefix}_subjects[]"]`).value = subject;
+        const subjectSelect = lastRow.querySelector(`select[name="${prefix}_subjects[]"]`);
+        const otherInput = lastRow.querySelector(`input[name="${prefix}_subject_others[]"]`);
+        const isCustomSubject = typeof subjects === 'undefined' || !subjects.includes(subject);
+
+        subjectSelect.value = isCustomSubject ? 'Others' : subject;
+        if (otherInput) {
+            otherInput.value = isCustomSubject ? subject : '';
+        }
+        syncOtherSubjectField(lastRow);
         lastRow.querySelector(`select[name="${prefix}_grades[]"]`).value = gradesArray[index];
     });
 }
@@ -240,16 +248,22 @@ function addOLevelRow(tableId) {
     if (typeof subjects !== 'undefined') {
         subjects.forEach(s => { subjectOptions += `<option value="${s}">${s}</option>`; });
     }
+    subjectOptions += '<option value="Others">Others (Specify)</option>';
 
     newRow.innerHTML = `
         <td class="sn text-center align-middle">${rowCount + 1}</td>
         <td>
-            <select class="form-select form-select-sm subject-select" 
-                    name="${prefix}_subjects[]" 
-                    onchange="checkDuplicateSubjects(this, '${tableId}')" 
+            <select class="form-select form-select-sm subject-select"
+                    name="${prefix}_subjects[]"
+                    onchange="handleSubjectChange(this, '${tableId}')"
                     ${isRequired}>
                 ${subjectOptions}
             </select>
+            <input type="text"
+                   class="form-control form-control-sm mt-2 subject-other-input d-none"
+                   name="${prefix}_subject_others[]"
+                   placeholder="Type subject name"
+                   onblur="checkDuplicateSubjects(this, '${tableId}')">
         </td>
         <td>
             <select class="form-select form-select-sm" name="${prefix}_grades[]" ${isRequired}>
@@ -259,7 +273,7 @@ function addOLevelRow(tableId) {
         </td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRow(this, '${tableId}')"><i class="bi bi-trash"></i></button></td>
     `;
-    
+
     updateCounter(tableId);
 }
 
@@ -272,23 +286,59 @@ function removeRow(btn, tableId) {
     }
 }
 
-function checkDuplicateSubjects(selectElement, tableId) {
-    const selectedValue = selectElement.value;
+function getResolvedSubjectValue(row) {
+    if (!row) return '';
+
+    const select = row.querySelector('.subject-select');
+    if (!select) return '';
+
+    if (select.value === 'Others') {
+        const otherInput = row.querySelector('.subject-other-input');
+        return (otherInput?.value || '').trim();
+    }
+
+    return select.value.trim();
+}
+
+function syncOtherSubjectField(row) {
+    const select = row.querySelector('.subject-select');
+    const otherInput = row.querySelector('.subject-other-input');
+    if (!select || !otherInput) return;
+
+    const isOther = select.value === 'Others';
+    otherInput.classList.toggle('d-none', !isOther);
+    otherInput.required = isOther && select.hasAttribute('required');
+
+    if (!isOther) {
+        otherInput.value = '';
+    }
+}
+
+function checkDuplicateSubjects(control, tableId) {
+    const row = control.closest('tr');
+    const selectedValue = getResolvedSubjectValue(row);
     if (!selectedValue) return;
 
-    const tableSubjects = document.querySelectorAll(`#${tableId} .subject-select`);
-    
+    const tableRows = document.querySelectorAll(`#${tableId} tbody tr`);
     let isDuplicate = false;
-    tableSubjects.forEach(select => {
-        if (select !== selectElement && select.value === selectedValue) {
+
+    tableRows.forEach(otherRow => {
+        if (otherRow !== row && getResolvedSubjectValue(otherRow).toLowerCase() === selectedValue.toLowerCase()) {
             isDuplicate = true;
         }
     });
 
     if (isDuplicate) {
         alert(`Warning: The subject "${selectedValue}" has already been selected for this sitting.`);
-        selectElement.value = ""; 
+        control.value = '';
+        syncOtherSubjectField(row);
     }
+}
+
+function handleSubjectChange(selectElement, tableId) {
+    const row = selectElement.closest('tr');
+    syncOtherSubjectField(row);
+    checkDuplicateSubjects(selectElement, tableId);
 }
 
 function updateCounter(tableId) {
@@ -306,6 +356,8 @@ function toggleSSCE2() {
         if (isChecked) f.setAttribute("required", "required");
         else f.removeAttribute("required");
     });
+
+    container.querySelectorAll('tbody tr').forEach(row => syncOtherSubjectField(row));
 }
 
 function toggleOtherInput(selectEl, inputId) {

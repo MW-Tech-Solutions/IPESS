@@ -217,13 +217,19 @@ try {
                 $pdo->prepare("DELETE FROM olevel_results WHERE exam_id = ?")->execute([$exam_id]);
 
                 $subjects = $_POST[$prefix . '_subjects'] ?? [];
+                $subjectOthers = $_POST[$prefix . '_subject_others'] ?? [];
                 $grades = $_POST[$prefix . '_grades'] ?? [];
                 
                 $resStmt = $pdo->prepare("INSERT INTO olevel_results (exam_id, subject_name, grade) VALUES (?, ?, ?)");
                 
                 for ($i = 0; $i < count($subjects); $i++) {
-                    if (!empty($subjects[$i]) && !empty($grades[$i])) {
-                        $resStmt->execute([$exam_id, $subjects[$i], $grades[$i]]);
+                    $subjectName = trim($subjects[$i] ?? '');
+                    if ($subjectName === 'Others') {
+                        $subjectName = trim($subjectOthers[$i] ?? '');
+                    }
+
+                    if (!empty($subjectName) && !empty($grades[$i])) {
+                        $resStmt->execute([$exam_id, $subjectName, $grades[$i]]);
                     }
                 }
             }
