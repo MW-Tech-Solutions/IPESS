@@ -14,7 +14,7 @@ try {
 }
 ?>
 
-<h5 class="mb-4 text-primary">Programme Selection</h5>
+<h5 class="section-header text-primary mb-4">Programme Selection</h5>
 
 <div class="row g-3">
     <div class="col-md-12">

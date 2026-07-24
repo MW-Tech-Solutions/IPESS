@@ -35,7 +35,7 @@ if (is_numeric($mode_name)) {
     $mode_name = $stmt->fetchColumn() ?: "N/A";
 }
 ?>
-<h5 class="mb-4 text-success">Review Application</h5>
+<h5 class="section-header text-success mb-4">Review Application</h5>
 <p>Please review your information carefully before submitting. You cannot edit after submission.</p>
 
 <div class="accordion" id="reviewAccordion">

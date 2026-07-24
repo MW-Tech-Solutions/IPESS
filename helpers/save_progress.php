@@ -100,19 +100,40 @@ try {
                     $dept_id = (int)$stmt->fetchColumn() ?: null;
                 }
             }
+            // Validate Department
+            if ($dept_id) {
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM departments WHERE dept_id = ?");
+                $stmt->execute([$dept_id]);
+                if ((int)$stmt->fetchColumn() === 0) {
+                    $dept_id = null;
+                }
+            } else {
+                $dept_id = null;
+            }
 
             // 2. Resolve Faculty
             $faculty_id = null;
-            if ($raw_faculty !== '') {
-                if (is_numeric($raw_faculty)) {
-                    $faculty_id = (int)$raw_faculty;
-                } else {
-                    if ($dept_id) {
-                        $stmt = $pdo->prepare("SELECT faculty_id FROM departments WHERE dept_id = ? LIMIT 1");
-                        $stmt->execute([$dept_id]);
-                        $faculty_id = (int)$stmt->fetchColumn() ?: null;
-                    }
+            if ($raw_faculty !== '' && is_numeric($raw_faculty) && (int)$raw_faculty > 0) {
+                $faculty_id = (int)$raw_faculty;
+            }
+            // Fallback to department's faculty if not explicitly selected/submitted
+            if (!$faculty_id && $dept_id) {
+                $stmt = $pdo->prepare("SELECT faculty_id FROM departments WHERE dept_id = ? LIMIT 1");
+                $stmt->execute([$dept_id]);
+                $db_faculty_id = $stmt->fetchColumn();
+                if ($db_faculty_id !== false) {
+                    $faculty_id = (int)$db_faculty_id;
                 }
+            }
+            // Validate Faculty
+            if ($faculty_id) {
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM faculties WHERE faculty_id = ?");
+                $stmt->execute([$faculty_id]);
+                if ((int)$stmt->fetchColumn() === 0) {
+                    $faculty_id = null;
+                }
+            } else {
+                $faculty_id = null;
             }
 
             // 3. Resolve Degree Type
@@ -125,6 +146,16 @@ try {
                     $stmt->execute([$raw_degree]);
                     $degree_id = (int)$stmt->fetchColumn() ?: null;
                 }
+            }
+            // Validate Degree Type
+            if ($degree_id) {
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM degree_types WHERE degree_id = ?");
+                $stmt->execute([$degree_id]);
+                if ((int)$stmt->fetchColumn() === 0) {
+                    $degree_id = null;
+                }
+            } else {
+                $degree_id = null;
             }
 
             // 4. Resolve Course
@@ -146,6 +177,16 @@ try {
                     $course_id = (int)$stmt->fetchColumn() ?: null;
                 }
             }
+            // Validate Course
+            if ($course_id) {
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM courses WHERE course_id = ?");
+                $stmt->execute([$course_id]);
+                if ((int)$stmt->fetchColumn() === 0) {
+                    $course_id = null;
+                }
+            } else {
+                $course_id = null;
+            }
 
             // 5. Resolve Mode of Study
             $mode_id = null;
@@ -157,6 +198,16 @@ try {
                     $stmt->execute([$raw_mode]);
                     $mode_id = (int)$stmt->fetchColumn() ?: null;
                 }
+            }
+            // Validate Mode of Study
+            if ($mode_id) {
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM study_modes WHERE mode_id = ?");
+                $stmt->execute([$mode_id]);
+                if ((int)$stmt->fetchColumn() === 0) {
+                    $mode_id = null;
+                }
+            } else {
+                $mode_id = null;
             }
 
             $sql = "INSERT INTO programme_choices (application_id, faculty, department, degree_type, mode_of_study, course)

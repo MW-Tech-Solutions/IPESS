@@ -415,6 +415,27 @@ function render_notification_list($notifications) {
         .locked-nav { pointer-events: none !important; opacity: 0.7; cursor: default !important; }
 
         .form-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .section-header {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #d11b27 !important;
+            border-bottom: 2px solid #d11b27;
+            padding-bottom: 6px;
+            margin-top: 15px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: block;
+            width: 100%;
+        }
+        .section-header.text-secondary {
+            color: #6c757d !important;
+            border-bottom: 2px solid #6c757d;
+        }
+        .section-header.text-success {
+            color: #198754 !important;
+            border-bottom: 2px solid #198754;
+        }
         .form-control, .form-select { padding: 12px; font-size: 16px; }
 
         .notification-dropdown { width: 320px; max-height: 400px; overflow-y: auto; border: none; box-shadow: 0 5px 20px rgba(0,0,0,0.15); border-radius: 12px; }

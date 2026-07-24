@@ -1,5 +1,5 @@
 <?php $data = $_SESSION['form_data']['step_4'] ?? []; ?>
-<h5 class="mb-4 text-primary">NYSC & Professional Qualifications</h5>
+<h5 class="section-header text-primary mb-4">NYSC & Professional Qualifications</h5>
 <div class="row g-3">
     <div class="col-12">
         <label class="form-label">NYSC Status</label>
