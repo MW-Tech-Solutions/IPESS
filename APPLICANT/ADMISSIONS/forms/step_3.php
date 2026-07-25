@@ -13,6 +13,7 @@ $data = $_SESSION['form_data']['step_3'] ?? [];
                 <option value="BSc" <?php echo ($data['highest_qualification'] ?? '') == 'BSc' ? 'selected' : ''; ?>>B.Sc / B.A</option>
                 <option value="MSc" <?php echo ($data['highest_qualification'] ?? '') == 'MSc' ? 'selected' : ''; ?>>M.Sc / M.A</option>
                 <option value="HND" <?php echo ($data['highest_qualification'] ?? '') == 'HND' ? 'selected' : ''; ?>>HND</option>
+                <option value="PGD" <?php echo ($data['highest_qualification'] ?? '') == 'PGD' ? 'selected' : ''; ?>>PGD</option>
                 <option value="PhD" <?php echo ($data['highest_qualification'] ?? '') == 'PhD' ? 'selected' : ''; ?>>PhD</option>
             </select>
         </div>

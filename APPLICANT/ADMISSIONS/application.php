@@ -331,6 +331,7 @@
                                     <option value="BSc">B.Sc / B.A</option>
                                     <option value="MSc">M.Sc / M.A</option>
                                     <option value="HND">HND</option>
+                                    <option value="PGD">PGD</option>
                                 </select>
                             </div>
                             <div class="col-md-8">
