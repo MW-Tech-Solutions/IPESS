@@ -69,7 +69,7 @@ $processContent = [
     'steps' => [
         ['number' => '01', 'title' => 'Create Account', 'description' => 'Register your profile on the admissions portal using a valid email and phone number.'],
         ['number' => '02', 'title' => 'Select Programme', 'description' => 'Choose your desired postgraduate course (PGD, MSc, or PhD) in your department of choice.'],
-        ['number' => '03', 'title' => 'Upload Documents & Referee ID', 'description' => 'Provide academic transcripts, credentials, referee details, and your referee\'s work ID.'],
+        ['number' => '03', 'title' => 'Upload Documents & Referee ID', 'description' => 'Provide credentials, referee details, and your referee\'s work ID.'],
         ['number' => '04', 'title' => 'Submit & Track', 'description' => 'Submit your application and track the verification flow and admission decision in real-time.']
     ]
 ];
@@ -383,7 +383,7 @@ $portalLinks = [
                     </div>
                     <div class="card-item">
                         <h5>M.Sc Requirements</h5>
-                        <p>A minimum of a Second Class Lower degree in a relevant discipline with transcripts uploaded directly during application.</p>
+                        <p>A minimum of a Second Class Lower degree in a relevant discipline from a recognized institution.</p>
                     </div>
                     <div class="card-item">
                         <h5>PhD Requirements</h5>

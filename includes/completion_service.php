@@ -21,7 +21,6 @@ function required_documents(): array {
         'passport',
         'olevel_1',
         'degree',
-        'transcript',
         'proposal'
     ];
 }

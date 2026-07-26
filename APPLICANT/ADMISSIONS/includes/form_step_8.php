@@ -103,11 +103,6 @@ function getOldValue($key, $default = '') {
             <?php echo getExistingFile('degree_file'); ?>
         </div>
 
-        <div class="form-group">
-            <label for="transcript_file">Academic Transcript <span style="color:red">*</span></label>
-            <input type="file" name="transcript_file" id="transcript_file" accept=".pdf,.jpg,.jpeg,.png" <?php echo isset($_SESSION['form_data']['step_8']['transcript_file']) ? '' : 'required'; ?>>
-            <?php echo getExistingFile('transcript_file'); ?>
-        </div>
 
         <div class="form-group">
             <label for="nysc_file">NYSC Certificate / Exemption (Optional)</label>

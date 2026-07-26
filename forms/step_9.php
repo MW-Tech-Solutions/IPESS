@@ -189,7 +189,6 @@ $all_data = $_SESSION['form_data'] ?? [];
                     $labels = [
                         'olevel_file' => 'O-Level Result (Sitting 1)',
                         'degree_file' => 'Degree Certificate',
-                        'transcript_file' => 'Academic Transcript',
                         'nysc_file' => 'NYSC Certificate'
                     ];
 

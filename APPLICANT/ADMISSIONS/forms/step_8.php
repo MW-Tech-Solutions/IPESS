@@ -129,12 +129,7 @@ function field_attrs(string $fieldName, bool $requiredWhenNoRejections = false):
         <?php echo getFileStatus('degree_file', $data); ?>
     </div>
 
-    <div class="col-md-6">
-        <label class="form-label fw-bold">Academic Transcript <span class="text-danger">*</span></label>
-        <input type="file" class="form-control" name="transcript_file" accept=".pdf,.jpg,.jpeg,.png"
-               <?php echo field_attrs('transcript_file', true); ?>>
-        <?php echo getFileStatus('transcript_file', $data); ?>
-    </div>
+
 
     <div class="col-md-6">
         <label class="form-label fw-bold">NYSC Cert. / Exemption (Optional)</label>

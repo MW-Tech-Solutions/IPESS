@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // 1. Define Mandatory Fields
     // 'olevel_file_2' logic is handled dynamically based on presence
-    $mandatory_fields = ['passport_file', 'olevel_file', 'degree_file', 'transcript_file'];
+    $mandatory_fields = ['passport_file', 'olevel_file', 'degree_file'];
     
     // Check if any files were actually uploaded
     if (empty($_FILES)) {

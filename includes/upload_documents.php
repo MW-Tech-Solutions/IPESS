@@ -91,7 +91,7 @@ function processFileUpload($file_input, $category_folder) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $mandatory_fields = ['passport_file', 'olevel_file', 'degree_file', 'transcript_file'];
+    $mandatory_fields = ['passport_file', 'olevel_file', 'degree_file'];
     
     if (empty($_FILES)) {
         $response['errors'][] = "No files received.";

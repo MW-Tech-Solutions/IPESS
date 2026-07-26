@@ -44,7 +44,6 @@ function formatLabel($key) {
         'olevel_file'   => 'O-Level Certificate (Sitting 1)',
         'olevel_file_2' => 'O-Level Certificate (Sitting 2)',
         'degree_file'   => 'Degree Certificate',
-        'transcript_file' => 'Academic Transcript',
         'nysc_file'     => 'NYSC Certificate',
         'proposal_file' => 'PhD Research Proposal'
     ];

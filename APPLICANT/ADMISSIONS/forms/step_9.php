@@ -160,7 +160,6 @@ if (is_numeric($mode_name)) {
                         'passport_file' => 'Passport Photo',
                         'olevel_file' => 'O-Level Result (Sitting 1)',
                         'degree_file' => 'Degree Certificate',
-                        'transcript_file' => 'Academic Transcript',
                         'nysc_file' => 'NYSC Certificate'
                     ];
 

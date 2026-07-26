@@ -615,10 +615,7 @@
                             <label class="form-label">Passport Photograph</label>
                             <input class="form-control" type="file" accept="image/*" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Academic Transcript(s)</label>
-                            <input class="form-control" type="file" accept=".pdf,.jpg,.png" required>
-                        </div>
+
                         <div class="mb-3">
                             <label class="form-label">Degree Certificate</label>
                             <input class="form-control" type="file" accept=".pdf,.jpg,.png" required>
