@@ -1325,9 +1325,56 @@ if ($is_authenticated) {
             color: var(--text-muted);
             margin-top: 2px;
         }
+
+        /* Preloader Styles */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+
+<?php if ($is_authenticated): ?>
+    <!-- Beautiful glassmorphism preloader -->
+    <div id="max-preloader" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: radial-gradient(circle at center, rgba(248, 250, 252, 0.98), rgba(241, 245, 249, 1));
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+    ">
+        <div style="text-align: center;">
+            <div class="preloader-spinner" style="
+                width: 50px;
+                height: 50px;
+                border: 4px solid var(--border-color);
+                border-top: 4px solid var(--color-primary);
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 20px;
+            "></div>
+            <div style="
+                font-family: var(--font-code);
+                font-size: 20px;
+                font-weight: 700;
+                background: linear-gradient(135deg, var(--color-primary), #60a5fa);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin-bottom: 8px;
+                letter-spacing: -0.5px;
+            ">MAX TESTING CONSOLE</div>
+            <div style="color: var(--text-muted); font-size: 13px; letter-spacing: 0.5px;">Loading live database statistics...</div>
+        </div>
+    </div>
+<?php endif; ?>
 
 <?php if (!$is_authenticated): ?>
     <!-- Access Code Login Screen -->
@@ -2479,7 +2526,7 @@ if ($is_authenticated) {
     }
 
     // Auto-run startup load on screen render
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
         // Render initial tables
         if (document.getElementById('users-crud-table')) {
             renderUsersCRUDTable(INITIAL_USERS);
@@ -2489,6 +2536,21 @@ if ($is_authenticated) {
         }
         if (document.getElementById('users-card-grid')) {
             renderUsersSwapperGrid(INITIAL_USERS);
+        }
+
+        // Fetch latest live stats
+        try {
+            await loadOverviewStats();
+        } catch (e) {
+            console.error(e);
+        } finally {
+            // Hide the preloader smoothly
+            const preloader = document.getElementById('max-preloader');
+            if (preloader) {
+                preloader.style.opacity = '0';
+                preloader.style.visibility = 'hidden';
+                setTimeout(() => preloader.remove(), 400);
+            }
         }
     });
 </script>

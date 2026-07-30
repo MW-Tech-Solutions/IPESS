@@ -119,6 +119,40 @@ if ($pdo) {
         ORDER BY a.updated_at DESC, a.application_id DESC
     ";
 
+    // Pagination parameters
+    $page = max(1, (int)($_GET['page'] ?? 1));
+    $limit = (int)($_GET['limit'] ?? 25);
+    $allowedLimits = [25, 50, 75, 100, 200, 500];
+    if (!in_array($limit, $allowedLimits, true)) {
+        $limit = 25;
+    }
+
+    // Count query
+    $countSql = "
+        SELECT COUNT(DISTINCT a.application_id) 
+        FROM applications a
+        INNER JOIN users u ON u.user_id = a.user_id
+        LEFT JOIN personal_details pd ON pd.application_id = a.application_id
+        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
+        LEFT JOIN departments d ON d.dept_id = COALESCE(pc.department, a.department_id)
+        LEFT JOIN faculties f ON f.faculty_id = COALESCE(pc.faculty, d.faculty_id)
+        LEFT JOIN courses c ON c.course_id = pc.course
+        LEFT JOIN degree_types dt ON dt.degree_id = pc.degree_type
+        WHERE " . implode(' AND ', $where) . "
+    ";
+    $countStmt = $pdo->prepare($countSql);
+    $countStmt->execute($params);
+    $totalRecords = (int)$countStmt->fetchColumn();
+
+    $totalPages = max(1, (int)ceil($totalRecords / $limit));
+    if ($page > $totalPages) {
+        $page = $totalPages;
+    }
+    $offset = ($page - 1) * $limit;
+
+    // Fetch records with limit
+    $studentsSql .= " LIMIT {$limit} OFFSET {$offset}";
+
     $studentsStmt = $pdo->prepare($studentsSql);
     $studentsStmt->execute($params);
     $students = $studentsStmt->fetchAll(PDO::FETCH_ASSOC);
@@ -185,7 +219,7 @@ require_once 'includes/topbar.php';
     </div>
     <div class="panel-body">
         <form method="get" class="row g-2 mb-3">
-            <div class="col-md-8">
+            <div class="col-md-6">
                 <input type="text" class="form-control" name="q" value="<?php echo htmlspecialchars($q, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Search student name, email, application number, or reference ID">
             </div>
             <div class="col-md-2">
@@ -194,6 +228,15 @@ require_once 'includes/topbar.php';
                     <?php foreach ($allowedStatus as $statusOption): ?>
                         <option value="<?php echo htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $statusFilter === $statusOption ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($statusOption, ENT_QUOTES, 'UTF-8'); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" name="limit" onchange="this.form.submit()">
+                    <?php foreach ([25, 50, 75, 100, 200, 500] as $limOpt): ?>
+                        <option value="<?php echo $limOpt; ?>" <?php echo $limit === $limOpt ? 'selected' : ''; ?>>
+                            <?php echo $limOpt; ?> per page
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -259,6 +302,47 @@ require_once 'includes/topbar.php';
                     <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-2">
+            <div class="text-muted small">
+                Showing <?php echo min($totalRecords, $offset + 1); ?> to <?php echo min($totalRecords, $offset + $limit); ?> of <?php echo $totalRecords; ?> student records.
+            </div>
+            <?php if ($totalPages > 1): ?>
+                <nav aria-label="Page navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <!-- Previous Page -->
+                        <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>">Previous</a>
+                        </li>
+                        
+                        <!-- Page Numbers -->
+                        <?php 
+                        $startPage = max(1, $page - 2);
+                        $endPage = min($totalPages, $page + 2);
+                        if ($startPage > 1): ?>
+                            <li class="page-item"><a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>">1</a></li>
+                            <?php if ($startPage > 2): ?><li class="page-item disabled"><span class="page-link">...</span></li><?php endif; ?>
+                        <?php endif; ?>
+
+                        <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                            <li class="page-item <?php echo $page === $i ? 'active' : ''; ?>">
+                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a>
+                            </li>
+                        <?php endfor; ?>
+
+                        <?php if ($endPage < $totalPages): ?>
+                            <?php if ($endPage < $totalPages - 1): ?><li class="page-item disabled"><span class="page-link">...</span></li><?php endif; ?>
+                            <li class="page-item"><a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $totalPages])); ?>"><?php echo $totalPages; ?></a></li>
+                        <?php endif; ?>
+
+                        <!-- Next Page -->
+                        <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            <?php endif; ?>
         </div>
     </div>
 </section>
