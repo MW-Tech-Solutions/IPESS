@@ -9,7 +9,7 @@ ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 
-require_once __DIR__ . '/app/bootstrap.php';
+require_once __DIR__ . '/config.php';
 $pdo = db();
 
 // Access Code Authentication Logic
@@ -303,21 +303,21 @@ if ($is_authenticated) {
     
     <style>
         :root {
-            --bg-base: #08090c;
-            --bg-surface: #0f111a;
-            --bg-panel: #151824;
-            --color-primary: #3b82f6;
-            --color-primary-hover: #2563eb;
-            --color-primary-glow: rgba(59, 130, 246, 0.15);
-            --color-success: #10b981;
-            --color-success-glow: rgba(16, 185, 129, 0.15);
-            --color-warning: #f59e0b;
-            --color-warning-glow: rgba(245, 158, 11, 0.15);
-            --color-danger: #ef4444;
-            --color-danger-glow: rgba(239, 68, 68, 0.15);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --border-color: rgba(255, 255, 255, 0.08);
+            --bg-base: #f1f5f9;
+            --bg-surface: #ffffff;
+            --bg-panel: #ffffff;
+            --color-primary: #2563eb;
+            --color-primary-hover: #1d4ed8;
+            --color-primary-glow: rgba(37, 99, 235, 0.06);
+            --color-success: #059669;
+            --color-success-glow: rgba(5, 150, 105, 0.08);
+            --color-warning: #d97706;
+            --color-warning-glow: rgba(217, 119, 6, 0.08);
+            --color-danger: #dc2626;
+            --color-danger-glow: rgba(220, 38, 38, 0.08);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: rgba(0, 0, 0, 0.08);
             --font-sans: 'Plus Jakarta Sans', -apple-system, sans-serif;
             --font-code: 'Space Grotesk', monospace;
             --sidebar-width: 260px;
@@ -351,20 +351,18 @@ if ($is_authenticated) {
             align-items: center;
             justify-content: center;
             background: radial-gradient(circle at top right, var(--color-primary-glow), transparent 45%),
-                        radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.08), transparent 40%);
+                        radial-gradient(circle at bottom left, rgba(5, 150, 105, 0.05), transparent 40%);
             padding: 20px;
         }
 
         .auth-card {
-            background: rgba(21, 24, 36, 0.65);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: #ffffff;
             border: 1px solid var(--border-color);
             border-radius: 20px;
             width: 100%;
             max-width: 440px;
             padding: 40px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
             animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
             text-align: center;
         }
@@ -403,8 +401,9 @@ if ($is_authenticated) {
 
         .form-input {
             width: 100%;
-            background-color: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-color);
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            color: #0f172a;
             border-radius: 8px;
             padding: 12px 16px;
             font-size: 15px;
@@ -414,8 +413,8 @@ if ($is_authenticated) {
 
         .form-input:focus {
             border-color: var(--color-primary);
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
-            background-color: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 10px rgba(37, 99, 235, 0.15);
+            background-color: #ffffff;
         }
 
         .btn {
@@ -433,7 +432,7 @@ if ($is_authenticated) {
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
         }
 
         .btn:hover {
@@ -447,8 +446,8 @@ if ($is_authenticated) {
 
         .alert-error {
             background-color: var(--color-danger-glow);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
+            border: 1px solid rgba(220, 38, 38, 0.2);
+            color: #b91c1c;
             padding: 12px;
             border-radius: 8px;
             font-size: 13px;
@@ -513,9 +512,9 @@ if ($is_authenticated) {
             cursor: pointer;
         }
 
-        .menu-link:hover, .menu-item.active .menu-link {
-            color: var(--text-main);
-            background-color: rgba(255, 255, 255, 0.04);
+        .menu-link:hover {
+            color: var(--color-primary);
+            background-color: var(--color-primary-glow);
         }
 
         .menu-item.active .menu-link {
@@ -536,7 +535,7 @@ if ($is_authenticated) {
         .sidebar-footer {
             padding: 16px;
             border-top: 1px solid var(--border-color);
-            background-color: rgba(0, 0, 0, 0.2);
+            background-color: #f8fafc;
             text-align: center;
         }
 
@@ -565,13 +564,14 @@ if ($is_authenticated) {
 
         /* --- IMPERSONATION TOP NOTIFIER PANEL --- */
         .session-banner {
-            background: linear-gradient(90deg, #1e1b4b, #111827);
-            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            background: linear-gradient(90deg, #eff6ff, #f8fafc);
+            border-bottom: 1px solid #bfdbfe;
             padding: 8px 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             font-size: 13px;
+            color: #1e3a8a;
         }
 
         .session-info {
@@ -590,9 +590,9 @@ if ($is_authenticated) {
         }
 
         .session-badge {
-            background-color: rgba(99, 102, 241, 0.15);
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            color: #a5b4fc;
+            background-color: #dbeafe;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
             padding: 2px 8px;
             border-radius: 12px;
             font-size: 11px;
@@ -681,7 +681,7 @@ if ($is_authenticated) {
             justify-content: space-between;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.01);
         }
 
         .stat-card::after {
@@ -721,7 +721,7 @@ if ($is_authenticated) {
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.01);
         }
 
         .panel-header {
@@ -752,11 +752,12 @@ if ($is_authenticated) {
 
         .search-input {
             width: 100%;
-            background-color: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border-color);
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
             border-radius: 8px;
             padding: 10px 16px;
             font-size: 13px;
+            color: #0f172a;
             outline: none;
         }
 
@@ -778,7 +779,7 @@ if ($is_authenticated) {
         }
 
         .data-table th {
-            background-color: var(--bg-surface);
+            background-color: #f8fafc;
             padding: 12px 16px;
             font-size: 12px;
             font-weight: 600;
@@ -792,10 +793,11 @@ if ($is_authenticated) {
             padding: 12px 16px;
             border-bottom: 1px solid var(--border-color);
             vertical-align: middle;
+            color: var(--text-main);
         }
 
         .data-table tbody tr:hover {
-            background-color: rgba(255, 255, 255, 0.02);
+            background-color: #f8fafc;
         }
 
         /* --- BADGES & ACTIONS --- */
@@ -809,10 +811,10 @@ if ($is_authenticated) {
             text-transform: uppercase;
         }
 
-        .badge-draft { background-color: var(--color-warning-glow); color: var(--color-warning); border: 1px solid rgba(245, 158, 11, 0.2); }
-        .badge-submitted { background-color: var(--color-primary-glow); color: var(--color-primary); border: 1px solid rgba(59, 130, 246, 0.2); }
-        .badge-admitted { background-color: var(--color-success-glow); color: var(--color-success); border: 1px solid rgba(16, 185, 129, 0.2); }
-        .badge-rejected { background-color: var(--color-danger-glow); color: var(--color-danger); border: 1px solid rgba(239, 68, 68, 0.2); }
+        .badge-draft { background-color: #fef3c7; color: #b45309; border: 1px solid rgba(217, 119, 6, 0.2); }
+        .badge-submitted { background-color: #dbeafe; color: #1d4ed8; border: 1px solid rgba(37, 99, 235, 0.2); }
+        .badge-admitted { background-color: #d1fae5; color: #047857; border: 1px solid rgba(5, 150, 105, 0.2); }
+        .badge-rejected { background-color: #fee2e2; color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.2); }
 
         .btn-sm {
             padding: 6px 12px;
@@ -830,18 +832,18 @@ if ($is_authenticated) {
         .btn-undo {
             background-color: var(--color-warning-glow);
             color: var(--color-warning);
-            border: 1px solid rgba(245, 158, 11, 0.3);
+            border: 1px solid rgba(217, 119, 6, 0.3);
         }
 
         .btn-undo:hover {
             background-color: var(--color-warning);
-            color: #000;
+            color: #ffffff;
         }
 
         .btn-swap {
             background-color: var(--color-primary-glow);
             color: var(--color-primary);
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            border: 1px solid rgba(37, 99, 235, 0.3);
         }
 
         .btn-swap:hover {
@@ -864,12 +866,14 @@ if ($is_authenticated) {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            transition: transform 0.2s ease, border-color 0.2s ease;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
         }
 
         .user-card:hover {
             transform: translateY(-2px);
-            border-color: rgba(255, 255, 255, 0.15);
+            border-color: #cbd5e1;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
         }
 
         .user-card-header {
@@ -908,13 +912,13 @@ if ($is_authenticated) {
         }
 
         .user-role-badge {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-color);
+            background-color: #f1f5f9;
+            border: 1px solid #e2e8f0;
             padding: 2px 6px;
             border-radius: 4px;
             font-size: 10px;
             font-weight: 600;
-            color: var(--text-muted);
+            color: #475569;
             display: inline-block;
             margin-top: 4px;
         }
@@ -937,7 +941,7 @@ if ($is_authenticated) {
         }
 
         .toast {
-            background-color: var(--bg-panel);
+            background-color: #ffffff;
             border-left: 4px solid var(--color-primary);
             border-top: 1px solid var(--border-color);
             border-bottom: 1px solid var(--border-color);
@@ -945,10 +949,11 @@ if ($is_authenticated) {
             border-radius: 8px;
             padding: 16px;
             width: 320px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
             display: flex;
             align-items: flex-start;
             gap: 12px;
+            color: var(--text-main);
             transform: translateX(120%);
             transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -1035,8 +1040,8 @@ if ($is_authenticated) {
         }
 
         .inspector-link:hover, .inspector-item.active .inspector-link {
-            background-color: rgba(255, 255, 255, 0.03);
-            color: var(--text-main);
+            background-color: var(--color-primary-glow);
+            color: var(--color-primary);
         }
 
         .inspector-item.active .inspector-link {
@@ -1090,7 +1095,7 @@ if ($is_authenticated) {
         }
 
         .timeline-content {
-            background-color: rgba(255, 255, 255, 0.02);
+            background-color: #f8fafc;
             border: 1px solid var(--border-color);
             padding: 12px 16px;
             border-radius: 8px;
