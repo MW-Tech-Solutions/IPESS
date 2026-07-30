@@ -288,6 +288,21 @@ if (in_array($final_status, ['APPROVED', 'REJECTED'], true)) {
 
 <div class="animate__animated animate__fadeIn pb-5">
 
+    <?php if (can_edit_application($app_current_status)): ?>
+        <div class="alert alert-warning d-flex align-items-center justify-content-between p-4 mb-4 border-warning shadow-sm rounded-3">
+            <div class="d-flex align-items-center text-start">
+                <i class="bi bi-pencil-square fs-2 me-3 text-warning"></i>
+                <div>
+                    <h5 class="fw-bold mb-1" style="color:#b45309">Application Reopened for Editing</h5>
+                    <p class="mb-0 text-muted small">You can modify your details, uploaded files, or academic history before re-submitting.</p>
+                </div>
+            </div>
+            <a href="dashboard.php?step=1" class="btn btn-warning fw-bold px-4 py-2 rounded-pill shadow-sm" style="color:#fff; background-color:#d97706; border-color:#d97706;">
+                Edit Application &rarr;
+            </a>
+        </div>
+    <?php endif; ?>
+
     <div class="status-header mb-4 d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 text-center text-md-start">
         <div class="d-flex flex-column flex-md-row align-items-center">
             <div class="rounded-circle bg-<?php echo $ui['bg']; ?> bg-opacity-10 p-3 mb-3 mb-md-0 me-md-3 text-<?php echo $ui['color']; ?>">

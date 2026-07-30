@@ -539,7 +539,7 @@ function render_notification_list($notifications) {
             <div class="nav flex-column nav-pills">
                 <?php foreach ($nav_steps as $key => $val): 
                     $status_class = ($key == $current_step) ? 'active' : (($key < $current_step) ? 'completed' : 'disabled');
-                    $lock_class = ($current_step == 10) ? 'locked-nav' : '';
+                    $lock_class = !can_edit_application($app_data['current_status'] ?? 'DRAFT') ? 'locked-nav' : '';
                 ?>
                     <a href="?step=<?php echo $key; ?>" class="nav-link <?php echo $status_class; ?> <?php echo $lock_class; ?>">
                         <i class="bi <?php echo ($key < $current_step) ? 'bi-check-circle-fill' : $val['icon']; ?> me-2"></i>
@@ -642,7 +642,7 @@ function render_notification_list($notifications) {
         <div class="nav flex-column nav-pills">
             <?php foreach ($nav_steps as $key => $val): 
                 $status_class = ($key == $current_step) ? 'active' : (($key < $current_step) ? 'completed' : 'disabled');
-                $lock_class = ($current_step == 10) ? 'locked-nav' : '';
+                $lock_class = !can_edit_application($app_data['current_status'] ?? 'DRAFT') ? 'locked-nav' : '';
             ?>
                 <a href="?step=<?php echo $key; ?>" class="nav-link py-3 <?php echo $status_class; ?> <?php echo $lock_class; ?>">
                     <i class="bi <?php echo ($key < $current_step) ? 'bi-check-circle-fill' : $val['icon']; ?> me-2"></i>

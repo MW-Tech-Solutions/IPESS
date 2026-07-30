@@ -21,7 +21,7 @@ if ($step_id == 9) {
         exit();
     }
 }
-$stmt = $pdo->prepare("SELECT application_id, current_status FROM applications WHERE user_id = ? ORDER BY application_id DESC LIMIT 1");
+$stmt = $pdo->prepare("SELECT application_id, current_status, current_step FROM applications WHERE user_id = ? ORDER BY application_id DESC LIMIT 1");
 $stmt->execute([$user_id]);
 $app = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -29,6 +29,7 @@ if (!$app) {
     $stmt = $pdo->prepare("INSERT INTO applications (user_id, current_step, status, current_status) VALUES (?, ?, 'Draft', 'DRAFT')");
     $stmt->execute([$user_id, $step_id]);
     $application_id = $pdo->lastInsertId();
+    $_SESSION['is_updating_reopened_draft'] = false;
 } else {
     $application_id = $app['application_id'];
     $current_status = $app['current_status'] ?? 'DRAFT';
@@ -37,6 +38,11 @@ if (!$app) {
         redirect_to('APPLICANT/ADMISSIONS/dashboard.php?step=10');
         exit();
     }
+    
+    // Check if this application was previously completed (meaning they are updating an existing draft)
+    $prev_step = (int)($app['current_step'] ?? 1);
+    $_SESSION['is_updating_reopened_draft'] = ($prev_step >= 9 && can_edit_application($current_status));
+
     // Update progress tracker
     $stmt = $pdo->prepare("UPDATE applications SET current_step = GREATEST(current_step, ?) WHERE application_id = ?");
     $stmt->execute([$step_id + 1, $application_id]);
@@ -543,9 +549,10 @@ try {
     update_completion($pdo, $application_id);
     $pdo->commit();
     
-    if ($step_id < 9) {
+    if ($step_id < 9 && empty($_SESSION['is_updating_reopened_draft'])) {
         redirect_to("APPLICANT/ADMISSIONS/dashboard.php?step=" . ($step_id + 1));
     } else {
+        unset($_SESSION['is_updating_reopened_draft']);
         redirect_to('APPLICANT/ADMISSIONS/dashboard.php?step=9');
     }
 
