@@ -95,6 +95,44 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
                 ]);
                 exit;
 
+            case 'search_users':
+                $q = '%' . trim($_POST['query'] ?? '') . '%';
+                $stmt = $pdo->prepare("
+                    SELECT u.user_id, u.email, u.full_name, u.totp_enabled, u.department_id, u.account_status, r.role_id, r.role_key, r.role_name 
+                    FROM users u 
+                    LEFT JOIN roles r ON u.role_id = r.role_id 
+                    WHERE u.full_name LIKE ? OR u.email LIKE ? OR r.role_key LIKE ? OR r.role_name LIKE ?
+                    ORDER BY u.user_id DESC
+                    LIMIT 50
+                ");
+                $stmt->execute([$q, $q, $q, $q]);
+                $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                echo json_encode(['success' => true, 'data' => $results]);
+                exit;
+
+            case 'search_applications':
+                $q = '%' . trim($_POST['query'] ?? '') . '%';
+                $status = $_POST['status'] ?? 'all';
+                
+                $sql = "
+                    SELECT a.application_id, a.application_number, a.status, a.current_status, a.submitted_at, a.completion_percentage, u.full_name, u.email 
+                    FROM applications a 
+                    JOIN users u ON a.user_id = u.user_id 
+                    WHERE (a.application_number LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)
+                ";
+                $params = [$q, $q, $q];
+                if ($status !== 'all') {
+                    $sql .= " AND a.status = ?";
+                    $params[] = $status;
+                }
+                $sql .= " ORDER BY a.updated_at DESC LIMIT 50";
+                
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($params);
+                $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                echo json_encode(['success' => true, 'data' => $results]);
+                exit;
+
             case 'edit_user':
                 $user_id = (int)$_POST['user_id'];
                 $full_name = trim($_POST['full_name']);
@@ -381,7 +419,7 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
     }
 }
 
-// Fetch lists for rendering initial view states
+// Fetch first 50 records for initial view states to keep DOM size tiny
 $roles = [];
 $users = [];
 $applications = [];
@@ -389,42 +427,74 @@ $departments = [];
 $supervisors = [];
 $sessions_list = [];
 $system_settings = [];
+$overview_stats = [
+    'users' => 0,
+    'apps' => 0,
+    'submitted' => 0,
+    'draft' => 0,
+    'active_sessions' => 0
+];
+$status_breakdown = [];
+$audit_logs = [];
 
 if ($is_authenticated) {
     try {
         $roles = $pdo->query("SELECT * FROM roles ORDER BY role_id ASC")->fetchAll(PDO::FETCH_ASSOC);
+        $departments = $pdo->query("SELECT * FROM departments ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
         
+        // Calculate counts directly from database to show immediately in HTML
+        $overview_stats['users'] = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+        $overview_stats['apps'] = (int)$pdo->query("SELECT COUNT(*) FROM applications")->fetchColumn();
+        $overview_stats['submitted'] = (int)$pdo->query("SELECT COUNT(*) FROM applications WHERE status = 'Submitted'")->fetchColumn();
+        $overview_stats['draft'] = (int)$pdo->query("SELECT COUNT(*) FROM applications WHERE status = 'Draft'")->fetchColumn();
+
+        if (max_table_exists($pdo, 'admission_sessions')) {
+            $overview_stats['active_sessions'] = (int)$pdo->query("SELECT COUNT(*) FROM admission_sessions WHERE is_active = 1")->fetchColumn();
+            $sessions_list = $pdo->query("SELECT * FROM admission_sessions ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        $status_breakdown = $pdo->query("
+            SELECT current_status, COUNT(*) as count 
+            FROM applications 
+            GROUP BY current_status
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        if (max_table_exists($pdo, 'audit_logs')) {
+            $audit_logs = $pdo->query("
+                SELECT action, details, created_at 
+                FROM audit_logs 
+                ORDER BY log_id DESC 
+                LIMIT 8
+            ")->fetchAll(PDO::FETCH_ASSOC);
+        }
+        
+        // Paginate users (first 50)
         $users = $pdo->query("
             SELECT u.user_id, u.email, u.full_name, u.totp_enabled, u.department_id, u.account_status, r.role_id, r.role_key, r.role_name 
             FROM users u 
             LEFT JOIN roles r ON u.role_id = r.role_id 
             ORDER BY u.user_id DESC
+            LIMIT 50
         ")->fetchAll(PDO::FETCH_ASSOC);
 
+        // Paginate applications (first 50)
         $applications = $pdo->query("
             SELECT a.application_id, a.application_number, a.status, a.current_status, a.submitted_at, a.completion_percentage, u.full_name, u.email 
             FROM applications a 
             JOIN users u ON a.user_id = u.user_id 
             ORDER BY a.updated_at DESC
+            LIMIT 50
         ")->fetchAll(PDO::FETCH_ASSOC);
 
-        $departments = $pdo->query("SELECT * FROM departments ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-        
         if (max_table_exists($pdo, 'supervisor_profiles')) {
             $supervisors = $pdo->query("SELECT sp.*, u.full_name FROM supervisor_profiles sp LEFT JOIN users u ON sp.email = u.email")->fetchAll(PDO::FETCH_ASSOC);
         }
         
-        $sessions_list = [];
-        if (max_table_exists($pdo, 'admission_sessions')) {
-            $sessions_list = $pdo->query("SELECT * FROM admission_sessions ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
-        }
-        
-        $system_settings = [];
         if (max_table_exists($pdo, 'system_settings')) {
             $system_settings = $pdo->query("SELECT * FROM system_settings LIMIT 1")->fetch(PDO::FETCH_ASSOC) ?: [];
         }
     } catch (Throwable $e) {
-        // Suppress initial query crashes for clean UI display
+        // Suppress initial query crashes
     }
 }
 ?>
@@ -1383,19 +1453,19 @@ if ($is_authenticated) {
                     <div class="stats-grid">
                         <div class="stat-card">
                             <span class="stat-title">Total Users</span>
-                            <span class="stat-number" id="stats-users-count">...</span>
+                            <span class="stat-number" id="stats-users-count"><?= number_format($overview_stats['users']) ?></span>
                         </div>
                         <div class="stat-card success">
                             <span class="stat-title">Total Applications</span>
-                            <span class="stat-number" id="stats-apps-count">...</span>
+                            <span class="stat-number" id="stats-apps-count"><?= number_format($overview_stats['apps']) ?></span>
                         </div>
                         <div class="stat-card warning">
                             <span class="stat-title">Submitted Apps</span>
-                            <span class="stat-number" id="stats-submitted-count">...</span>
+                            <span class="stat-number" id="stats-submitted-count"><?= number_format($overview_stats['submitted']) ?></span>
                         </div>
                         <div class="stat-card danger">
                             <span class="stat-title">Active Sessions</span>
-                            <span class="stat-number" id="stats-sessions-count">...</span>
+                            <span class="stat-number" id="stats-sessions-count"><?= number_format($overview_stats['active_sessions']) ?></span>
                         </div>
                     </div>
 
@@ -1406,7 +1476,23 @@ if ($is_authenticated) {
                                 <span class="panel-title">Application Status Map</span>
                             </div>
                             <div id="status-breakdown-list" style="display:flex; flex-direction:column; gap:12px;">
-                                <!-- Populated dynamically by Javascript -->
+                                <?php if (!empty($status_breakdown)): ?>
+                                    <?php foreach ($status_breakdown as $row): 
+                                        $pct = $overview_stats['apps'] > 0 ? round(($row['count'] / $overview_stats['apps']) * 100) : 0;
+                                    ?>
+                                        <div>
+                                            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                                                <span><strong><?= h($row['current_status'] ?: 'UNKNOWN') ?></strong></span>
+                                                <span><?= $row['count'] ?> (<?= $pct ?>%)</span>
+                                            </div>
+                                            <div style="width:100%; height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden;">
+                                                <div style="width:<?= $pct ?>%; height:100%; background-color:var(--color-primary); border-radius:4px;"></div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <div style="color:var(--text-muted); font-size:13px;">No applications found in database.</div>
+                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -1416,7 +1502,20 @@ if ($is_authenticated) {
                                 <span class="panel-title">System Audit Log Logs</span>
                             </div>
                             <ul class="timeline" id="audit-log-timeline">
-                                <!-- Populated dynamically by Javascript -->
+                                <?php if (!empty($audit_logs)): ?>
+                                    <?php foreach ($audit_logs as $log): ?>
+                                        <li class="timeline-item">
+                                            <span class="timeline-dot"></span>
+                                            <div class="timeline-content">
+                                                <div class="timeline-time"><?= h($log['created_at']) ?></div>
+                                                <div class="timeline-title"><?= h($log['action']) ?></div>
+                                                <div class="timeline-desc"><?= h($log['details']) ?></div>
+                                            </div>
+                                        </li>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <div style="color:var(--text-muted); font-size:13px;">No logs logged.</div>
+                                <?php endif; ?>
                             </ul>
                         </div>
                     </div>
@@ -1431,7 +1530,7 @@ if ($is_authenticated) {
                         </div>
                         <div class="controls-row">
                             <div class="search-wrapper">
-                                <input type="text" id="crud-user-search" class="search-input" placeholder="Search users by name, email, or role...">
+                                <input type="text" id="crud-user-search" class="search-input" placeholder="Type user name, email, or role to search...">
                             </div>
                         </div>
                         <div class="table-responsive">
@@ -1463,7 +1562,7 @@ if ($is_authenticated) {
                         
                         <div class="controls-row">
                             <div class="search-wrapper">
-                                <input type="text" id="app-search-input" class="search-input" placeholder="Search by name, email, or application number...">
+                                <input type="text" id="app-search-input" class="search-input" placeholder="Type name, email, or app number to search...">
                             </div>
                             <select id="app-filter-status" class="search-input" style="width:200px;">
                                 <option value="all">All Statuses</option>
@@ -1500,13 +1599,13 @@ if ($is_authenticated) {
                     <div class="card-panel" style="margin-bottom: 20px;">
                         <span class="panel-title">Active Swapper Accounts</span>
                         <p style="color:var(--text-muted); font-size:13px; margin-top:4px;">
-                            Swap active session context and open matching dashboard workspaces instantly.
+                            Swap active session privilege and view role dashboards instantly.
                         </p>
                     </div>
 
                     <div class="controls-row" style="margin-bottom:20px;">
                         <div class="search-wrapper">
-                            <input type="text" id="user-search-input" class="search-input" placeholder="Search users by name, email, or role...">
+                            <input type="text" id="user-search-input" class="search-input" placeholder="Type user name, email, or role to search...">
                         </div>
                     </div>
 
@@ -1712,10 +1811,10 @@ if ($is_authenticated) {
 
 <!-- Javascript State and Actions Logic -->
 <script>
-    // Embed PHP data on page load
+    // Embed PHP data on page load (limited to first 50 records to prevent overwhelming browser memory)
     const INITIAL_ROLES = <?= json_encode($roles) ?>;
-    const INITIAL_USERS = <?= json_encode($users) ?>;
-    const INITIAL_APPS = <?= json_encode($applications) ?>;
+    let INITIAL_USERS = <?= json_encode($users) ?>;
+    let INITIAL_APPS = <?= json_encode($applications) ?>;
     const INITIAL_DEPTS = <?= json_encode($departments) ?>;
     const INITIAL_SESSIONS = <?= json_encode($sessions_list) ?>;
     const INITIAL_SETTINGS = <?= json_encode($system_settings) ?>;
@@ -1765,6 +1864,7 @@ if ($is_authenticated) {
     // Toast Notification Manager
     function showToast(title, message, type = 'success') {
         const root = document.getElementById('toast-root');
+        if (!root) return;
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.innerHTML = `
@@ -1803,10 +1903,10 @@ if ($is_authenticated) {
         try {
             const data = await apiRequest({ action: 'get_stats' });
             if (data.success) {
-                document.getElementById('stats-users-count').textContent = data.users_count;
-                document.getElementById('stats-apps-count').textContent = data.apps_count;
-                document.getElementById('stats-submitted-count').textContent = data.submitted_count;
-                document.getElementById('stats-sessions-count').textContent = data.active_sessions;
+                document.getElementById('stats-users-count').textContent = Number(data.users_count).toLocaleString();
+                document.getElementById('stats-apps-count').textContent = Number(data.apps_count).toLocaleString();
+                document.getElementById('stats-submitted-count').textContent = Number(data.submitted_count).toLocaleString();
+                document.getElementById('stats-sessions-count').textContent = Number(data.active_sessions).toLocaleString();
 
                 // Render status chart bars
                 const container = document.getElementById('status-breakdown-list');
@@ -1858,9 +1958,10 @@ if ($is_authenticated) {
     // --- TAB 2: USERS CRUD TABLE ---
     function renderUsersCRUDTable(users) {
         const tbody = document.querySelector('#users-crud-table tbody');
+        if (!tbody) return;
         tbody.innerHTML = '';
         if (users.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No users found in database.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No users found matching search query.</td></tr>`;
             return;
         }
 
@@ -1890,15 +1991,17 @@ if ($is_authenticated) {
         });
     }
 
-    // Filter CRUD Users
+    // Filter CRUD Users with Server-Side AJAX Search (avoids overwhelming browser memory)
+    let userSearchTimeout;
     document.getElementById('crud-user-search').addEventListener('input', (e) => {
-        const q = e.target.value.toLowerCase();
-        const filtered = INITIAL_USERS.filter(u => 
-            u.full_name.toLowerCase().includes(q) || 
-            u.email.toLowerCase().includes(q) || 
-            (u.role_key && u.role_key.toLowerCase().includes(q))
-        );
-        renderUsersCRUDTable(filtered);
+        clearTimeout(userSearchTimeout);
+        const query = e.target.value;
+        userSearchTimeout = setTimeout(async () => {
+            const res = await apiRequest({ action: 'search_users', query: query });
+            if (res.success) {
+                renderUsersCRUDTable(res.data);
+            }
+        }, 300);
     });
 
     // Edit User Modal Handlers
@@ -2015,9 +2118,10 @@ if ($is_authenticated) {
     // --- TAB 3: APPLICATIONS MANAGER ---
     function renderApplicationsTable(apps) {
         const tbody = document.querySelector('#apps-data-table tbody');
+        if (!tbody) return;
         tbody.innerHTML = '';
         if (apps.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No applications found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No applications found matching search filter.</td></tr>`;
             return;
         }
 
@@ -2072,6 +2176,22 @@ if ($is_authenticated) {
         });
     }
 
+    // Filter Applications with Server-Side AJAX Search (avoids overwhelming browser memory)
+    let appSearchTimeout;
+    function triggerAppSearch() {
+        clearTimeout(appSearchTimeout);
+        appSearchTimeout = setTimeout(async () => {
+            const query = document.getElementById('app-search-input').value;
+            const status = document.getElementById('app-filter-status').value;
+            const res = await apiRequest({ action: 'search_applications', query: query, status: status });
+            if (res.success) {
+                renderApplicationsTable(res.data);
+            }
+        }, 300);
+    }
+    document.getElementById('app-search-input').addEventListener('input', triggerAppSearch);
+    document.getElementById('app-filter-status').addEventListener('change', triggerAppSearch);
+
     async function overrideApplicationStatus(appId, newStatus) {
         if (!newStatus) return;
         if (!confirm(`Are you sure you want to force change this application status to ${newStatus}?`)) return;
@@ -2079,7 +2199,7 @@ if ($is_authenticated) {
             const res = await apiRequest({ action: 'change_app_status', application_id: appId, new_status: newStatus });
             if (res.success) {
                 showToast("Status Changed", res.message, 'success');
-                setTimeout(() => location.reload(), 1500);
+                triggerAppSearch();
             }
         } catch (e) {
             showToast("Server Error", e.message, 'error');
@@ -2092,7 +2212,7 @@ if ($is_authenticated) {
             const res = await apiRequest({ action: 'undo_submission', application_id: appId });
             if (res.success) {
                 showToast("Submission Undone", res.message, 'success');
-                setTimeout(() => location.reload(), 1500);
+                triggerAppSearch();
             }
         } catch (e) {
             showToast("Server Error", e.message, 'error');
@@ -2102,9 +2222,10 @@ if ($is_authenticated) {
     // --- TAB 4: SWAPPER GRID ---
     function renderUsersSwapperGrid(users) {
         const grid = document.getElementById('users-card-grid');
+        if (!grid) return;
         grid.innerHTML = '';
         if (users.length === 0) {
-            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:var(--text-muted); padding:40px;">No user records found in system.</div>`;
+            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:var(--text-muted); padding:40px;">No user records found matching search.</div>`;
             return;
         }
 
@@ -2132,15 +2253,17 @@ if ($is_authenticated) {
         });
     }
 
-    // Filter Swapper Users
+    // Filter Swapper Users with Server-Side AJAX Search
+    let swapperSearchTimeout;
     document.getElementById('user-search-input').addEventListener('input', (e) => {
-        const q = e.target.value.toLowerCase();
-        const filtered = INITIAL_USERS.filter(u => 
-            u.full_name.toLowerCase().includes(q) || 
-            u.email.toLowerCase().includes(q) || 
-            (u.role_key && u.role_key.toLowerCase().includes(q))
-        );
-        renderUsersSwapperGrid(filtered);
+        clearTimeout(swapperSearchTimeout);
+        const query = e.target.value;
+        swapperSearchTimeout = setTimeout(async () => {
+            const res = await apiRequest({ action: 'search_users', query: query });
+            if (res.success) {
+                renderUsersSwapperGrid(res.data);
+            }
+        }, 300);
     });
 
     async function impersonateUser(userId) {
@@ -2170,6 +2293,7 @@ if ($is_authenticated) {
     // --- TAB 5: SESSIONS & GENERAL SETTINGS ---
     function renderSessionsManager(sessions) {
         const container = document.getElementById('sessions-config-container');
+        if (!container) return;
         container.innerHTML = '';
         if (sessions.length === 0) {
             container.innerHTML = `<div style="color:var(--text-muted); font-size:13px; padding:15px; border:1px dashed var(--border-color); text-align:center; border-radius:8px;">No admission sessions registered.</div>`;
@@ -2207,7 +2331,7 @@ if ($is_authenticated) {
                         </div>
                         <div class="form-group" style="margin-bottom:0;">
                             <label class="form-label">Active State</label>
-                            <select name="is_active" class="form-input">
+                            <select name="is_open" class="form-input">
                                 <option value="1" ${s.is_active == 1 ? 'selected' : ''}>Active</option>
                                 <option value="0" ${s.is_active == 0 ? 'selected' : ''}>Inactive</option>
                             </select>
@@ -2236,8 +2360,10 @@ if ($is_authenticated) {
     }
 
     function loadSettingsGeneralForm(set) {
-        document.getElementById('set-inst-name').value = set.institution_name || '';
-        document.getElementById('set-timeout').value = set.session_timeout_seconds || 900;
+        const instInput = document.getElementById('set-inst-name');
+        const timeoutInput = document.getElementById('set-timeout');
+        if (instInput) instInput.value = set.institution_name || '';
+        if (timeoutInput) timeoutInput.value = set.session_timeout_seconds || 900;
     }
 
     async function submitGeneralSettings(event) {
@@ -2289,6 +2415,7 @@ if ($is_authenticated) {
 
         const thead = document.querySelector('#inspector-data-table thead');
         const tbody = document.querySelector('#inspector-data-table tbody');
+        if (!thead || !tbody) return;
         thead.innerHTML = '';
         tbody.innerHTML = '';
 
@@ -2353,7 +2480,16 @@ if ($is_authenticated) {
 
     // Auto-run startup load on screen render
     window.addEventListener('DOMContentLoaded', () => {
-        loadOverviewStats();
+        // Render initial tables
+        if (document.getElementById('users-crud-table')) {
+            renderUsersCRUDTable(INITIAL_USERS);
+        }
+        if (document.getElementById('apps-data-table')) {
+            renderApplicationsTable(INITIAL_APPS);
+        }
+        if (document.getElementById('users-card-grid')) {
+            renderUsersSwapperGrid(INITIAL_USERS);
+        }
     });
 </script>
 </body>
