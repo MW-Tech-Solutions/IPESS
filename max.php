@@ -1,7 +1,8 @@
 <?php
 /**
  * Max.php - High Impact Testing SPA Dashboard
- * Includes access code protection, user impersonation, submission undo utility, and database inspector.
+ * Includes access code protection, user impersonation, submission undo utility, database inspector,
+ * and comprehensive Super Admin system controls (User CRUD, Session settings, Notices, and log cleanser).
  */
 
 // Error reporting config for testing stability
@@ -36,6 +37,18 @@ if (isset($_GET['logout_max'])) {
 
 $is_authenticated = !empty($_SESSION['max_authenticated']);
 
+// Helper to check if a table exists
+if (!function_exists('max_table_exists')) {
+    function max_table_exists(PDO $pdo, string $table): bool {
+        try {
+            $pdo->query("SELECT 1 FROM `{$table}` LIMIT 0");
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+}
+
 // API Processing Endpoints
 if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
@@ -48,6 +61,7 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
                 $apps_count = (int)$pdo->query("SELECT COUNT(*) FROM applications")->fetchColumn();
                 $submitted_count = (int)$pdo->query("SELECT COUNT(*) FROM applications WHERE status = 'Submitted'")->fetchColumn();
                 $draft_count = (int)$pdo->query("SELECT COUNT(*) FROM applications WHERE status = 'Draft'")->fetchColumn();
+                $active_sessions = (int)$pdo->query("SELECT COUNT(*) FROM admission_sessions WHERE is_active = 1")->fetchColumn();
                 
                 $status_breakdown = $pdo->query("
                     SELECT current_status, COUNT(*) as count 
@@ -55,12 +69,15 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
                     GROUP BY current_status
                 ")->fetchAll(PDO::FETCH_ASSOC);
 
-                $audit_logs = $pdo->query("
-                    SELECT action, details, created_at 
-                    FROM audit_logs 
-                    ORDER BY log_id DESC 
-                    LIMIT 8
-                ")->fetchAll(PDO::FETCH_ASSOC);
+                $audit_logs = [];
+                if (max_table_exists($pdo, 'audit_logs')) {
+                    $audit_logs = $pdo->query("
+                        SELECT action, details, created_at 
+                        FROM audit_logs 
+                        ORDER BY log_id DESC 
+                        LIMIT 8
+                    ")->fetchAll(PDO::FETCH_ASSOC);
+                }
 
                 echo json_encode([
                     'success' => true,
@@ -68,9 +85,52 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
                     'apps_count' => $apps_count,
                     'submitted_count' => $submitted_count,
                     'draft_count' => $draft_count,
+                    'active_sessions' => $active_sessions,
                     'status_breakdown' => $status_breakdown,
                     'audit_logs' => $audit_logs
                 ]);
+                exit;
+
+            case 'edit_user':
+                $user_id = (int)$_POST['user_id'];
+                $full_name = trim($_POST['full_name']);
+                $email = filter_var(trim($_POST['email']), FILTER_SANITIZE_EMAIL);
+                $role_id = (int)$_POST['role_id'];
+                $dept_id = !empty($_POST['department_id']) ? (int)$_POST['department_id'] : null;
+                $status = $_POST['account_status'];
+
+                $stmt = $pdo->prepare("
+                    UPDATE users 
+                    SET full_name = ?, email = ?, role_id = ?, department_id = ?, account_status = ? 
+                    WHERE user_id = ?
+                ");
+                $stmt->execute([$full_name, $email, $role_id, $dept_id, $status, $user_id]);
+
+                echo json_encode(['success' => true, 'message' => 'User account updated successfully.']);
+                exit;
+
+            case 'delete_user':
+                $user_id = (int)$_POST['user_id'];
+                $stmt = $pdo->prepare("DELETE FROM users WHERE user_id = ?");
+                $stmt->execute([$user_id]);
+                echo json_encode(['success' => true, 'message' => 'User deleted successfully.']);
+                exit;
+
+            case 'change_app_status':
+                $app_id = (int)$_POST['application_id'];
+                $new_status = $_POST['new_status'];
+
+                require_once __DIR__ . '/includes/status_engine.php';
+                $actor_id = $_SESSION['user_id'] ?? null;
+                $actor_role = $_SESSION['role'] ?? 'SUPER_ADMIN';
+
+                $ok = update_application_status($pdo, $app_id, $new_status, [
+                    'actor_id' => $actor_id,
+                    'actor_role' => $actor_role,
+                    'note' => 'Status manually overridden via max.php testing control panel'
+                ]);
+
+                echo json_encode(['success' => true, 'message' => "Application status updated to {$new_status}."]);
                 exit;
 
             case 'undo_submission':
@@ -88,25 +148,74 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
                 $actor_id = $_SESSION['user_id'] ?? null;
                 $actor_role = $_SESSION['role'] ?? 'SUPER_ADMIN';
 
-                // Revert status to DRAFT using system's status_engine
+                // Revert status to DRAFT
                 $ok = update_application_status($pdo, $app_id, 'DRAFT', [
                     'actor_id' => $actor_id,
                     'actor_role' => $actor_role,
                     'note' => 'Submission undone via max.php testing dashboard'
                 ]);
 
-                // Reset submission date columns
                 $pdo->prepare("UPDATE applications SET submitted_at = NULL WHERE application_id = ?")->execute([$app_id]);
 
-                // Reset application tracking stages to Pending
-                if (table_exists($pdo, 'application_progress')) {
+                if (max_table_exists($pdo, 'application_progress')) {
                     $pdo->prepare("UPDATE application_progress SET stage_status = 'Pending', stage_updated_at = NOW() WHERE application_id = ?")->execute([$app_id]);
                 }
 
                 echo json_encode([
                     'success' => true,
-                    'message' => 'Application submission undone successfully. Status set back to Draft and locks removed.'
+                    'message' => 'Application submission undone successfully. Status set back to Draft.'
                 ]);
+                exit;
+
+            case 'update_session':
+                $session_id = (int)$_POST['session_id'];
+                $is_open = (int)$_POST['is_open'];
+                $is_active = (int)$_POST['is_active'];
+                $fee = (float)$_POST['application_fee'];
+                $opens = !empty($_POST['opens_at']) ? $_POST['opens_at'] : null;
+                $closes = !empty($_POST['closes_at']) ? $_POST['closes_at'] : null;
+
+                $stmt = $pdo->prepare("
+                    UPDATE admission_sessions 
+                    SET is_open = ?, is_active = ?, application_fee = ?, opens_at = ?, closes_at = ? 
+                    WHERE id = ?
+                ");
+                $stmt->execute([$is_open, $is_active, $fee, $opens, $closes, $session_id]);
+                echo json_encode(['success' => true, 'message' => 'Admission session updated successfully.']);
+                exit;
+
+            case 'add_notice':
+                $title = trim($_POST['title']);
+                $body = trim($_POST['body']);
+                $published = (int)$_POST['is_published'];
+
+                $table = max_table_exists($pdo, 'admissions_notices') ? 'admissions_notices' : 'notices';
+                $stmt = $pdo->prepare("INSERT INTO `{$table}` (title, body, is_published) VALUES (?, ?, ?)");
+                $stmt->execute([$title, $body, $published]);
+
+                echo json_encode(['success' => true, 'message' => 'Notice added successfully.']);
+                exit;
+
+            case 'update_settings':
+                $name = trim($_POST['institution_name']);
+                $timeout = (int)$_POST['session_timeout'];
+
+                $stmt = $pdo->prepare("UPDATE system_settings SET institution_name = ?, session_timeout_seconds = ?");
+                $stmt->execute([$name, $timeout]);
+                echo json_encode(['success' => true, 'message' => 'Settings updated successfully.']);
+                exit;
+
+            case 'clear_logs':
+                if (max_table_exists($pdo, 'audit_logs')) {
+                    $pdo->exec("TRUNCATE TABLE audit_logs");
+                }
+                if (max_table_exists($pdo, 'application_status_history')) {
+                    $pdo->exec("TRUNCATE TABLE application_status_history");
+                }
+                if (max_table_exists($pdo, 'workflow_audit_logs')) {
+                    $pdo->exec("TRUNCATE TABLE workflow_audit_logs");
+                }
+                echo json_encode(['success' => true, 'message' => 'System audit trails and status logs cleared successfully.']);
                 exit;
 
             case 'impersonate_user':
@@ -153,7 +262,6 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
                         $_SESSION['application_id'] = $app_data['application_id'];
                         $_SESSION['passport_path'] = $app_data['passport'];
                     } else {
-                        // Autopopulate blank draft application for immediate testing
                         $pdo->prepare("
                             INSERT INTO applications (user_id, status, current_step, completion_percentage, current_status) 
                             VALUES (?, 'Draft', 1, 0.00, 'DRAFT')
@@ -191,6 +299,7 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
                 $email = filter_var(trim($_POST['email'] ?? ''), FILTER_SANITIZE_EMAIL);
                 $full_name = trim($_POST['full_name'] ?? '');
                 $role_id = (int)$_POST['role_id'];
+                $dept_id = !empty($_POST['department_id']) ? (int)$_POST['department_id'] : null;
                 $password = trim($_POST['password'] ?? 'password123');
 
                 if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -207,10 +316,10 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
 
                 $password_hash = password_hash($password, PASSWORD_BCRYPT);
                 $stmtInsert = $pdo->prepare("
-                    INSERT INTO users (email, full_name, role_id, password_hash, account_status, created_at)
-                    VALUES (?, ?, ?, ?, 'Active', NOW())
+                    INSERT INTO users (email, full_name, role_id, department_id, password_hash, account_status, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'Active', NOW())
                 ");
-                $stmtInsert->execute([$email, $full_name, $role_id, $password_hash]);
+                $stmtInsert->execute([$email, $full_name, $role_id, $dept_id, $password_hash]);
                 $new_uid = $pdo->lastInsertId();
 
                 $role_stmt = $pdo->prepare("SELECT role_key FROM roles WHERE role_id = ?");
@@ -268,12 +377,17 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
 $roles = [];
 $users = [];
 $applications = [];
+$departments = [];
+$supervisors = [];
+$sessions_list = [];
+$system_settings = [];
+
 if ($is_authenticated) {
     try {
         $roles = $pdo->query("SELECT * FROM roles ORDER BY role_id ASC")->fetchAll(PDO::FETCH_ASSOC);
         
         $users = $pdo->query("
-            SELECT u.user_id, u.email, u.full_name, u.totp_enabled, r.role_key, r.role_name 
+            SELECT u.user_id, u.email, u.full_name, u.totp_enabled, u.department_id, u.account_status, r.role_id, r.role_key, r.role_name 
             FROM users u 
             LEFT JOIN roles r ON u.role_id = r.role_id 
             ORDER BY u.user_id DESC
@@ -285,6 +399,15 @@ if ($is_authenticated) {
             JOIN users u ON a.user_id = u.user_id 
             ORDER BY a.updated_at DESC
         ")->fetchAll(PDO::FETCH_ASSOC);
+
+        $departments = $pdo->query("SELECT * FROM departments ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (max_table_exists($pdo, 'supervisor_profiles')) {
+            $supervisors = $pdo->query("SELECT sp.*, u.full_name FROM supervisor_profiles sp LEFT JOIN users u ON sp.email = u.email")->fetchAll(PDO::FETCH_ASSOC);
+        }
+        
+        $sessions_list = $pdo->query("SELECT * FROM admission_sessions ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
+        $system_settings = $pdo->query("SELECT * FROM system_settings LIMIT 1")->fetch(PDO::FETCH_ASSOC) ?: [];
     } catch (Throwable $e) {
         // Suppress initial query crashes for clean UI display
     }
@@ -1159,10 +1282,16 @@ if ($is_authenticated) {
                         Overview & Metrics
                     </a>
                 </li>
+                <li class="menu-item" data-tab="users">
+                    <a class="menu-link">
+                        <svg class="menu-icon" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        User Accounts CRUD
+                    </a>
+                </li>
                 <li class="menu-item" data-tab="applications">
                     <a class="menu-link">
                         <svg class="menu-icon" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-                        Application Manager
+                        Application Workflows
                     </a>
                 </li>
                 <li class="menu-item" data-tab="swapper">
@@ -1171,16 +1300,16 @@ if ($is_authenticated) {
                         Dashboard Swapper
                     </a>
                 </li>
+                <li class="menu-item" data-tab="settings">
+                    <a class="menu-link">
+                        <svg class="menu-icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                        System & Sessions
+                    </a>
+                </li>
                 <li class="menu-item" data-tab="inspector">
                     <a class="menu-link">
                         <svg class="menu-icon" viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-5 14H4v-4h11v4zm0-5H4V9h11v4zm5 5h-4V9h4v9z"/></svg>
                         Database Inspector
-                    </a>
-                </li>
-                <li class="menu-item" data-tab="tools">
-                    <a class="menu-link">
-                        <svg class="menu-icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
-                        Test Account Creator
                     </a>
                 </li>
             </ul>
@@ -1212,7 +1341,7 @@ if ($is_authenticated) {
                             Open Dashboard Workspace &rarr;
                         </a>
                         <?php if ($isStudent): ?>
-                            <a href="APPLICANT/ACADEMICS/student-portal/pages/dashboard.php" target="_blank" class="portal-btn" style="background-color:#6366f1">
+                            <a href="APPLICANT/ACADEMICS/student-portal/pages/dashboard.php" target="_blank" class="portal-btn" style="background-color:#2563eb">
                                 Open Student Portal
                             </a>
                         <?php endif; ?>
@@ -1250,8 +1379,8 @@ if ($is_authenticated) {
                             <span class="stat-number" id="stats-submitted-count">...</span>
                         </div>
                         <div class="stat-card danger">
-                            <span class="stat-title">Draft Apps</span>
-                            <span class="stat-number" id="stats-draft-count">...</span>
+                            <span class="stat-title">Active Sessions</span>
+                            <span class="stat-number" id="stats-sessions-count">...</span>
                         </div>
                     </div>
 
@@ -1278,11 +1407,43 @@ if ($is_authenticated) {
                     </div>
                 </div>
 
-                <!-- TAB 2: APPLICATIONS & UNDO SUBMISSION -->
+                <!-- TAB 2: USER ACCOUNTS CRUD -->
+                <div id="tab-users" class="tab-panel" style="display:none;">
+                    <div class="card-panel">
+                        <div class="panel-header">
+                            <span class="panel-title">System Users Database</span>
+                            <button class="btn-sm btn-swap" onclick="openAddUserModal()">+ Add New User</button>
+                        </div>
+                        <div class="controls-row">
+                            <div class="search-wrapper">
+                                <input type="text" id="crud-user-search" class="search-input" placeholder="Search users by name, email, or role...">
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table" id="users-crud-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Department</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: APPLICATIONS & WORKFLOW CONTROLS -->
                 <div id="tab-applications" class="tab-panel" style="display:none;">
                     <div class="card-panel">
                         <div class="panel-header">
-                            <span class="panel-title">Active Database Applications</span>
+                            <span class="panel-title">Admissions Applications Manager</span>
                         </div>
                         
                         <div class="controls-row">
@@ -1308,7 +1469,7 @@ if ($is_authenticated) {
                                         <th>Progress</th>
                                         <th>Status</th>
                                         <th>Submitted At</th>
-                                        <th>Testing Actions</th>
+                                        <th>Workflow Operations</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1319,12 +1480,12 @@ if ($is_authenticated) {
                     </div>
                 </div>
 
-                <!-- TAB 3: DASHBOARD SWAPPER / IMPERSONATION -->
+                <!-- TAB 4: DASHBOARD SWAPPER / IMPERSONATION -->
                 <div id="tab-swapper" class="tab-panel" style="display:none;">
                     <div class="card-panel" style="margin-bottom: 20px;">
-                        <span class="panel-title">Available Portal Accounts</span>
+                        <span class="panel-title">Active Swapper Accounts</span>
                         <p style="color:var(--text-muted); font-size:13px; margin-top:4px;">
-                            Click **Swap Context** to immediately log into the PHP application session as the selected user.
+                            Swap active session context and open matching dashboard workspaces instantly.
                         </p>
                     </div>
 
@@ -1339,9 +1500,78 @@ if ($is_authenticated) {
                     </div>
                 </div>
 
-                <!-- TAB 4: DATABASE INSPECTOR -->
+                <!-- TAB 5: ADMISSIONS SESSIONS & SETTINGS -->
+                <div id="tab-settings" class="tab-panel" style="display:none;">
+                    <div style="display:grid; grid-template-columns: 1.2fr 1fr; gap:20px;">
+                        <!-- Sessions manager -->
+                        <div class="card-panel">
+                            <div class="panel-header">
+                                <span class="panel-title">Admissions Sessions</span>
+                            </div>
+                            <div id="sessions-config-container">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- General config details -->
+                        <div style="display:flex; flex-direction:column; gap:20px;">
+                            <div class="card-panel">
+                                <div class="panel-header">
+                                    <span class="panel-title">System Properties</span>
+                                </div>
+                                <form id="settings-general-form" onsubmit="submitGeneralSettings(event)">
+                                    <div class="form-group">
+                                        <label class="form-label">Institution Name</label>
+                                        <input type="text" name="institution_name" id="set-inst-name" class="form-input" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Session Timeout (seconds)</label>
+                                        <input type="number" name="session_timeout" id="set-timeout" class="form-input" required>
+                                    </div>
+                                    <button type="submit" class="btn">Save Configuration Settings</button>
+                                </form>
+                            </div>
+
+                            <div class="card-panel">
+                                <div class="panel-header">
+                                    <span class="panel-title">Add System Notice</span>
+                                </div>
+                                <form id="add-notice-form" onsubmit="submitNotice(event)">
+                                    <div class="form-group">
+                                        <label class="form-label">Notice Title</label>
+                                        <input type="text" name="title" class="form-input" placeholder="e.g. Admission Deadline Extended" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Notice Body</label>
+                                        <textarea name="body" class="form-input" style="height:100px; resize:none;" placeholder="Write notice content details..." required></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Status</label>
+                                        <select name="is_published" class="form-input">
+                                            <option value="1">Publish Instantly</option>
+                                            <option value="0">Save as Draft</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="btn">Publish Notice Entry</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 6: DATABASE INSPECTOR & TOOLS -->
                 <div id="tab-inspector" class="tab-panel" style="display:none;">
                     <div class="db-inspector-container">
+                        <div class="card-panel" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <span class="panel-title">Testing Tools & Maintenance</span>
+                                <p style="color:var(--text-muted); font-size:12px; margin-top:2px;">Purge logs and diagnostic parameters for fresh testing runs.</p>
+                            </div>
+                            <button onclick="purgeSystemLogs()" class="btn-sm btn-undo" style="background-color:var(--color-danger-glow); color:var(--color-danger); border-color:rgba(220,38,38,0.2)">
+                                Purge Testing Logs & Audit Trails
+                            </button>
+                        </div>
+
                         <div class="inspector-row">
                             <!-- Tables Sidebar -->
                             <div class="inspector-sidebar">
@@ -1376,72 +1606,88 @@ if ($is_authenticated) {
                     </div>
                 </div>
 
-                <!-- TAB 5: TEST ACCOUNT CREATOR -->
-                <div id="tab-tools" class="tab-panel" style="display:none;">
-                    <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:20px;">
-                        <!-- Registration Form -->
-                        <div class="card-panel">
-                            <div class="panel-header">
-                                <span class="panel-title">Add New Testing Profile</span>
-                            </div>
-                            <form id="create-user-form" onsubmit="createUser(event)">
-                                <div class="form-group">
-                                    <label class="form-label">Full Name</label>
-                                    <input type="text" name="full_name" class="form-input" placeholder="e.g. John Doe" required>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Email Address</label>
-                                    <input type="email" name="email" class="form-input" placeholder="e.g. testuser@uam.edu.ng" required>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">User Role</label>
-                                    <select name="role_id" class="form-input" style="background-color: var(--bg-surface)" required>
-                                        <?php foreach ($roles as $r): ?>
-                                            <option value="<?= (int)$r['role_id'] ?>" <?= $r['role_key'] === 'STUDENT' ? 'selected' : '' ?>>
-                                                <?= h($r['role_name']) ?> (<?= h($r['role_key']) ?>)
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Authentication Password</label>
-                                    <input type="password" name="password" class="form-input" value="password123" required>
-                                </div>
-                                <button type="submit" class="btn">
-                                    Register User & Generate Workspace
-                                </button>
-                            </form>
-                        </div>
-
-                        <!-- MFA TOTP manager -->
-                        <div class="card-panel">
-                            <div class="panel-header">
-                                <span class="panel-title">Multi-Factor Authenticator Bypasses</span>
-                            </div>
-                            <p style="color:var(--text-muted); font-size:13px; margin-bottom:15px;">
-                                Use this list to quickly enable or completely disable/bypass standard MFA TOTP checks for users on the login interface.
-                            </p>
-                            <div class="table-responsive">
-                                <table class="data-table" id="totp-user-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Email</th>
-                                            <th>Role</th>
-                                            <th>MFA Enabled</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Loaded dynamically -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             </main>
+        </div>
+    </div>
+
+    <!-- Edit User Modal popup -->
+    <div id="edit-user-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9999; align-items:center; justify-content:center;">
+        <div class="card-panel" style="width:100%; max-width:500px; margin:20px; background:white; border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
+            <div class="panel-header" style="border-bottom: 1px solid var(--border-color); padding-bottom:12px; margin-bottom:15px;">
+                <span class="panel-title">Edit User Account</span>
+                <button onclick="closeEditUserModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted)">&times;</button>
+            </div>
+            <form id="edit-user-form" onsubmit="submitEditUser(event)">
+                <input type="hidden" name="user_id" id="edit-u-id">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" name="full_name" id="edit-u-name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" name="email" id="edit-u-email" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">User Role</label>
+                    <select name="role_id" id="edit-u-role" class="form-input" required></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Department Assignment</label>
+                    <select name="department_id" id="edit-u-dept" class="form-input">
+                        <option value="">No Department Mapping</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Account Lock Status</label>
+                    <select name="account_status" id="edit-u-status" class="form-input" required>
+                        <option value="Active">Active</option>
+                        <option value="Suspended">Suspended</option>
+                        <option value="Locked">Locked</option>
+                    </select>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                    <button type="button" class="btn-sm btn-undo" onclick="closeEditUserModal()">Cancel</button>
+                    <button type="submit" class="btn-sm btn-swap" style="background-color:var(--color-primary); color:white;">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create User Modal popup -->
+    <div id="add-user-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:9999; align-items:center; justify-content:center;">
+        <div class="card-panel" style="width:100%; max-width:500px; margin:20px; background:white; border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
+            <div class="panel-header" style="border-bottom: 1px solid var(--border-color); padding-bottom:12px; margin-bottom:15px;">
+                <span class="panel-title">Add New Testing Profile</span>
+                <button onclick="closeAddUserModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:var(--text-muted)">&times;</button>
+            </div>
+            <form id="create-user-form" onsubmit="createUser(event)">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" name="full_name" class="form-input" placeholder="e.g. John Doe" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" name="email" class="form-input" placeholder="e.g. testuser@uam.edu.ng" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">User Role</label>
+                    <select name="role_id" id="add-u-role" class="form-input" required></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Department</label>
+                    <select name="department_id" id="add-u-dept" class="form-input">
+                        <option value="">No Department Mapping</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Authentication Password</label>
+                    <input type="password" name="password" class="form-input" value="password123" required>
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                    <button type="button" class="btn-sm btn-undo" onclick="closeAddUserModal()">Cancel</button>
+                    <button type="submit" class="btn-sm btn-swap" style="background-color:var(--color-primary); color:white;">Create User</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -1455,6 +1701,9 @@ if ($is_authenticated) {
     const INITIAL_ROLES = <?= json_encode($roles) ?>;
     const INITIAL_USERS = <?= json_encode($users) ?>;
     const INITIAL_APPS = <?= json_encode($applications) ?>;
+    const INITIAL_DEPTS = <?= json_encode($departments) ?>;
+    const INITIAL_SESSIONS = <?= json_encode($sessions_list) ?>;
+    const INITIAL_SETTINGS = <?= json_encode($system_settings) ?>;
 
     // SPA View Router Configuration
     document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
@@ -1473,22 +1722,27 @@ if ($is_authenticated) {
                 headerTitle.textContent = "Overview & Metrics";
                 headerDesc.textContent = "General metrics and real-time activity indicators of the JOSTUM IPESS platform.";
                 loadOverviewStats();
+            } else if (targetTab === 'users') {
+                headerTitle.textContent = "User Accounts CRUD";
+                headerDesc.textContent = "List, create, update and delete database users.";
+                renderUsersCRUDTable(INITIAL_USERS);
             } else if (targetTab === 'applications') {
-                headerTitle.textContent = "Application Manager";
-                headerDesc.textContent = "Search, review, and reset postgraduate application workflows.";
+                headerTitle.textContent = "Admissions Applications Manager";
+                headerDesc.textContent = "Review workflows and reset postgraduate application states.";
                 renderApplicationsTable(INITIAL_APPS);
             } else if (targetTab === 'swapper') {
                 headerTitle.textContent = "Dashboard Swapper";
                 headerDesc.textContent = "Swap active PHP login privileges and view role dashboards.";
                 renderUsersSwapperGrid(INITIAL_USERS);
+            } else if (targetTab === 'settings') {
+                headerTitle.textContent = "System & Sessions Settings";
+                headerDesc.textContent = "Open admission sessions, add notice updates, and customize parameters.";
+                renderSessionsManager(INITIAL_SESSIONS);
+                loadSettingsGeneralForm(INITIAL_SETTINGS);
             } else if (targetTab === 'inspector') {
-                headerTitle.textContent = "Database Inspector";
+                headerTitle.textContent = "Database Inspector & Maintenance";
                 headerDesc.textContent = "Interactive query viewer of physical database tables.";
                 loadInspectorTable('users');
-            } else if (targetTab === 'tools') {
-                headerTitle.textContent = "Testing Account Sandbox";
-                headerDesc.textContent = "Register mock accounts and toggle security settings instantly.";
-                loadToolsTotpTable();
             }
         });
     });
@@ -1522,7 +1776,11 @@ if ($is_authenticated) {
             method: 'POST',
             body: formData
         });
-        return await res.json();
+        const json = await res.json();
+        if (!json.success) {
+            showToast("Database Error", json.message || "An unexpected database exception occurred.", "error");
+        }
+        return json;
     }
 
     // --- TAB 1: OVERVIEW METRICS LOADER ---
@@ -1533,7 +1791,7 @@ if ($is_authenticated) {
                 document.getElementById('stats-users-count').textContent = data.users_count;
                 document.getElementById('stats-apps-count').textContent = data.apps_count;
                 document.getElementById('stats-submitted-count').textContent = data.submitted_count;
-                document.getElementById('stats-draft-count').textContent = data.draft_count;
+                document.getElementById('stats-sessions-count').textContent = data.active_sessions;
 
                 // Render status chart bars
                 const container = document.getElementById('status-breakdown-list');
@@ -1547,7 +1805,7 @@ if ($is_authenticated) {
                                     <span><strong>${row.current_status || 'UNKNOWN'}</strong></span>
                                     <span>${row.count} (${pct}%)</span>
                                 </div>
-                                <div style="width:100%; height:8px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden;">
+                                <div style="width:100%; height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden;">
                                     <div style="width:${pct}%; height:100%; background-color:var(--color-primary); border-radius:4px;"></div>
                                 </div>
                             </div>
@@ -1582,7 +1840,164 @@ if ($is_authenticated) {
         }
     }
 
-    // --- TAB 2: APPLICATION DATA TABLE ---
+    // --- TAB 2: USERS CRUD TABLE ---
+    function renderUsersCRUDTable(users) {
+        const tbody = document.querySelector('#users-crud-table tbody');
+        tbody.innerHTML = '';
+        if (users.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No users found in database.</td></tr>`;
+            return;
+        }
+
+        users.forEach(u => {
+            const isEnabled = (parseInt(u.totp_enabled) === 1);
+            const deptName = u.department_id ? (INITIAL_DEPTS.find(d => d.department_id == u.department_id)?.name || 'Dept #' + u.department_id) : '—';
+            tbody.innerHTML += `
+                <tr>
+                    <td><strong>${u.full_name || '—'}</strong></td>
+                    <td style="font-family:var(--font-code);">${u.email}</td>
+                    <td><span class="user-role-badge">${u.role_key || 'GENERAL'}</span></td>
+                    <td style="color:var(--text-muted);">${deptName}</td>
+                    <td>
+                        <span class="badge badge-${u.account_status == 'Active' ? 'admitted' : 'rejected'}">${u.account_status}</span>
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:6px;">
+                            <button onclick='openEditUserModal(${JSON.stringify(u)})' class="btn-sm btn-swap" style="padding:4px 8px; font-size:11px;">Edit</button>
+                            <button onclick="toggleUserTotp(${u.user_id}, ${isEnabled ? 0 : 1})" class="btn-sm btn-undo" style="padding:4px 8px; font-size:11px; color:#1e3a8a; background:#eff6ff; border-color:#bfdbfe;">
+                                ${isEnabled ? 'Bypass MFA' : 'Enable MFA'}
+                            </button>
+                            <button onclick="deleteUser(${u.user_id})" class="btn-sm btn-undo" style="padding:4px 8px; font-size:11px; background-color:var(--color-danger-glow); color:var(--color-danger); border-color:rgba(220,38,38,0.2)">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // Filter CRUD Users
+    document.getElementById('crud-user-search').addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase();
+        const filtered = INITIAL_USERS.filter(u => 
+            u.full_name.toLowerCase().includes(q) || 
+            u.email.toLowerCase().includes(q) || 
+            (u.role_key && u.role_key.toLowerCase().includes(q))
+        );
+        renderUsersCRUDTable(filtered);
+    });
+
+    // Edit User Modal Handlers
+    function openEditUserModal(userObj) {
+        document.getElementById('edit-u-id').value = userObj.user_id;
+        document.getElementById('edit-u-name').value = userObj.full_name;
+        document.getElementById('edit-u-email').value = userObj.email;
+        document.getElementById('edit-u-status').value = userObj.account_status;
+
+        const roleSelect = document.getElementById('edit-u-role');
+        roleSelect.innerHTML = '';
+        INITIAL_ROLES.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.role_id;
+            opt.textContent = `${r.role_name} (${r.role_key})`;
+            if (r.role_id == userObj.role_id) opt.selected = true;
+            roleSelect.appendChild(opt);
+        });
+
+        const deptSelect = document.getElementById('edit-u-dept');
+        deptSelect.innerHTML = '<option value="">No Department Mapping</option>';
+        INITIAL_DEPTS.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.department_id;
+            opt.textContent = d.name;
+            if (d.department_id == userObj.department_id) opt.selected = true;
+            deptSelect.appendChild(opt);
+        });
+
+        document.getElementById('edit-user-modal').style.display = 'flex';
+    }
+
+    function closeEditUserModal() {
+        document.getElementById('edit-user-modal').style.display = 'none';
+    }
+
+    async function submitEditUser(event) {
+        event.preventDefault();
+        const form = document.getElementById('edit-user-form');
+        const fd = new FormData(form);
+        fd.append('action', 'edit_user');
+
+        try {
+            const res = await fetch('max.php', { method: 'POST', body: fd }).then(r => r.json());
+            if (res.success) {
+                showToast("User Updated", res.message, 'success');
+                closeEditUserModal();
+                setTimeout(() => location.reload(), 1500);
+            }
+        } catch (e) {
+            showToast("Server Error", e.message, 'error');
+        }
+    }
+
+    async function deleteUser(userId) {
+        if (!confirm("Are you sure you want to physically delete this user? All their child applications and logs will be permanently deleted due to cascading constraints.")) return;
+        try {
+            const res = await apiRequest({ action: 'delete_user', user_id: userId });
+            if (res.success) {
+                showToast("User Deleted", res.message, 'success');
+                setTimeout(() => location.reload(), 1500);
+            }
+        } catch (e) {
+            showToast("Server Error", e.message, 'error');
+        }
+    }
+
+    // Add User Modal Handlers
+    function openAddUserModal() {
+        const roleSelect = document.getElementById('add-u-role');
+        roleSelect.innerHTML = '';
+        INITIAL_ROLES.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.role_id;
+            opt.textContent = `${r.role_name} (${r.role_key})`;
+            if (r.role_key === 'STUDENT') opt.selected = true;
+            roleSelect.appendChild(opt);
+        });
+
+        const deptSelect = document.getElementById('add-u-dept');
+        deptSelect.innerHTML = '<option value="">No Department Mapping</option>';
+        INITIAL_DEPTS.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.department_id;
+            opt.textContent = d.name;
+            deptSelect.appendChild(opt);
+        });
+
+        document.getElementById('add-user-modal').style.display = 'flex';
+    }
+
+    function closeAddUserModal() {
+        document.getElementById('add-user-modal').style.display = 'none';
+    }
+
+    async function createUser(event) {
+        event.preventDefault();
+        const form = document.getElementById('create-user-form');
+        const fd = new FormData(form);
+        fd.append('action', 'create_test_user');
+
+        try {
+            const res = await fetch('max.php', { method: 'POST', body: fd }).then(r => r.json());
+            if (res.success) {
+                showToast("Account Created", res.message, 'success');
+                closeAddUserModal();
+                setTimeout(() => location.reload(), 1500);
+            }
+        } catch (e) {
+            showToast("Server Error", e.message, 'error');
+        }
+    }
+
+    // --- TAB 3: APPLICATIONS MANAGER ---
     function renderApplicationsTable(apps) {
         const tbody = document.querySelector('#apps-data-table tbody');
         tbody.innerHTML = '';
@@ -1604,7 +2019,7 @@ if ($is_authenticated) {
                     <td>
                         <div style="display:flex; align-items:center; gap:8px;">
                             <span style="font-family:var(--font-code); font-size:11px;">${Math.round(app.completion_percentage)}%</span>
-                            <div style="width:60px; height:6px; background:rgba(255,255,255,0.05); border-radius:3px; overflow:hidden;">
+                            <div style="width:60px; height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden;">
                                 <div style="width:${app.completion_percentage}%; height:100%; background-color:var(--color-success);"></div>
                             </div>
                         </div>
@@ -1614,9 +2029,22 @@ if ($is_authenticated) {
                     </td>
                     <td style="font-size:12px; color:var(--text-muted);">${submittedStr}</td>
                     <td>
-                        <div style="display:flex; gap:8px;">
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <select onchange="overrideApplicationStatus(${app.application_id}, this.value)" class="search-input" style="width:160px; padding:4px 8px; font-size:11px; height:auto;">
+                                <option value="">Override Status...</option>
+                                <option value="DRAFT">Draft</option>
+                                <option value="SUBMITTED">Submitted</option>
+                                <option value="ASSIGNED_TO_DEPARTMENT">Assigned to Dept</option>
+                                <option value="UNDER_DEPT_REVIEW">Under Dept Review</option>
+                                <option value="DEPT_APPROVED">Dept Approved</option>
+                                <option value="COLLEGE_PENDING">College Pending</option>
+                                <option value="APPROVED_BY_POSTGRADUATE_SCHOOL">Approved by PG School</option>
+                                <option value="ADMISSION_APPROVED">Admission Approved</option>
+                                <option value="ADMISSION_REJECTED">Admission Rejected</option>
+                            </select>
+                            
                             ${!isDraft ? `
-                                <button onclick="undoApplicationSubmission(${app.application_id})" class="btn-sm btn-undo">
+                                <button onclick="undoApplicationSubmission(${app.application_id})" class="btn-sm btn-undo" style="padding:4px 8px; font-size:11px;">
                                     Undo Submit
                                 </button>
                             ` : `
@@ -1629,23 +2057,20 @@ if ($is_authenticated) {
         });
     }
 
-    // Filter Applications
-    function filterApps() {
-        const q = document.getElementById('app-search-input').value.toLowerCase();
-        const status = document.getElementById('app-filter-status').value;
-        const filtered = INITIAL_APPS.filter(app => {
-            const matchesSearch = app.full_name.toLowerCase().includes(q) || 
-                                  app.email.toLowerCase().includes(q) || 
-                                  (app.application_number && app.application_number.toLowerCase().includes(q));
-            const matchesStatus = (status === 'all') || (app.status === status);
-            return matchesSearch && matchesStatus;
-        });
-        renderApplicationsTable(filtered);
+    async function overrideApplicationStatus(appId, newStatus) {
+        if (!newStatus) return;
+        if (!confirm(`Are you sure you want to force change this application status to ${newStatus}?`)) return;
+        try {
+            const res = await apiRequest({ action: 'change_app_status', application_id: appId, new_status: newStatus });
+            if (res.success) {
+                showToast("Status Changed", res.message, 'success');
+                setTimeout(() => location.reload(), 1500);
+            }
+        } catch (e) {
+            showToast("Server Error", e.message, 'error');
+        }
     }
-    document.getElementById('app-search-input').addEventListener('input', filterApps);
-    document.getElementById('app-filter-status').addEventListener('change', filterApps);
 
-    // Revert Submission Action
     async function undoApplicationSubmission(appId) {
         if (!confirm("Are you sure you want to undo this application submission? This sets the status back to Draft so that the applicant can login and edit specific files or fields.")) return;
         try {
@@ -1653,15 +2078,13 @@ if ($is_authenticated) {
             if (res.success) {
                 showToast("Submission Undone", res.message, 'success');
                 setTimeout(() => location.reload(), 1500);
-            } else {
-                showToast("Action Failed", res.message, 'error');
             }
         } catch (e) {
-            showToast("Server Communication Error", e.message, 'error');
+            showToast("Server Error", e.message, 'error');
         }
     }
 
-    // --- TAB 3: USER SWAPPER / IMPERSONATOR HUB ---
+    // --- TAB 4: SWAPPER GRID ---
     function renderUsersSwapperGrid(users) {
         const grid = document.getElementById('users-card-grid');
         grid.innerHTML = '';
@@ -1705,18 +2128,15 @@ if ($is_authenticated) {
         renderUsersSwapperGrid(filtered);
     });
 
-    // Impersonate Context Swapping
     async function impersonateUser(userId) {
         try {
             const res = await apiRequest({ action: 'impersonate_user', user_id: userId });
             if (res.success) {
                 showToast("Context Swapped", res.message, 'success');
                 setTimeout(() => location.reload(), 1200);
-            } else {
-                showToast("Context Error", res.message, 'error');
             }
         } catch (e) {
-            showToast("Server Communication Error", e.message, 'error');
+            showToast("Server Error", e.message, 'error');
         }
     }
 
@@ -1728,11 +2148,117 @@ if ($is_authenticated) {
                 setTimeout(() => location.reload(), 1200);
             }
         } catch (e) {
-            showToast("Server Communication Error", e.message, 'error');
+            showToast("Server Error", e.message, 'error');
         }
     }
 
-    // --- TAB 4: DATABASE INSPECTOR LOADER ---
+    // --- TAB 5: SESSIONS & GENERAL SETTINGS ---
+    function renderSessionsManager(sessions) {
+        const container = document.getElementById('sessions-config-container');
+        container.innerHTML = '';
+        if (sessions.length === 0) {
+            container.innerHTML = `<div style="color:var(--text-muted); font-size:13px; padding:15px; border:1px dashed var(--border-color); text-align:center; border-radius:8px;">No admission sessions registered.</div>`;
+            return;
+        }
+
+        sessions.forEach(s => {
+            container.innerHTML += `
+                <form onsubmit="submitUpdateSession(event)" class="card-panel" style="background:#f8fafc; border:1px solid var(--border-color); margin-bottom:15px; padding:15px;">
+                    <input type="hidden" name="session_id" value="${s.id}">
+                    <div style="font-weight:700; font-size:14px; margin-bottom:12px; color:var(--color-primary)">
+                        Session Year: ${s.year_label}
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">Opens At</label>
+                            <input type="date" name="opens_at" class="form-input" value="${s.opens_at || ''}">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">Closes At</label>
+                            <input type="date" name="closes_at" class="form-input" value="${s.closes_at || ''}">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns:1.2fr 1fr 1fr; gap:10px; margin-bottom:12px; align-items:end;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">Application Fee (₦)</label>
+                            <input type="number" name="application_fee" class="form-input" step="0.01" value="${s.application_fee}">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">Opens State</label>
+                            <select name="is_open" class="form-input">
+                                <option value="1" ${s.is_open == 1 ? 'selected' : ''}>Open</option>
+                                <option value="0" ${s.is_open == 0 ? 'selected' : ''}>Closed</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label">Active State</label>
+                            <select name="is_active" class="form-input">
+                                <option value="1" ${s.is_active == 1 ? 'selected' : ''}>Active</option>
+                                <option value="0" ${s.is_active == 0 ? 'selected' : ''}>Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-sm btn-swap" style="width:100%; display:block;">Update Session Setup</button>
+                </form>
+            `;
+        });
+    }
+
+    async function submitUpdateSession(event) {
+        event.preventDefault();
+        const form = event.target;
+        const fd = new FormData(form);
+        fd.append('action', 'update_session');
+
+        try {
+            const res = await fetch('max.php', { method: 'POST', body: fd }).then(r => r.json());
+            if (res.success) {
+                showToast("Session Saved", res.message, 'success');
+            }
+        } catch (e) {
+            showToast("Server Error", e.message, 'error');
+        }
+    }
+
+    function loadSettingsGeneralForm(set) {
+        document.getElementById('set-inst-name').value = set.institution_name || '';
+        document.getElementById('set-timeout').value = set.session_timeout_seconds || 900;
+    }
+
+    async function submitGeneralSettings(event) {
+        event.preventDefault();
+        const form = document.getElementById('settings-general-form');
+        const fd = new FormData(form);
+        fd.append('action', 'update_settings');
+
+        try {
+            const res = await fetch('max.php', { method: 'POST', body: fd }).then(r => r.json());
+            if (res.success) {
+                showToast("Settings Updated", res.message, 'success');
+            }
+        } catch (e) {
+            showToast("Server Error", e.message, 'error');
+        }
+    }
+
+    async function submitNotice(event) {
+        event.preventDefault();
+        const form = document.getElementById('add-notice-form');
+        const fd = new FormData(form);
+        fd.append('action', 'add_notice');
+
+        try {
+            const res = await fetch('max.php', { method: 'POST', body: fd }).then(r => r.json());
+            if (res.success) {
+                showToast("Notice Published", res.message, 'success');
+                form.reset();
+            }
+        } catch (e) {
+            showToast("Server Error", e.message, 'error');
+        }
+    }
+
+    // --- TAB 6: DATABASE INSPECTOR LOADER ---
     document.querySelectorAll('.inspector-list .inspector-item').forEach(item => {
         item.addEventListener('click', () => {
             document.querySelectorAll('.inspector-list .inspector-item').forEach(el => el.classList.remove('active'));
@@ -1785,66 +2311,28 @@ if ($is_authenticated) {
         }
     }
 
-    // --- TAB 5: ACCOUNT SANDBOX TOOLS ---
-    async function createUser(event) {
-        event.preventDefault();
-        const form = document.getElementById('create-user-form');
-        const fd = new FormData(form);
-        fd.append('action', 'create_test_user');
-
-        try {
-            const res = await fetch('max.php', { method: 'POST', body: fd }).then(r => r.json());
-            if (res.success) {
-                showToast("Account Created", res.message, 'success');
-                form.reset();
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                showToast("Creation Failed", res.message, 'error');
-            }
-        } catch (e) {
-            showToast("Server Communication Error", e.message, 'error');
-        }
-    }
-
-    function loadToolsTotpTable() {
-        const tbody = document.querySelector('#totp-user-table tbody');
-        tbody.innerHTML = '';
-        if (INITIAL_USERS.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No users found.</td></tr>`;
-            return;
-        }
-
-        INITIAL_USERS.forEach(u => {
-            const isEnabled = (parseInt(u.totp_enabled) === 1);
-            tbody.innerHTML += `
-                <tr>
-                    <td><strong>${u.full_name || '—'}</strong></td>
-                    <td>${u.email}</td>
-                    <td><span class="user-role-badge">${u.role_key || 'GENERAL'}</span></td>
-                    <td>
-                        <span class="badge badge-${isEnabled ? 'admitted' : 'draft'}">${isEnabled ? 'Enabled' : 'Bypassed'}</span>
-                    </td>
-                    <td>
-                        <button onclick="toggleUserTotp(${u.user_id}, ${isEnabled ? 0 : 1})" class="btn-sm btn-swap" style="padding:4px 8px; font-size:11px;">
-                            ${isEnabled ? 'Bypass OTP' : 'Enable OTP'}
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
-    }
-
     async function toggleUserTotp(userId, state) {
         try {
             const res = await apiRequest({ action: 'toggle_totp', user_id: userId, enabled: state });
             if (res.success) {
                 showToast("MFA Mode Changed", res.message, 'success');
                 setTimeout(() => location.reload(), 1200);
-            } else {
-                showToast("Action Failed", res.message, 'error');
             }
         } catch (e) {
-            showToast("Server Communication Error", e.message, 'error');
+            showToast("Server Error", e.message, 'error');
+        }
+    }
+
+    async function purgeSystemLogs() {
+        if (!confirm("Warning: This will physically delete/truncate all entries inside audit_logs, workflow_audit_logs, and application_status_history tables. This is intended to clean the workspace for a fresh testing session. Proceed?")) return;
+        try {
+            const res = await apiRequest({ action: 'clear_logs' });
+            if (res.success) {
+                showToast("Logs Purged", res.message, 'success');
+                setTimeout(() => location.reload(), 1500);
+            }
+        } catch (e) {
+            showToast("Server Error", e.message, 'error');
         }
     }
 
