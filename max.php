@@ -61,7 +61,11 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
                 $apps_count = (int)$pdo->query("SELECT COUNT(*) FROM applications")->fetchColumn();
                 $submitted_count = (int)$pdo->query("SELECT COUNT(*) FROM applications WHERE status = 'Submitted'")->fetchColumn();
                 $draft_count = (int)$pdo->query("SELECT COUNT(*) FROM applications WHERE status = 'Draft'")->fetchColumn();
-                $active_sessions = (int)$pdo->query("SELECT COUNT(*) FROM admission_sessions WHERE is_active = 1")->fetchColumn();
+                
+                $active_sessions = 0;
+                if (max_table_exists($pdo, 'admission_sessions')) {
+                    $active_sessions = (int)$pdo->query("SELECT COUNT(*) FROM admission_sessions WHERE is_active = 1")->fetchColumn();
+                }
                 
                 $status_breakdown = $pdo->query("
                     SELECT current_status, COUNT(*) as count 
@@ -168,6 +172,10 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
                 exit;
 
             case 'update_session':
+                if (!max_table_exists($pdo, 'admission_sessions')) {
+                    echo json_encode(['success' => false, 'message' => 'Admission Sessions table does not exist in this database schema configuration.']);
+                    exit;
+                }
                 $session_id = (int)$_POST['session_id'];
                 $is_open = (int)$_POST['is_open'];
                 $is_active = (int)$_POST['is_active'];
@@ -406,8 +414,15 @@ if ($is_authenticated) {
             $supervisors = $pdo->query("SELECT sp.*, u.full_name FROM supervisor_profiles sp LEFT JOIN users u ON sp.email = u.email")->fetchAll(PDO::FETCH_ASSOC);
         }
         
-        $sessions_list = $pdo->query("SELECT * FROM admission_sessions ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
-        $system_settings = $pdo->query("SELECT * FROM system_settings LIMIT 1")->fetch(PDO::FETCH_ASSOC) ?: [];
+        $sessions_list = [];
+        if (max_table_exists($pdo, 'admission_sessions')) {
+            $sessions_list = $pdo->query("SELECT * FROM admission_sessions ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
+        }
+        
+        $system_settings = [];
+        if (max_table_exists($pdo, 'system_settings')) {
+            $system_settings = $pdo->query("SELECT * FROM system_settings LIMIT 1")->fetch(PDO::FETCH_ASSOC) ?: [];
+        }
     } catch (Throwable $e) {
         // Suppress initial query crashes for clean UI display
     }
