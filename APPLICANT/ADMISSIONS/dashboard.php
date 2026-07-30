@@ -74,6 +74,9 @@ if ($app_data) {
         $current_step = 10;
     } else {
         $current_step = isset($_GET['step']) ? (int)$_GET['step'] : (int)$app_data['db_step'];
+        if (!isset($_GET['step']) && $current_step >= 9) {
+            $current_step = 9;
+        }
     }
 } else {
     $current_step = isset($_GET['step']) ? (int)$_GET['step'] : 1;

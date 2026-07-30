@@ -197,7 +197,7 @@ if ($is_authenticated && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['
                     'note' => 'Submission undone via max.php testing dashboard'
                 ]);
 
-                $pdo->prepare("UPDATE applications SET submitted_at = NULL WHERE application_id = ?")->execute([$app_id]);
+                $pdo->prepare("UPDATE applications SET submitted_at = NULL, current_step = 9 WHERE application_id = ?")->execute([$app_id]);
 
                 if (max_table_exists($pdo, 'application_progress')) {
                     $pdo->prepare("UPDATE application_progress SET stage_status = 'Pending', stage_updated_at = NOW() WHERE application_id = ?")->execute([$app_id]);
