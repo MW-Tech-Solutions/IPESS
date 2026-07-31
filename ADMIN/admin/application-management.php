@@ -286,11 +286,26 @@ require_once 'includes/topbar.php';
                             <li class="page-item <?= ($page <= 1) ? 'disabled' : '' ?>">
                                 <a class="page-link" href="<?= buildUrl($page - 1) ?>">Previous</a>
                             </li>
-                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                            
+                            <?php 
+                            $startPage = max(1, $page - 2);
+                            $endPage = min($totalPages, $page + 2);
+                            if ($startPage > 1): ?>
+                                <li class="page-item"><a class="page-link" href="<?= buildUrl(1) ?>">1</a></li>
+                                <?php if ($startPage > 2): ?><li class="page-item disabled"><span class="page-link">...</span></li><?php endif; ?>
+                            <?php endif; ?>
+
+                            <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
                                 <li class="page-item <?= ($i == $page) ? 'active' : '' ?>">
                                     <a class="page-link" href="<?= buildUrl($i) ?>"><?= $i ?></a>
                                 </li>
                             <?php endfor; ?>
+
+                            <?php if ($endPage < $totalPages): ?>
+                                <?php if ($endPage < $totalPages - 1): ?><li class="page-item disabled"><span class="page-link">...</span></li><?php endif; ?>
+                                <li class="page-item"><a class="page-link" href="<?= buildUrl($totalPages) ?>"><?= $totalPages ?></a></li>
+                            <?php endif; ?>
+
                             <li class="page-item <?= ($page >= $totalPages) ? 'disabled' : '' ?>">
                                 <a class="page-link" href="<?= buildUrl($page + 1) ?>">Next</a>
                             </li>

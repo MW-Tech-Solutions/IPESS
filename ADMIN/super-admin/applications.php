@@ -296,23 +296,43 @@ require_once 'includes/topbar.php';
             </table>
         </div>
 
-        <?php if ($totalPages > 1): ?>
-            <nav class="mt-4">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
-                        <a class="page-link" href="<?php echo buildUrl($page - 1); ?>">Previous</a>
-                    </li>
-                    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                        <li class="page-item <?php echo ($i === $page) ? 'active' : ''; ?>">
-                            <a class="page-link" href="<?php echo buildUrl($i); ?>"><?php echo $i; ?></a>
+        <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-2">
+            <div class="text-muted small">
+                Showing <?php echo min($totalRows, $offset + 1); ?> to <?php echo min($totalRows, $offset + $limit); ?> of <?php echo $totalRows; ?> applications.
+            </div>
+            <?php if ($totalPages > 1): ?>
+                <nav aria-label="Page navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="<?php echo buildUrl($page - 1); ?>">Previous</a>
                         </li>
-                    <?php endfor; ?>
-                    <li class="page-item <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">
-                        <a class="page-link" href="<?php echo buildUrl($page + 1); ?>">Next</a>
-                    </li>
-                </ul>
-            </nav>
-        <?php endif; ?>
+                        
+                        <?php 
+                        $startPage = max(1, $page - 2);
+                        $endPage = min($totalPages, $page + 2);
+                        if ($startPage > 1): ?>
+                            <li class="page-item"><a class="page-link" href="<?php echo buildUrl(1); ?>">1</a></li>
+                            <?php if ($startPage > 2): ?><li class="page-item disabled"><span class="page-link">...</span></li><?php endif; ?>
+                        <?php endif; ?>
+
+                        <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                            <li class="page-item <?php echo $page === $i ? 'active' : ''; ?>">
+                                <a class="page-link" href="<?php echo buildUrl($i); ?>"><?php echo $i; ?></a>
+                            </li>
+                        <?php endfor; ?>
+
+                        <?php if ($endPage < $totalPages): ?>
+                            <?php if ($endPage < $totalPages - 1): ?><li class="page-item disabled"><span class="page-link">...</span></li><?php endif; ?>
+                            <li class="page-item"><a class="page-link" href="<?php echo buildUrl($totalPages); ?>"><?php echo $totalPages; ?></a></li>
+                        <?php endif; ?>
+
+                        <li class="page-item <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="<?php echo buildUrl($page + 1); ?>">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            <?php endif; ?>
+        </div>
     </div>
 </section>
 
