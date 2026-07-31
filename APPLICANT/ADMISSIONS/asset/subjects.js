@@ -43,6 +43,7 @@ const subjects = [
     "Christian Religious Studies (CRS)",
     "Islamic Studies (IRS)",
     "Geography",
+    "Literature in English",
     "Music",
     "Visual Art",
     "Fine Art",
