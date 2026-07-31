@@ -101,6 +101,82 @@ if ($action === 'delete') {
     }
 }
 
+if ($action === 'search_students') {
+    $query = trim($_GET['query'] ?? '');
+    if ($query === '') {
+        echo json_encode(['success' => true, 'data' => []]);
+        exit;
+    }
+
+    try {
+        $searchTerm = '%' . $query . '%';
+        $stmt = $pdo->prepare("
+            SELECT a.application_id, a.application_number, 
+                   CONCAT(COALESCE(pd.surname,''), ' ', COALESCE(pd.first_name,'')) AS full_name
+            FROM applications a
+            LEFT JOIN personal_details pd ON pd.application_id = a.application_id
+            WHERE a.application_number LIKE ? 
+               OR pd.surname LIKE ? 
+               OR pd.first_name LIKE ?
+            LIMIT 10
+        ");
+        $stmt->execute([$searchTerm, $searchTerm, $searchTerm]);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode(['success' => true, 'data' => $results]);
+        exit;
+    } catch (PDOException $e) {
+        json_error('Error performing search.');
+    }
+}
+
+if ($action === 'download_individual_package') {
+    $applicationId = (int)($_GET['app_id'] ?? $_POST['app_id'] ?? 0);
+    $includeSlip = (bool)($_GET['include_slip'] ?? $_POST['include_slip'] ?? 0);
+    $includeAdmission = (bool)($_GET['include_admission'] ?? $_POST['include_admission'] ?? 0);
+    $includeAcceptance = (bool)($_GET['include_acceptance'] ?? $_POST['include_acceptance'] ?? 0);
+    $includeDocs = (bool)($_GET['include_docs'] ?? $_POST['include_docs'] ?? 0);
+
+    if ($applicationId <= 0) {
+        json_error('Invalid application ID.', 400);
+    }
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT a.application_id, a.application_number, a.status, a.current_status,
+                   pd.first_name, pd.surname
+            FROM applications a
+            LEFT JOIN personal_details pd ON pd.application_id = a.application_id
+            WHERE a.application_id = ?
+            LIMIT 1
+        ");
+        $stmt->execute([$applicationId]);
+        $applicant = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$applicant) {
+            json_error('Applicant not found.', 404);
+        }
+
+        $appNo = $applicant['application_number'] ?: 'N_A';
+        
+        $pdfContent = generateStudentDossier($pdo, $applicant, $includeSlip, $includeAdmission, $includeAcceptance, $includeDocs, $dompdfAvailable);
+        if (!$pdfContent) {
+            json_error('No document files available to generate dossier.');
+        }
+
+        $filename = str_replace('/', '_', $appNo) . '.pdf';
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($pdfContent));
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        echo $pdfContent;
+        exit;
+    } catch (Throwable $e) {
+        json_error('Package download error: ' . $e->getMessage());
+    }
+}
+
 if ($action !== 'generate') {
     json_error('Unsupported action.', 400);
 }
@@ -115,36 +191,111 @@ if (!is_writable($reportsDir)) {
 
 $format = strtoupper(trim($_POST['format'] ?? 'PDF'));
 $reportType = trim($_POST['report_type'] ?? 'Admissions Summary');
-$format = in_array($format, ['PDF', 'EXCEL'], true) ? $format : 'PDF';
-
-$reportData = buildSuperAdminReportData($pdo, $reportType);
-$lines = buildReportLines($reportData);
+$allowedFormats = ['PDF', 'EXCEL', 'DOSSIERS_ZIP'];
+$format = in_array($format, $allowedFormats, true) ? $format : 'PDF';
 
 $baseName = 'report_' . date('Ymd_His') . '_' . str_replace('.', '', uniqid('', true));
-$relativePath = 'reports/' . $baseName . ($format === 'PDF' ? '.pdf' : '.csv');
+$ext = ($format === 'PDF') ? '.pdf' : (($format === 'DOSSIERS_ZIP') ? '.zip' : '.csv');
+$relativePath = 'reports/' . $baseName . $ext;
 $fullPath = __DIR__ . '/../' . $relativePath;
 
-if ($format === 'EXCEL') {
-    $handle = fopen($fullPath, 'w');
-    if (!$handle) {
-        json_error('Unable to write report file.');
+if ($format === 'DOSSIERS_ZIP') {
+    $zip = new ZipArchive();
+    if ($zip->open($fullPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        json_error('Unable to create ZIP file.');
     }
-    foreach ($reportData['sections'] as $section) {
-        fputcsv($handle, [$section['title']]);
-        fputcsv($handle, $section['headers']);
-        foreach ($section['rows'] as $row) {
-            fputcsv($handle, $row);
+    
+    $filters = $_POST;
+    $where = [];
+    $params = [];
+    if (!empty($filters['college_id'])) {
+        $where[] = 'pc.faculty = ?';
+        $params[] = $filters['college_id'];
+    }
+    if (!empty($filters['department_id'])) {
+        $where[] = 'pc.department = ?';
+        $params[] = $filters['department_id'];
+    }
+    if (!empty($filters['degree_id'])) {
+        $where[] = 'pc.degree_type = ?';
+        $params[] = $filters['degree_id'];
+    }
+    if (!empty($filters['status'])) {
+        $where[] = 'a.status = ?';
+        $params[] = $filters['status'];
+    }
+    if (!empty($filters['state'])) {
+        $where[] = 'pd.state_origin = ?';
+        $params[] = $filters['state'];
+    }
+    if (!empty($filters['lga'])) {
+        $where[] = 'pd.lga = ?';
+        $params[] = $filters['lga'];
+    }
+    
+    $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+    
+    $sql = "
+        SELECT a.application_id, a.application_number, a.status, a.current_status,
+               pd.first_name, pd.surname
+        FROM applications a
+        INNER JOIN users u ON a.user_id = u.user_id
+        LEFT JOIN personal_details pd ON pd.application_id = a.application_id
+        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
+        $whereSql
+        GROUP BY a.application_id
+    ";
+    
+    try {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $applicants = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        $applicants = [];
+    }
+    
+    $filesAdded = 0;
+    foreach ($applicants as $applicant) {
+        $pdfContent = generateStudentDossier($pdo, $applicant, true, true, true, true, $dompdfAvailable);
+        if ($pdfContent) {
+            $filename = str_replace('/', '_', $applicant['application_number']) . '.pdf';
+            $zip->addFromString($filename, $pdfContent);
+            $filesAdded++;
         }
-        fputcsv($handle, []);
     }
-    fclose($handle);
+    
+    $zip->close();
+    
+    if ($filesAdded === 0) {
+        @unlink($fullPath);
+        json_error('No dossiers could be generated for matching criteria.');
+    }
 } else {
-    if ($dompdfAvailable) {
-        try {
-            $html = buildReportHtml($reportData);
-            $dompdf = new Dompdf\Dompdf();
-            $dompdf->loadHtml($html);
-            $dompdf->setPaper('A4', 'portrait');
+    $reportData = buildSuperAdminReportData($pdo, $reportType, $_POST);
+    $lines = buildReportLines($reportData);
+
+    if ($format === 'EXCEL') {
+        $handle = fopen($fullPath, 'w');
+        if (!$handle) {
+            json_error('Unable to write report file.');
+        }
+        foreach ($reportData['sections'] as $section) {
+            fputcsv($handle, [$section['title']]);
+            fputcsv($handle, $section['headers']);
+            foreach ($section['rows'] as $row) {
+                fputcsv($handle, $row);
+            }
+            fputcsv($handle, []);
+        }
+        fclose($handle);
+    } else {
+        if ($dompdfAvailable) {
+            try {
+                $html = buildReportHtml($reportData);
+                $dompdf = new Dompdf\Dompdf();
+                $dompdf->loadHtml($html);
+            $orientation = in_array(strtolower($reportType), ['student admissions', 'staff records'], true) ? 'landscape' : 'portrait';
+            $dompdf->setPaper('A4', $orientation);
             $dompdf->render();
             if (file_put_contents($fullPath, $dompdf->output()) === false) {
                 json_error('Unable to write report file.');
@@ -221,13 +372,160 @@ function safe_rows(PDO $pdo, string $sql): array
     }
 }
 
-function buildSuperAdminReportData(PDO $pdo, string $reportType): array
+function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters = []): array
 {
     $type = strtolower(trim($reportType));
     $generated = date('M d, Y H:i');
     $sections = [];
 
-    if ($type === 'faculty breakdown') {
+    if ($type === 'student admissions') {
+        $where = [];
+        $params = [];
+        if (!empty($filters['college_id'])) {
+            $where[] = 'pc.faculty = ?';
+            $params[] = $filters['college_id'];
+        }
+        if (!empty($filters['department_id'])) {
+            $where[] = 'pc.department = ?';
+            $params[] = $filters['department_id'];
+        }
+        if (!empty($filters['degree_id'])) {
+            $where[] = 'pc.degree_type = ?';
+            $params[] = $filters['degree_id'];
+        }
+        if (!empty($filters['status'])) {
+            $where[] = 'a.status = ?';
+            $params[] = $filters['status'];
+        }
+        if (!empty($filters['state'])) {
+            $where[] = 'pd.state_origin = ?';
+            $params[] = $filters['state'];
+        }
+        if (!empty($filters['lga'])) {
+            $where[] = 'pd.lga = ?';
+            $params[] = $filters['lga'];
+        }
+        
+        $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+        
+        $sql = "
+            SELECT 
+                a.application_number,
+                CONCAT(COALESCE(pd.surname,''), ' ', COALESCE(pd.first_name,''), ' ', COALESCE(pd.other_name,'')) AS full_name,
+                u.email,
+                COALESCE(pd.phone, '') AS phone,
+                COALESCE(pd.state_origin, '') AS state_origin,
+                COALESCE(pd.lga, '') AS lga,
+                COALESCE(f.faculty_name, '') AS faculty_name,
+                COALESCE(d.dept_name, '') AS dept_name,
+                a.status,
+                COALESCE(dt.degree_name, '') AS degree_name
+            FROM applications a
+            INNER JOIN users u ON a.user_id = u.user_id
+            LEFT JOIN personal_details pd ON pd.application_id = a.application_id
+            LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
+            LEFT JOIN faculties f ON pc.faculty = f.faculty_id
+            LEFT JOIN departments d ON pc.department = d.dept_id
+            LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
+            $whereSql
+            GROUP BY a.application_id
+            ORDER BY full_name ASC
+        ";
+
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            $rows = [];
+        }
+        
+        $tableRows = [];
+        foreach ($rows as $r) {
+            $tableRows[] = [
+                (string)$r['application_number'],
+                (string)$r['full_name'],
+                (string)$r['email'],
+                (string)$r['phone'],
+                (string)($r['state_origin'] . ($r['lga'] ? ' / ' . $r['lga'] : '')),
+                (string)($r['faculty_name'] . ($r['dept_name'] ? ' / ' . $r['dept_name'] : '')),
+                (string)$r['degree_name'],
+                (string)$r['status']
+            ];
+        }
+        if (empty($tableRows)) {
+            $tableRows[] = ['No matching records', '', '', '', '', '', '', ''];
+        }
+
+        $sections[] = [
+            'title' => 'Filtered Student Admissions List',
+            'headers' => ['App No', 'Full Name', 'Email', 'Phone', 'State / LGA', 'College / Dept', 'Degree', 'Status'],
+            'rows' => $tableRows,
+        ];
+
+    } elseif ($type === 'staff records') {
+        $where = [
+            "NOT EXISTS (
+                SELECT 1 FROM applications ax WHERE ax.user_id = u.user_id
+            )"
+        ];
+        $params = [];
+        if (!empty($filters['staff_department_id'])) {
+            $where[] = 'u.department_id = ?';
+            $params[] = $filters['staff_department_id'];
+        }
+        if (!empty($filters['role_id'])) {
+            $where[] = 'u.role_id = ?';
+            $params[] = $filters['role_id'];
+        }
+
+        $whereSql = 'WHERE ' . implode(' AND ', $where);
+
+        $sql = "
+            SELECT 
+                u.full_name,
+                u.email,
+                COALESCE(d.dept_name, 'N/A') AS dept_name,
+                COALESCE(r.role_name, 'N/A') AS role_name,
+                u.account_status,
+                COALESCE(u.last_login, '') AS last_login
+            FROM users u
+            LEFT JOIN departments d ON u.department_id = d.dept_id
+            LEFT JOIN roles r ON u.role_id = r.role_id
+            $whereSql
+            ORDER BY u.full_name ASC
+        ";
+
+        try {
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            $rows = [];
+        }
+
+        $tableRows = [];
+        foreach ($rows as $r) {
+            $tableRows[] = [
+                (string)($r['full_name'] ?: 'N/A'),
+                (string)$r['email'],
+                (string)$r['dept_name'],
+                (string)$r['role_name'],
+                (string)$r['account_status'],
+                (string)($r['last_login'] ? date('M d, Y H:i', strtotime($r['last_login'])) : 'Never')
+            ];
+        }
+        if (empty($tableRows)) {
+            $tableRows[] = ['No matching records', '', '', '', '', ''];
+        }
+
+        $sections[] = [
+            'title' => 'Filtered Staff Directory List',
+            'headers' => ['Full Name', 'Email', 'Department', 'Role', 'Status', 'Last Login'],
+            'rows' => $tableRows,
+        ];
+
+    } elseif ($type === 'faculty breakdown') {
         $rows = safe_rows($pdo, "
             SELECT
                 COALESCE(f.faculty_name, 'Unassigned') AS faculty_name,
@@ -425,19 +723,19 @@ function buildReportHtml(array $reportData): string {
 <head>
     <meta charset='UTF-8'>
     <style>
-        body { font-family: DejaVu Sans, Arial, sans-serif; color: #1f2937; font-size: 12px; }
+        body { font-family: DejaVu Sans, Arial, sans-serif; color: #1f2937; font-size: 10px; }
         .header { margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; padding-bottom: 10px; }
         .header-row { width: 100%; border-collapse: collapse; }
         .header-row td { border: none; padding: 0; vertical-align: middle; }
         .logo-cell { width: 64px; }
         .logo { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; }
         .title-wrap { text-align: center; }
-        .header h1 { font-size: 18px; margin: 0; color: #0f3b2e; }
-        .meta { font-size: 11px; color: #6b7280; margin-top: 4px; }
-        .section-title { font-size: 13px; font-weight: 600; margin: 18px 0 8px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-        th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; }
-        th { background: #f3f4f6; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+        .header h1 { font-size: 16px; margin: 0; color: #0f3b2e; }
+        .meta { font-size: 10px; color: #6b7280; margin-top: 4px; }
+        .section-title { font-size: 11px; font-weight: 600; margin: 18px 0 8px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: auto; }
+        th, td { border: 1px solid #e5e7eb; padding: 5px 6px; text-align: left; font-size: 9px; }
+        th { background: #f3f4f6; font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; }
         .summary-grid { width: 100%; }
     </style>
 </head>
@@ -493,4 +791,161 @@ function buildSimplePdf(array $lines): string {
     $trailer = "trailer\n<< /Size " . (count($objects) + 1) . " /Root 1 0 R >>\nstartxref\n{$offset}\n%%EOF";
 
     return $pdfBody . $xref . $trailer;
+}
+
+function generateStudentDossier(PDO $pdo, array $applicant, bool $includeSlip, bool $includeAdmission, bool $includeAcceptance, bool $includeDocs, bool $dompdfAvailable): ?string
+{
+    $appId = (int)$applicant['application_id'];
+    $appNo = $applicant['application_number'] ?: 'N_A';
+    
+    $items = [];
+
+    // 1. Application Slip
+    if ($includeSlip && $dompdfAvailable) {
+        $_GET['app_no'] = encrypt_app_number($appNo);
+        ob_start();
+        include __DIR__ . '/../../../helpers/print_slip.php';
+        $slipHtml = ob_get_clean();
+        $slipHtml = str_replace('window.print();', '', $slipHtml);
+
+        try {
+            $dompdf = new Dompdf\Dompdf();
+            $dompdf->loadHtml($slipHtml);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $items[] = [
+                'type' => 'pdf_data',
+                'data' => $dompdf->output()
+            ];
+        } catch (Throwable $e) {
+            // Ignore error
+        }
+    }
+
+    $appStatus = $applicant['status'] ?? $applicant['current_status'] ?? '';
+    $isAdmitted = (strtolower($appStatus) === 'admitted' || $appStatus === 'ADMISSION_APPROVED');
+
+    // 2. Admission Letter
+    if ($includeAdmission && $isAdmitted && $dompdfAvailable) {
+        $_GET['app_no'] = $appNo;
+        ob_start();
+        include __DIR__ . '/../../../helpers/admission-letter.php';
+        $admHtml = ob_get_clean();
+        $admHtml = str_replace('window.print();', '', $admHtml);
+
+        try {
+            $dompdf = new Dompdf\Dompdf();
+            $dompdf->loadHtml($admHtml);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $items[] = [
+                'type' => 'pdf_data',
+                'data' => $dompdf->output()
+            ];
+        } catch (Throwable $e) {
+            // Ignore
+        }
+    }
+
+    // 3. Acceptance Letter
+    if ($includeAcceptance && $isAdmitted && $dompdfAvailable) {
+        $_GET['app_no'] = $appNo;
+        ob_start();
+        include __DIR__ . '/../../../helpers/acceptance-letter.php';
+        $accHtml = ob_get_clean();
+        $accHtml = str_replace('window.print();', '', $accHtml);
+
+        try {
+            $dompdf = new Dompdf\Dompdf();
+            $dompdf->loadHtml($accHtml);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $items[] = [
+                'type' => 'pdf_data',
+                'data' => $dompdf->output()
+            ];
+        } catch (Throwable $e) {
+            // Ignore
+        }
+    }
+
+    // 4. Uploaded Documents
+    if ($includeDocs) {
+        $docStmt = $pdo->prepare("SELECT document_type, file_path FROM documents WHERE application_id = ?");
+        $docStmt->execute([$appId]);
+        $docs = $docStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($docs as $doc) {
+            $filePath = __DIR__ . '/../../../' . ltrim($doc['file_path'], '/');
+            if (file_exists($filePath) && is_file($filePath)) {
+                $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+                if ($ext === 'pdf') {
+                    $items[] = [
+                        'type' => 'pdf_file',
+                        'path' => $filePath
+                    ];
+                } elseif (in_array($ext, ['jpg', 'jpeg', 'png', 'gif'], true)) {
+                    $items[] = [
+                        'type' => 'image_file',
+                        'path' => $filePath
+                    ];
+                }
+            }
+        }
+    }
+
+    if (empty($items)) {
+        return null;
+    }
+
+    $autoloadPath = __DIR__ . '/../../vendor/autoload.php';
+    if (file_exists($autoloadPath)) {
+        require_once $autoloadPath;
+    }
+
+    if (!class_exists('setasign\\Fpdi\\Fpdi')) {
+        return null;
+    }
+
+    $pdf = new \setasign\Fpdi\Fpdi();
+
+    foreach ($items as $item) {
+        if ($item['type'] === 'pdf_data') {
+            $tmpFile = tempnam(sys_get_temp_dir(), 'ipess_m_');
+            file_put_contents($tmpFile, $item['data']);
+            try {
+                $pageCount = $pdf->setSourceFile($tmpFile);
+                for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                    $tplIdx = $pdf->importPage($pageNo);
+                    $size = $pdf->getTemplateSize($tplIdx);
+                    $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                    $pdf->useTemplate($tplIdx);
+                }
+            } catch (Throwable $e) {
+                // Ignore
+            }
+            @unlink($tmpFile);
+        } elseif ($item['type'] === 'pdf_file') {
+            try {
+                $pageCount = $pdf->setSourceFile($item['path']);
+                for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+                    $tplIdx = $pdf->importPage($pageNo);
+                    $size = $pdf->getTemplateSize($tplIdx);
+                    $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
+                    $pdf->useTemplate($tplIdx);
+                }
+            } catch (Throwable $e) {
+                // Ignore
+            }
+        } elseif ($item['type'] === 'image_file') {
+            try {
+                $pdf->AddPage('P', 'A4');
+                $pdf->Image($item['path'], 10, 10, 190);
+            } catch (Throwable $e) {
+                // Ignore
+            }
+        }
+    }
+
+    return $pdf->Output('S');
 }
