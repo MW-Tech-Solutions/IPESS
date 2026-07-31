@@ -384,6 +384,16 @@ require_once 'includes/topbar.php';
                             <input type="hidden" name="action" value="save_biodata">
                             <input type="hidden" name="student_user_id" value="">
                             <input type="hidden" name="application_id" value="">
+                            <div class="col-12 d-flex align-items-center gap-3 border-bottom pb-3 mb-2">
+                                <div style="width: 100px; height: 120px; border: 2px dashed #ccc; background: #f8f9fa; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 4px;" id="passportPreviewContainer">
+                                    <span class="text-muted small text-center px-1">No Photo</span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <label class="form-label fw-bold mb-1">Passport Photograph</label>
+                                    <input type="file" class="form-control form-control-sm" name="passport_photo" id="passportPhotoInput" accept="image/*">
+                                    <div class="form-text small text-muted">Max size: 2MB. Recommended formats: JPG, PNG.</div>
+                                </div>
+                            </div>
                             <div class="col-md-6">
                                 <label class="form-label">Full Name</label>
                                 <input type="text" class="form-control" name="full_name">
@@ -731,6 +741,17 @@ async function loadStudentProfile(studentUserId) {
     fillFormValue(biodataForm, 'lga', b.lga);
     fillFormValue(biodataForm, 'address', b.address);
 
+    const passportInput = document.getElementById('passportPhotoInput');
+    if (passportInput) passportInput.value = '';
+    const passportPreview = document.getElementById('passportPreviewContainer');
+    if (passportPreview) {
+        if (data.passport_photo_path) {
+            passportPreview.innerHTML = `<img src="../../${data.passport_photo_path}" style="width:100%; height:100%; object-fit:cover;">`;
+        } else {
+            passportPreview.innerHTML = '<span class="text-muted small text-center px-1">No Photo</span>';
+        }
+    }
+
     fillFormValue(academicsForm, 'faculty_id', a.faculty_id);
     fillFormValue(academicsForm, 'department_id', a.department_id);
     fillFormValue(academicsForm, 'degree_id', a.degree_id);
@@ -890,6 +911,10 @@ if (biodataForm) {
         try {
             const data = await submitStudentForm(biodataForm);
             alert(data.message || 'Biodata saved successfully.');
+            const userId = biodataForm.querySelector('[name="student_user_id"]').value;
+            if (userId) {
+                await loadStudentProfile(userId);
+            }
         } catch (error) {
             alert(error.message || 'Unable to save biodata.');
         }

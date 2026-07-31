@@ -102,6 +102,17 @@ function fetch_student_profile(PDO $pdo, int $studentUserId): array
     $apStmt->execute([$applicationId]);
     $admissionProcessing = $apStmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
+    $passportStmt = $pdo->prepare("
+        SELECT file_path 
+        FROM documents 
+        WHERE application_id = ? 
+          AND document_type IN ('passport_profile','passport') 
+        ORDER BY CASE WHEN document_type = 'passport_profile' THEN 0 ELSE 1 END
+        LIMIT 1
+    ");
+    $passportStmt->execute([$applicationId]);
+    $passportFile = $passportStmt->fetchColumn() ?: '';
+
     return [
         'student' => $student,
         'biodata' => $biodata,
@@ -110,6 +121,7 @@ function fetch_student_profile(PDO $pdo, int $studentUserId): array
         'research' => $research,
         'referees' => $referees,
         'admission_processing' => $admissionProcessing,
+        'passport_photo_path' => $passportFile,
         'encrypted_application_number' => encrypt_app_number($student['application_number'] ?? ''),
     ];
 }
@@ -234,6 +246,53 @@ try {
         ];
 
         upsert_single_application_row($pdo, 'personal_details', $applicationId, $biodataFields);
+
+        if (isset($_FILES['passport_photo']) && $_FILES['passport_photo']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['passport_photo'];
+            $max_file_size = 2 * 1024 * 1024;
+            if ($file['size'] > $max_file_size) {
+                echo json_encode(['success' => false, 'message' => 'Passport photograph file size exceeds 2MB limit.']);
+                exit;
+            }
+
+            $allowed_mime_types = [
+                'image/jpeg' => 'jpg',
+                'image/jpg'  => 'jpg',
+                'image/png'  => 'png',
+                'image/gif'  => 'gif'
+            ];
+
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mime_type = $finfo->file($file['tmp_name']);
+
+            if (!array_key_exists($mime_type, $allowed_mime_types)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid image format. Allowed formats: JPG, PNG, GIF.']);
+                exit;
+            }
+
+            $upload_base_dir = __DIR__ . '/../../../uploads/';
+            $target_dir = $upload_base_dir . 'passports/';
+            if (!is_dir($target_dir)) {
+                mkdir($target_dir, 0755, true);
+            }
+
+            $extension = $allowed_mime_types[$mime_type];
+            $filename = sprintf('%s_%s.%s', time(), bin2hex(random_bytes(8)), $extension);
+            $target_path = $target_dir . $filename;
+            $db_relative_path = 'uploads/passports/' . $filename;
+
+            if (move_uploaded_file($file['tmp_name'], $target_path)) {
+                $delStmt = $pdo->prepare("DELETE FROM documents WHERE application_id = ? AND document_type IN ('passport_profile','passport')");
+                $delStmt->execute([$applicationId]);
+
+                $stmt = $pdo->prepare("INSERT INTO documents (application_id, document_type, file_path) VALUES (?, 'passport_profile', ?)");
+                $stmt->execute([$applicationId, $db_relative_path]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Failed to save passport photo upload.']);
+                exit;
+            }
+        }
+
         $pdo->commit();
 
         echo json_encode(['success' => true, 'message' => 'Student biodata updated successfully.']);
