@@ -10,9 +10,11 @@ if (!isset($_SESSION['user_id'])) {
 
 $userId = (int) ($_SESSION['user_id'] ?? 0);
 $appNumber = $_GET['app_no'] ?? '';
+$role = $_SESSION['role'] ?? $_SESSION['user_role'] ?? null;
+$isAdmin = ($role && in_array(strtoupper($role), ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'PG_SCHOOL_OFFICER', 'ADMISSIONS_OFFICER'], true));
 
 try {
-    $applicant = admission_letter_fetch($pdo, $appNumber, $userId);
+    $applicant = admission_letter_fetch($pdo, $appNumber, $isAdmin ? null : $userId);
     if (!$applicant) {
         die("Admission letter not available.");
     }

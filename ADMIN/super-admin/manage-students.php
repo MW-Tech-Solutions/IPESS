@@ -121,10 +121,10 @@ if ($pdo) {
 
     // Pagination parameters
     $page = max(1, (int)($_GET['page'] ?? 1));
-    $limit = (int)($_GET['limit'] ?? 25);
-    $allowedLimits = [25, 50, 75, 100, 200, 500];
+    $limit = (int)($_GET['limit'] ?? 50);
+    $allowedLimits = [50, 75, 100, 200, 500];
     if (!in_array($limit, $allowedLimits, true)) {
-        $limit = 25;
+        $limit = 50;
     }
 
     // Count query
@@ -234,7 +234,7 @@ require_once 'includes/topbar.php';
             </div>
             <div class="col-md-2">
                 <select class="form-select" name="limit" onchange="this.form.submit()">
-                    <?php foreach ([25, 50, 75, 100, 200, 500] as $limOpt): ?>
+                    <?php foreach ([50, 75, 100, 200, 500] as $limOpt): ?>
                         <option value="<?php echo $limOpt; ?>" <?php echo $limit === $limOpt ? 'selected' : ''; ?>>
                             <?php echo $limOpt; ?> per page
                         </option>
@@ -366,6 +366,15 @@ require_once 'includes/topbar.php';
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#student-academics-tab" type="button">Academics</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#student-referees-tab" type="button">Referees</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#student-undo-tab" type="button">Undo Application</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#student-slips-tab" type="button">Slips & Letters</button>
                     </li>
                 </ul>
 
@@ -528,6 +537,88 @@ require_once 'includes/topbar.php';
                             </div>
                         </form>
                     </div>
+
+                    <div class="tab-pane fade" id="student-referees-tab">
+                        <form id="studentRefereesForm" class="row g-3">
+                            <input type="hidden" name="action" value="save_referees">
+                            <input type="hidden" name="student_user_id" value="">
+                            <input type="hidden" name="application_id" value="">
+                            
+                            <div id="refereesContainer">
+                                <!-- Loaded dynamically -->
+                            </div>
+                            
+                            <div class="col-12 d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary">Save Referees</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade" id="student-undo-tab">
+                        <div class="card border-warning bg-light">
+                            <div class="card-body">
+                                <h5 class="card-title text-warning fw-bold"><i class="fas fa-undo-alt me-2"></i>Undo Student Application</h5>
+                                <p class="text-muted">Undoing this application will revert the student's status to <strong>Draft (Step 9)</strong>. This will enable the student to log in, make adjustments/edit their biodata, academics, documents, or selections, and re-submit.</p>
+                                <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                                    <i class="fas fa-exclamation-triangle me-2 fs-5"></i>
+                                    <div>
+                                        <strong>Warning:</strong> This action clears existing departmental/PG evaluations, admission progress tracking, and any generated matriculation number/acceptance records for this specific application.
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-warning fw-bold text-dark mt-2" id="btnUndoApplication">
+                                    Revert Application to Draft (Step 9)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="student-slips-tab">
+                        <div class="row g-3">
+                            <!-- Application Acknowledgment Slip -->
+                            <div class="col-md-6">
+                                <div class="card h-100 border-primary">
+                                    <div class="card-body d-flex flex-column justify-content-between">
+                                        <div>
+                                            <h5 class="card-title text-primary fw-bold"><i class="fas fa-file-invoice me-2"></i>Application Documents</h5>
+                                            <p class="text-muted small">View the completed application details or print/download the official Acknowledgment Slip for this student.</p>
+                                        </div>
+                                        <div class="d-grid gap-2 mt-3">
+                                            <a href="#" id="btnViewAppForm" target="_blank" class="btn btn-outline-primary fw-semibold">
+                                                <i class="fas fa-eye me-1"></i> View Completed Form
+                                            </a>
+                                            <a href="#" id="btnDownloadAppSlip" target="_blank" class="btn btn-primary fw-semibold shadow-sm">
+                                                <i class="fas fa-download me-1"></i> Download Acknowledgment Slip
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Admission & Acceptance Letters (Conditional) -->
+                            <div class="col-md-6" id="admissionLettersCol">
+                                <div class="card h-100 border-success">
+                                    <div class="card-body d-flex flex-column justify-content-between">
+                                        <div>
+                                            <h5 class="card-title text-success fw-bold"><i class="fas fa-envelope-open-text me-2"></i>Admission & Acceptance Letters</h5>
+                                            <p class="text-muted small" id="slipsAdmittedInfo">View or download the admission and acceptance letters generated for this student.</p>
+                                        </div>
+                                        <div class="d-grid gap-2 mt-3" id="admitLettersButtons">
+                                            <a href="#" id="btnPrintAdmissionLetter" target="_blank" class="btn btn-success fw-semibold">
+                                                <i class="fas fa-print me-1"></i> Print Admission Letter
+                                            </a>
+                                            <a href="#" id="btnPrintAcceptanceLetter" target="_blank" class="btn btn-info fw-semibold text-white">
+                                                <i class="fas fa-file-contract me-1"></i> Print Acceptance Letter
+                                            </a>
+                                        </div>
+                                        <div class="alert alert-secondary text-center py-4 mb-0 d-none" id="notAdmittedAlert">
+                                            <i class="fas fa-lock fs-3 text-muted mb-2 d-block"></i>
+                                            <span class="small fw-semibold text-muted">Letters are only available once the student is admitted.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -596,6 +687,11 @@ function setHiddenIds(studentUserId, applicationId) {
     fillFormValue(biodataForm, 'application_id', applicationId);
     fillFormValue(academicsForm, 'student_user_id', studentUserId);
     fillFormValue(academicsForm, 'application_id', applicationId);
+    const refereesForm = document.getElementById('studentRefereesForm');
+    if (refereesForm) {
+        fillFormValue(refereesForm, 'student_user_id', studentUserId);
+        fillFormValue(refereesForm, 'application_id', applicationId);
+    }
 }
 
 async function loadStudentProfile(studentUserId) {
@@ -652,6 +748,103 @@ async function loadStudentProfile(studentUserId) {
 
     filterDepartmentsByFaculty();
     filterCourses();
+
+    // Set Referees
+    const refereesContainer = document.getElementById('refereesContainer');
+    if (refereesContainer) {
+        refereesContainer.innerHTML = '';
+        const refs = data.referees || [];
+        if (refs.length === 0) {
+            refereesContainer.innerHTML = '<div class="text-muted py-3 text-center">No referees found for this application.</div>';
+        } else {
+            refs.forEach((ref, idx) => {
+                const card = document.createElement('div');
+                card.className = 'card mb-3 border-secondary';
+                card.innerHTML = `
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-secondary">Referee #${idx + 1}</span>
+                    </div>
+                    <div class="card-body row g-3">
+                        <input type="hidden" name="referee_id[]" value="${ref.referee_id}">
+                        <div class="col-md-4">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control" name="full_name[]" value="${ref.full_name || ''}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Title</label>
+                            <input type="text" class="form-control" name="title[]" value="${ref.title || ''}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Organization</label>
+                            <input type="text" class="form-control" name="organization[]" value="${ref.organization || ''}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" class="form-control" name="email[]" value="${ref.email || ''}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" name="phone[]" value="${ref.phone || ''}">
+                        </div>
+                    </div>
+                `;
+                refereesContainer.appendChild(card);
+            });
+        }
+    }
+
+    // Set Slips URLs
+    const viewAppFormBtn = document.getElementById('btnViewAppForm');
+    const downloadAppSlipBtn = document.getElementById('btnDownloadAppSlip');
+    const printAdmissionBtn = document.getElementById('btnPrintAdmissionLetter');
+    const printAcceptanceBtn = document.getElementById('btnPrintAcceptanceLetter');
+    const admitLettersButtons = document.getElementById('admitLettersButtons');
+    const notAdmittedAlert = document.getElementById('notAdmittedAlert');
+    const slipsAdmittedInfo = document.getElementById('slipsAdmittedInfo');
+
+    if (viewAppFormBtn) {
+        viewAppFormBtn.href = `../../helpers/success.php?app_no=${encodeURIComponent(data.encrypted_application_number)}&view=1`;
+    }
+    if (downloadAppSlipBtn) {
+        downloadAppSlipBtn.href = `../../helpers/success.php?app_no=${encodeURIComponent(data.encrypted_application_number)}`;
+    }
+
+    const appStatus = s.status || s.application_status || '';
+    const isAdmitted = (appStatus.toLowerCase() === 'admitted' || s.current_status === 'ADMISSION_APPROVED');
+
+    if (isAdmitted) {
+        if (admitLettersButtons) admitLettersButtons.classList.remove('d-none');
+        if (notAdmittedAlert) notAdmittedAlert.classList.add('d-none');
+        if (slipsAdmittedInfo) slipsAdmittedInfo.textContent = 'View or download the admission and acceptance letters generated for this student.';
+        
+        const ap = data.admission_processing || {};
+        
+        if (printAdmissionBtn) {
+            printAdmissionBtn.href = `../../helpers/admission-letter.php?app_no=${encodeURIComponent(s.application_number)}`;
+            if (ap.admission_letter_status === 'Active') {
+                printAdmissionBtn.classList.remove('disabled');
+                printAdmissionBtn.innerHTML = '<i class="fas fa-print me-1"></i> Print Admission Letter';
+            } else {
+                printAdmissionBtn.classList.add('disabled');
+                printAdmissionBtn.innerHTML = '<i class="fas fa-print me-1"></i> Admission Letter (Inactive)';
+            }
+        }
+        
+        if (printAcceptanceBtn) {
+            printAcceptanceBtn.href = `../../helpers/acceptance-letter.php?app_no=${encodeURIComponent(s.application_number)}`;
+            if (ap.acceptance_letter_status === 'Active') {
+                printAcceptanceBtn.classList.remove('disabled');
+                printAcceptanceBtn.innerHTML = '<i class="fas fa-file-contract me-1"></i> Print Acceptance Letter';
+            } else {
+                printAcceptanceBtn.classList.add('disabled');
+                printAcceptanceBtn.innerHTML = '<i class="fas fa-file-contract me-1"></i> Acceptance Letter (Inactive)';
+            }
+        }
+    } else {
+        if (admitLettersButtons) admitLettersButtons.classList.add('d-none');
+        if (notAdmittedAlert) notAdmittedAlert.classList.remove('d-none');
+        if (slipsAdmittedInfo) slipsAdmittedInfo.textContent = 'Admissions and Acceptance letters are not available for this student.';
+    }
 }
 
 document.querySelectorAll('.manage-student-btn').forEach((btn) => {
@@ -715,6 +908,74 @@ if (academicsForm) {
             }
         } catch (error) {
             alert(error.message || 'Unable to save academics.');
+        }
+    });
+}
+
+const refereesForm = document.getElementById('studentRefereesForm');
+if (refereesForm) {
+    refereesForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+            const data = await submitStudentForm(refereesForm);
+            alert(data.message || 'Referee contacts saved successfully.');
+            const userId = refereesForm.querySelector('[name="student_user_id"]').value;
+            if (userId) {
+                await loadStudentProfile(userId);
+            }
+        } catch (error) {
+            alert(error.message || 'Unable to save referee contacts.');
+        }
+    });
+}
+
+// Undo Application execution handler
+const undoBtn = document.getElementById('btnUndoApplication');
+if (undoBtn) {
+    undoBtn.addEventListener('click', async () => {
+        const studentUserId = biodataForm.querySelector('[name="student_user_id"]').value;
+        const applicationId = biodataForm.querySelector('[name="application_id"]').value;
+        if (!studentUserId || !applicationId) {
+            alert('No student profile loaded.');
+            return;
+        }
+        if (!confirm('Are you sure you want to revert this application to Draft? This will allow the student to log in and edit all steps of their application.')) {
+            return;
+        }
+        undoBtn.disabled = true;
+        const oldText = undoBtn.textContent;
+        undoBtn.textContent = 'Processing...';
+        try {
+            const fd = new FormData();
+            fd.append('action', 'undo_application');
+            fd.append('student_user_id', studentUserId);
+            fd.append('application_id', applicationId);
+            
+            const response = await fetch('api/manage-students.php', {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin'
+            });
+            const text = await response.text();
+            let data = null;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                throw new Error(text || 'Invalid server response');
+            }
+            if (!data.success) {
+                throw new Error(data.message || 'Undo action failed');
+            }
+            alert(data.message || 'Application reverted to Draft successfully.');
+            const modal = getManageStudentModal();
+            if (modal) modal.hide();
+            // Reload the page
+            window.location.reload();
+        } catch (error) {
+            alert(error.message || 'Error executing undo action.');
+        } finally {
+            undoBtn.disabled = false;
+            undoBtn.textContent = oldText;
         }
     });
 }

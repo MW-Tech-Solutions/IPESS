@@ -14,7 +14,11 @@ $searchTerm = trim($_GET['search'] ?? '');
 $currentPage = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?: 1;
 if ($currentPage < 1) $currentPage = 1;
 
-$limit = 15;
+$limit = (int)($_GET['limit'] ?? 50);
+$allowedLimits = [50, 75, 100, 200, 500];
+if (!in_array($limit, $allowedLimits, true)) {
+    $limit = 50;
+}
 $offset = ($currentPage - 1) * $limit;
 
 if ($pdo) {
@@ -149,7 +153,14 @@ require_once 'includes/topbar.php';
             <div class="col-md-3">
                 <input type="text" class="form-control" name="search" placeholder="Search by actor, applicant or remarks" value="<?= htmlspecialchars($searchTerm) ?>">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <select class="form-select" name="limit" onchange="this.form.submit()">
+                    <?php foreach ([50, 75, 100, 200, 500] as $limOpt): ?>
+                        <option value="<?php echo $limOpt; ?>" <?= ($limit === $limOpt) ? 'selected' : '' ?>><?php echo $limOpt; ?> / page</option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <select class="form-select" name="role">
                     <option value="">All Actor Roles</option>
                     <?php foreach (['SUPER_ADMIN', 'ICTO_STAFF', 'DEPT_ADMIN', 'FACULTY_ADMIN', 'PG_SCHOOL_OFFICER', 'ICT_STAFF'] as $role): ?>
@@ -166,7 +177,7 @@ require_once 'includes/topbar.php';
                     <option value="matric" <?= ($filterAction === 'matric') ? 'selected' : '' ?>>Matric Generations</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter me-1"></i> Apply Filters</button>
             </div>
         </form>
@@ -238,15 +249,15 @@ require_once 'includes/topbar.php';
                 <nav class="d-flex justify-content-end mt-4">
                     <ul class="pagination mb-0">
                         <li class="page-item <?= ($currentPage <= 1) ? 'disabled' : '' ?>">
-                            <a class="page-link" href="?role=<?= urlencode($filterRole) ?>&action_filter=<?= urlencode($filterAction) ?>&search=<?= urlencode($searchTerm) ?>&page=<?= $currentPage - 1 ?>">Previous</a>
+                            <a class="page-link" href="?role=<?= urlencode($filterRole) ?>&action_filter=<?= urlencode($filterAction) ?>&search=<?= urlencode($searchTerm) ?>&limit=<?= $limit ?>&page=<?= $currentPage - 1 ?>">Previous</a>
                         </li>
                         <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                             <li class="page-item <?= ($currentPage == $i) ? 'active' : '' ?>">
-                                <a class="page-link" href="?role=<?= urlencode($filterRole) ?>&action_filter=<?= urlencode($filterAction) ?>&search=<?= urlencode($searchTerm) ?>&page=<?= $i ?>"><?= $i ?></a>
+                                <a class="page-link" href="?role=<?= urlencode($filterRole) ?>&action_filter=<?= urlencode($filterAction) ?>&search=<?= urlencode($searchTerm) ?>&limit=<?= $limit ?>&page=<?= $i ?>"><?= $i ?></a>
                             </li>
                         <?php endfor; ?>
                         <li class="page-item <?= ($currentPage >= $totalPages) ? 'disabled' : '' ?>">
-                            <a class="page-link" href="?role=<?= urlencode($filterRole) ?>&action_filter=<?= urlencode($filterAction) ?>&search=<?= urlencode($searchTerm) ?>&page=<?= $currentPage + 1 ?>">Next</a>
+                            <a class="page-link" href="?role=<?= urlencode($filterRole) ?>&action_filter=<?= urlencode($filterAction) ?>&search=<?= urlencode($searchTerm) ?>&limit=<?= $limit ?>&page=<?= $currentPage + 1 ?>">Next</a>
                         </li>
                     </ul>
                 </nav>

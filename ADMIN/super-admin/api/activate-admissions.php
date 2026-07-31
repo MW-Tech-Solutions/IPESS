@@ -78,7 +78,11 @@ function build_matric(PDO $pdo, int $appId): string {
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'list') {
     $filter   = $_GET['filter']   ?? 'all';   // all | no_matric | with_matric
     $page     = max(1, (int) ($_GET['page'] ?? 1));
-    $pageSize = 20;
+    $pageSize = (int)($_GET['limit'] ?? 50);
+    $allowedLimits = [50, 75, 100, 200, 500];
+    if (!in_array($pageSize, $allowedLimits, true)) {
+        $pageSize = 50;
+    }
     $offset   = ($page - 1) * $pageSize;
 
     $where = "WHERE (a.current_status = 'ADMISSION_APPROVED' OR a.status = 'Admitted')";

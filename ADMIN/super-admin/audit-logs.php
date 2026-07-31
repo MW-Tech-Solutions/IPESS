@@ -47,6 +47,31 @@ if ($pdo) {
         ";
         $stats = $pdo->query($statsSql)->fetch(PDO::FETCH_ASSOC) ?: $stats;
 
+        // Pagination parameters
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $limit = (int)($_GET['limit'] ?? 50);
+        $allowedLimits = [50, 75, 100, 200, 500];
+        if (!in_array($limit, $allowedLimits, true)) {
+            $limit = 50;
+        }
+
+        // Count query for pagination
+        $countSql = "
+            SELECT COUNT(*)
+            FROM audit_logs l
+            LEFT JOIN users u ON u.user_id = l.actor_user_id
+            $whereSql
+        ";
+        $countStmt = $pdo->prepare($countSql);
+        $countStmt->execute($params);
+        $totalRecords = (int)$countStmt->fetchColumn();
+
+        $totalPages = max(1, (int)ceil($totalRecords / $limit));
+        if ($page > $totalPages) {
+            $page = $totalPages;
+        }
+        $offset = ($page - 1) * $limit;
+
         $logsSql = "
             SELECT l.log_id, l.action, l.entity, l.details, l.ip_address, l.user_agent, l.severity, l.created_at,
                    u.email
@@ -54,7 +79,7 @@ if ($pdo) {
             LEFT JOIN users u ON u.user_id = l.actor_user_id
             $whereSql
             ORDER BY l.created_at DESC
-            LIMIT 60
+            LIMIT {$limit} OFFSET {$offset}
         ";
         $stmt = $pdo->prepare($logsSql);
         $stmt->execute($params);
@@ -146,10 +171,17 @@ $exportQuery = $_GET ? ('?' . http_build_query($_GET)) : '';
     </div>
     <div class="panel-body">
         <form class="row g-3" method="GET">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <input type="text" class="form-control" name="search" placeholder="Search details or email" value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <select class="form-select" name="limit" onchange="this.form.submit()">
+                    <?php foreach ([50, 75, 100, 200, 500] as $limOpt): ?>
+                        <option value="<?php echo $limOpt; ?>" <?php echo $limit === $limOpt ? 'selected' : ''; ?>><?php echo $limOpt; ?> / page</option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <select class="form-select" name="action">
                     <option value="">All Actions</option>
                     <?php foreach (['LOGIN', 'LOGOUT', 'UPDATE', 'CREATE', 'DELETE', 'EXPORT'] as $action): ?>
@@ -220,6 +252,44 @@ $exportQuery = $_GET ? ('?' . http_build_query($_GET)) : '';
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+            </div>
+            
+            <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-2">
+                <div class="text-muted small">
+                    Showing <?php echo min($totalRecords, $offset + 1); ?> to <?php echo min($totalRecords, $offset + $limit); ?> of <?php echo $totalRecords; ?> log records.
+                </div>
+                <?php if ($totalPages > 1): ?>
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>">Previous</a>
+                            </li>
+                            
+                            <?php 
+                            $startPage = max(1, $page - 2);
+                            $endPage = min($totalPages, $page + 2);
+                            if ($startPage > 1): ?>
+                                <li class="page-item"><a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>">1</a></li>
+                                <?php if ($startPage > 2): ?><li class="page-item disabled"><span class="page-link">...</span></li><?php endif; ?>
+                            <?php endif; ?>
+
+                            <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                                <li class="page-item <?php echo $page === $i ? 'active' : ''; ?>">
+                                    <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a>
+                                </li>
+                            <?php endfor; ?>
+
+                            <?php if ($endPage < $totalPages): ?>
+                                <?php if ($endPage < $totalPages - 1): ?><li class="page-item disabled"><span class="page-link">...</span></li><?php endif; ?>
+                                <li class="page-item"><a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $totalPages])); ?>"><?php echo $totalPages; ?></a></li>
+                            <?php endif; ?>
+
+                            <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
+                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>">Next</a>
+                            </li>
+                        </ul>
+                    </nav>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
     </div>

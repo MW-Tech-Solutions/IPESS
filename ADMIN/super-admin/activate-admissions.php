@@ -75,6 +75,13 @@ require_once 'includes/topbar.php';
                 <option value="no_matric">Without Matric</option>
                 <option value="with_matric">With Matric</option>
             </select>
+            <select class="form-select form-select-sm" id="limitSelect" style="max-width: 130px;">
+                <option value="50">50 per page</option>
+                <option value="75">75 per page</option>
+                <option value="100">100 per page</option>
+                <option value="200">200 per page</option>
+                <option value="500">500 per page</option>
+            </select>
             <button class="btn btn-sm btn-outline-primary" id="btnSelectAll">Select All</button>
             <div class="ms-auto d-flex gap-2">
                 <button class="btn btn-sm btn-primary" id="btnActivateLetters">
@@ -144,12 +151,13 @@ function toast(msg, type = 'success') {
 async function loadTable(page = 1) {
     currentPage = page;
     const filter = document.getElementById('filterSelect').value;
+    const limit  = document.getElementById('limitSelect').value;
     const body   = document.getElementById('admBody');
     body.innerHTML = '<tr><td colspan="10" class="text-center py-4"><div class="spinner-border spinner-border-sm text-success"></div> Loading…</td></tr>';
     document.getElementById('paginationArea').style.display = 'none';
 
     try {
-        const res  = await fetch(`${API}?action=list&filter=${filter}&page=${page}`);
+        const res  = await fetch(`${API}?action=list&filter=${filter}&page=${page}&limit=${limit}`);
         const data = await res.json();
         if (!data.success) throw new Error(data.message || 'API error');
 
@@ -260,6 +268,7 @@ async function setLetterStatus(admitStat, acceptStat) {
 document.getElementById('btnActivateLetters').addEventListener('click',   () => setLetterStatus('Active',   'Active'));
 document.getElementById('btnDeactivateLetters').addEventListener('click', () => setLetterStatus('Inactive', 'Inactive'));
 document.getElementById('filterSelect').addEventListener('change', () => loadTable(1));
+document.getElementById('limitSelect').addEventListener('change', () => loadTable(1));
 
 // ── Initial load ─────────────────────────────────────────────────────────────
 loadTable(1);

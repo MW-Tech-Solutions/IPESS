@@ -17,7 +17,11 @@ $modes = [];
 $totalRows = 0;
 $totalPages = 1;
 $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int) $_GET['page'] : 1;
-$limit = 10;
+$limit = (int)($_GET['limit'] ?? 50);
+$allowedLimits = [50, 75, 100, 200, 500];
+if (!in_array($limit, $allowedLimits, true)) {
+    $limit = 50;
+}
 $offset = ($page - 1) * $limit;
 
 if ($pdo) {
@@ -167,8 +171,15 @@ require_once 'includes/topbar.php';
     </div>
     <div class="panel-body">
         <form class="row g-3" method="GET">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <input type="text" class="form-control" name="search" placeholder="Search name or application no" value="<?php echo htmlspecialchars($_GET['search'] ?? ''); ?>">
+            </div>
+            <div class="col-md-1">
+                <select class="form-select" name="limit" onchange="this.form.submit()">
+                    <?php foreach ([50, 75, 100, 200, 500] as $limOpt): ?>
+                        <option value="<?php echo $limOpt; ?>" <?php echo $limit === $limOpt ? 'selected' : ''; ?>><?php echo $limOpt; ?> / page</option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="col-md-2">
                 <select class="form-select" name="status">

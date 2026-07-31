@@ -10,6 +10,8 @@ if (!has_permission('manage_students')) {
 
 header('Content-Type: application/json');
 require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../../../config/urls.php';
+require_once __DIR__ . '/../../../includes/status_engine.php';
 
 set_error_handler(function ($severity, $message, $file, $line) {
     throw new ErrorException($message, 0, $severity, $file, $line);
@@ -92,12 +94,23 @@ function fetch_student_profile(PDO $pdo, int $studentUserId): array
     $researchStmt->execute([$applicationId]);
     $research = $researchStmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
+    $refStmt = $pdo->prepare("SELECT referee_id, full_name, title, organization, email, phone FROM referees WHERE application_id = ? ORDER BY referee_id ASC");
+    $refStmt->execute([$applicationId]);
+    $referees = $refStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $apStmt = $pdo->prepare("SELECT matric_number, admission_letter_status, acceptance_letter_status FROM admission_processing WHERE application_id = ? LIMIT 1");
+    $apStmt->execute([$applicationId]);
+    $admissionProcessing = $apStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
     return [
         'student' => $student,
         'biodata' => $biodata,
         'academics' => $academics,
         'higher_education' => $higherEducation,
         'research' => $research,
+        'referees' => $referees,
+        'admission_processing' => $admissionProcessing,
+        'encrypted_application_number' => encrypt_app_number($student['application_number'] ?? ''),
     ];
 }
 
@@ -132,6 +145,57 @@ try {
     $profile = fetch_student_profile($pdo, $studentUserId);
     if ((int) ($profile['student']['application_id'] ?? 0) !== $applicationId) {
         echo json_encode(['success' => false, 'message' => 'Application does not match latest student record.']);
+        exit;
+    }
+
+    if ($action === 'undo_application') {
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("UPDATE applications SET status = 'Draft', current_status = 'DRAFT', current_step = 9, submitted_at = NULL WHERE application_id = ?");
+        $stmt->execute([$applicationId]);
+
+        $stmtProg = $pdo->prepare("DELETE FROM application_progress WHERE application_id = ?");
+        $stmtProg->execute([$applicationId]);
+
+        $stmtAP = $pdo->prepare("DELETE FROM admission_processing WHERE application_id = ?");
+        $stmtAP->execute([$applicationId]);
+
+        $prev_status = $profile['student']['status'] ?? 'Unknown';
+        $adminUserId = (int) ($_SESSION['user_id'] ?? 0);
+        log_application_history($pdo, $applicationId, $prev_status, 'DRAFT', $adminUserId, 'SUPER_ADMIN', 'Application reverted to Draft by Super Admin');
+        log_audit($pdo, 'Application Undone', $adminUserId, "Application {$applicationId} reverted to Draft (Step 9) by Super Admin");
+
+        $pdo->commit();
+        echo json_encode(['success' => true, 'message' => 'Application reverted to Draft (Step 9) successfully.']);
+        exit;
+    }
+
+    if ($action === 'save_referees') {
+        $refereeIds = $_POST['referee_id'] ?? [];
+        $emails = $_POST['email'] ?? [];
+        $phones = $_POST['phone'] ?? [];
+        $names = $_POST['full_name'] ?? [];
+        $titles = $_POST['title'] ?? [];
+        $orgs = $_POST['organization'] ?? [];
+
+        $pdo->beginTransaction();
+
+        for ($i = 0; $i < count($refereeIds); $i++) {
+            $refId = (int)$refereeIds[$i];
+            $email = trim((string)($emails[$i] ?? ''));
+            $phone = trim((string)($phones[$i] ?? ''));
+            $fullName = trim((string)($names[$i] ?? ''));
+            $title = trim((string)($titles[$i] ?? ''));
+            $org = trim((string)($orgs[$i] ?? ''));
+
+            if ($refId > 0) {
+                $stmt = $pdo->prepare("UPDATE referees SET email = ?, phone = ?, full_name = ?, title = ?, organization = ? WHERE referee_id = ? AND application_id = ?");
+                $stmt->execute([$email, $phone, $fullName, $title, $org, $refId, $applicationId]);
+            }
+        }
+
+        $pdo->commit();
+        echo json_encode(['success' => true, 'message' => 'Referee contact details updated successfully.']);
         exit;
     }
 

@@ -33,6 +33,31 @@ if ($pdo) {
     $roles = $pdo->query("SELECT role_id, role_key, role_name FROM roles ORDER BY role_name")->fetchAll(PDO::FETCH_ASSOC);
     $departments = $pdo->query("SELECT dept_id, dept_name FROM departments ORDER BY dept_name")->fetchAll(PDO::FETCH_ASSOC);
 
+    // Pagination parameters
+    $page = max(1, (int)($_GET['page'] ?? 1));
+    $limit = (int)($_GET['limit'] ?? 50);
+    $allowedLimits = [50, 75, 100, 200, 500];
+    if (!in_array($limit, $allowedLimits, true)) {
+        $limit = 50;
+    }
+
+    // Count query for pagination
+    $countSql = "
+        SELECT COUNT(*)
+        FROM users u
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM applications ax
+            WHERE ax.user_id = u.user_id
+        )
+    ";
+    $totalRecords = (int)$pdo->query($countSql)->fetchColumn();
+    $totalPages = max(1, (int)ceil($totalRecords / $limit));
+    if ($page > $totalPages) {
+        $page = $totalPages;
+    }
+    $offset = ($page - 1) * $limit;
+
     $usersSql = "
         SELECT u.user_id, u.email, u.account_status, u.last_login, u.created_at,
                u.full_name, u.role_id, u.department_id,
@@ -59,6 +84,7 @@ if ($pdo) {
             WHERE ax.user_id = u.user_id
         )
         ORDER BY u.created_at DESC
+        LIMIT {$limit} OFFSET {$offset}
     ";
     $users = $pdo->query($usersSql)->fetchAll(PDO::FETCH_ASSOC);
 }
@@ -116,9 +142,18 @@ require_once 'includes/topbar.php';
             <h3 class="panel-title">Account Directory</h3>
             <div class="panel-muted">Administrative users only. Student records are managed in Manage Students.</div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-center">
+            <form method="get" class="d-inline-flex align-items-center gap-2">
+                <select class="form-select form-select-sm" name="limit" onchange="this.form.submit()">
+                    <?php foreach ([50, 75, 100, 200, 500] as $limOpt): ?>
+                        <option value="<?php echo $limOpt; ?>" <?php echo $limit === $limOpt ? 'selected' : ''; ?>>
+                            <?php echo $limOpt; ?> per page
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
             <button class="btn btn-outline-primary btn-sm">Bulk Actions</button>
-            <button class="btn btn-light btn-sm">Reset Filters</button>
+            <button class="btn btn-light btn-sm" onclick="window.location.href='user-management.php'">Reset Filters</button>
         </div>
     </div>
     <div class="panel-body">
@@ -197,6 +232,44 @@ require_once 'includes/topbar.php';
                     <?php endif; ?>
                 </tbody>
             </table>
+        </div>
+        
+        <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-2">
+            <div class="text-muted small">
+                Showing <?php echo min($totalRecords, $offset + 1); ?> to <?php echo min($totalRecords, $offset + $limit); ?> of <?php echo $totalRecords; ?> user records.
+            </div>
+            <?php if ($totalPages > 1): ?>
+                <nav aria-label="Page navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>">Previous</a>
+                        </li>
+                        
+                        <?php 
+                        $startPage = max(1, $page - 2);
+                        $endPage = min($totalPages, $page + 2);
+                        if ($startPage > 1): ?>
+                            <li class="page-item"><a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => 1])); ?>">1</a></li>
+                            <?php if ($startPage > 2): ?><li class="page-item disabled"><span class="page-link">...</span></li><?php endif; ?>
+                        <?php endif; ?>
+
+                        <?php for ($i = $startPage; $i <= $endPage; $i++): ?>
+                            <li class="page-item <?php echo $page === $i ? 'active' : ''; ?>">
+                                <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a>
+                            </li>
+                        <?php endfor; ?>
+
+                        <?php if ($endPage < $totalPages): ?>
+                            <?php if ($endPage < $totalPages - 1): ?><li class="page-item disabled"><span class="page-link">...</span></li><?php endif; ?>
+                            <li class="page-item"><a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $totalPages])); ?>"><?php echo $totalPages; ?></a></li>
+                        <?php endif; ?>
+
+                        <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            <?php endif; ?>
         </div>
     </div>
 </section>

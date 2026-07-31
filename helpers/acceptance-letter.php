@@ -11,14 +11,16 @@ if (!isset($_SESSION['user_id'])) {
 
 $userId    = (int) ($_SESSION['user_id'] ?? 0);
 $appNumber = $_GET['app_no'] ?? '';
+$role = $_SESSION['role'] ?? $_SESSION['user_role'] ?? null;
+$isAdmin = ($role && in_array(strtoupper($role), ['SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'PG_SCHOOL_OFFICER', 'ADMISSIONS_OFFICER'], true));
 
 try {
-    $applicant = admission_letter_fetch($pdo, $appNumber, $userId);
+    $applicant = admission_letter_fetch($pdo, $appNumber, $isAdmin ? null : $userId);
     if (!$applicant) {
         die("Acceptance letter not available.");
     }
-    // Must have acceptance letter activated
-    if (($applicant['acceptance_letter_status'] ?? 'Inactive') !== 'Active') {
+    // Must have acceptance letter activated, unless logged in as admin
+    if (!$isAdmin && ($applicant['acceptance_letter_status'] ?? 'Inactive') !== 'Active') {
         die("Acceptance letter has not been activated for your application yet.");
     }
 } catch (PDOException $e) {
