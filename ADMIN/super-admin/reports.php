@@ -59,7 +59,7 @@ require_once 'includes/topbar.php';
                 <label class="form-label fw-bold">Report Category</label>
                 <select class="form-select" id="reportCategorySelect" name="report_type" required>
                     <option value="Admissions Summary">Summary: Admissions Overview</option>
-                    <option value="Faculty Breakdown">Summary: Faculty Breakdown</option>
+                    <option value="College Breakdown">Summary: College Breakdown</option>
                     <option value="Programme Capacity">Summary: Programme Capacity</option>
                     <option value="Student Admissions">Detailed: Student Admissions</option>
                     <option value="Staff Records">Detailed: Staff Records</option>
@@ -86,7 +86,7 @@ require_once 'includes/topbar.php';
             <!-- Student Filters -->
             <div class="row g-3 d-none mt-2 mx-0 px-0 w-100" id="studentFiltersRow">
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold text-muted small">Faculty / College</label>
+                    <label class="form-label fw-semibold text-muted small">College</label>
                     <select class="form-select" name="college_id" id="studentFacultySelect">
                         <option value="">All Colleges</option>
                         <?php foreach ($faculties as $f): ?>

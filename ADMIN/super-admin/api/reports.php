@@ -495,7 +495,7 @@ function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters 
             $headers = [
                 'Application Number', 'Surname', 'First Name', 'Other Name', 'Email', 
                 'Phone Number', 'Date of Birth', 'Gender', 'Nationality', 'State of Origin', 
-                'LGA', 'Contact Address', 'Faculty / College', 'Department', 'Academic Programme', 
+                'LGA', 'Contact Address', 'College', 'Department', 'Academic Programme', 
                 'Degree Type', 'Mode of Study', 'Application Status', 'Workflow Status', 
                 'Submission Date', 'Completion Percentage (%)'
             ];
@@ -615,7 +615,7 @@ function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters 
             'rows' => $tableRows,
         ];
 
-    } elseif ($type === 'faculty breakdown') {
+    } elseif ($type === 'faculty breakdown' || $type === 'college breakdown') {
         $rows = safe_rows($pdo, "
             SELECT
                 COALESCE(f.faculty_name, 'Unassigned') AS faculty_name,
@@ -639,11 +639,11 @@ function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters 
             ];
         }
         if (empty($tableRows)) {
-            $tableRows[] = ['No faculty records', '0', '0', '0'];
+            $tableRows[] = ['No college records', '0', '0', '0'];
         }
         $sections[] = [
-            'title' => 'Faculty Application Breakdown',
-            'headers' => ['Faculty', 'Applications', 'Admitted', 'Rejected'],
+            'title' => 'College Application Breakdown',
+            'headers' => ['College', 'Applications', 'Admitted', 'Rejected'],
             'rows' => $tableRows,
         ];
     } elseif ($type === 'programme capacity') {
@@ -697,6 +697,7 @@ function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters 
             ],
         ];
 
+        // 1. College Distribution
         $facultyRows = safe_rows($pdo, "
             SELECT f.faculty_name, COUNT(*) AS total
             FROM programme_choices pc
@@ -710,12 +711,66 @@ function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters 
             $rows[] = [(string) ($row['faculty_name'] ?: 'Unassigned'), number_format((int) ($row['total'] ?? 0))];
         }
         if (empty($rows)) {
-            $rows[] = ['No faculty data available', '0'];
+            $rows[] = ['No college data available', '0'];
         }
         $sections[] = [
-            'title' => 'Faculty Distribution',
-            'headers' => ['Faculty', 'Applications'],
+            'title' => 'College Distribution',
+            'headers' => ['College', 'Applications'],
             'rows' => $rows,
+        ];
+
+        // 2. Department Distribution
+        $deptRows = safe_rows($pdo, "
+            SELECT d.dept_name, COUNT(*) AS total,
+                   SUM(CASE WHEN a.status = 'Admitted' THEN 1 ELSE 0 END) as admitted
+            FROM programme_choices pc
+            LEFT JOIN departments d ON d.dept_id = pc.department
+            LEFT JOIN applications a ON a.application_id = pc.application_id
+            GROUP BY d.dept_name
+            ORDER BY total DESC
+        ");
+        $dRows = [];
+        foreach ($deptRows as $row) {
+            $dRows[] = [
+                (string) ($row['dept_name'] ?: 'Unassigned'),
+                number_format((int) ($row['total'] ?? 0)),
+                number_format((int) ($row['admitted'] ?? 0))
+            ];
+        }
+        if (empty($dRows)) {
+            $dRows[] = ['No department data available', '0', '0'];
+        }
+        $sections[] = [
+            'title' => 'Department Distribution',
+            'headers' => ['Department', 'Applications', 'Admitted'],
+            'rows' => $dRows,
+        ];
+
+        // 3. Programme Distribution
+        $progRows = safe_rows($pdo, "
+            SELECT c.course_title, COUNT(*) AS total,
+                   SUM(CASE WHEN a.status = 'Admitted' THEN 1 ELSE 0 END) as admitted
+            FROM programme_choices pc
+            LEFT JOIN courses c ON c.course_id = pc.course
+            LEFT JOIN applications a ON a.application_id = pc.application_id
+            GROUP BY c.course_title
+            ORDER BY total DESC
+        ");
+        $pRows = [];
+        foreach ($progRows as $row) {
+            $pRows[] = [
+                (string) ($row['course_title'] ?: 'Unassigned'),
+                number_format((int) ($row['total'] ?? 0)),
+                number_format((int) ($row['admitted'] ?? 0))
+            ];
+        }
+        if (empty($pRows)) {
+            $pRows[] = ['No programme data available', '0', '0'];
+        }
+        $sections[] = [
+            'title' => 'Programme Distribution',
+            'headers' => ['Programme', 'Applications', 'Admitted'],
+            'rows' => $pRows,
         ];
     }
 
@@ -766,21 +821,29 @@ function buildReportHtml(array $reportData): string {
     $generated = (string) ($reportData['generated'] ?? date('M d, Y H:i'));
     $reportType = (string) ($reportData['report_type'] ?? 'Report');
     $logoDataUri = '';
-    $logoPath = __DIR__ . '/../../images/ipess_logo.png';
-    if (is_file($logoPath)) {
-        $raw = @file_get_contents($logoPath);
-        if ($raw !== false) {
-            $logoDataUri = 'data:image/png;base64,' . base64_encode($raw);
-        }
-    } else {
-        $fallbackPath = __DIR__ . '/../../images/logo.jpeg';
-        if (is_file($fallbackPath)) {
-            $raw = @file_get_contents($fallbackPath);
+    if (extension_loaded('gd')) {
+        $logoPath = __DIR__ . '/../../images/ipess_logo.png';
+        if (is_file($logoPath)) {
+            $raw = @file_get_contents($logoPath);
             if ($raw !== false) {
-                $logoDataUri = 'data:image/jpeg;base64,' . base64_encode($raw);
+                $logoDataUri = 'data:image/png;base64,' . base64_encode($raw);
+            }
+        } else {
+            $fallbackPath = __DIR__ . '/../../images/logo.jpeg';
+            if (is_file($fallbackPath)) {
+                $raw = @file_get_contents($fallbackPath);
+                if ($raw !== false) {
+                    $logoDataUri = 'data:image/jpeg;base64,' . base64_encode($raw);
+                }
             }
         }
     }
+    
+    $logoImgHtml = '';
+    if (!empty($logoDataUri)) {
+        $logoImgHtml = "<img class='logo' src='{$logoDataUri}' alt='School Logo'>";
+    }
+
     $sectionsHtml = '';
     foreach ($reportData['sections'] as $section) {
         $title = htmlspecialchars((string) ($section['title'] ?? 'Section'));
@@ -834,7 +897,7 @@ function buildReportHtml(array $reportData): string {
         <table class='header-row'>
             <tr>
                 <td class='logo-cell'>
-                    <img class='logo' src='{$logoDataUri}' alt='School Logo'>
+                    {$logoImgHtml}
                 </td>
                 <td class='title-wrap'>
                     <h1>Joseph Sarwuan Tarka University, Makurdi</h1>
