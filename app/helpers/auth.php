@@ -149,12 +149,10 @@ if (!function_exists('has_permission')) {
                 }
             }
 
-            // Fall back to role permissions
+            // Check role permissions
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM role_permissions WHERE role_key = ? AND permission_key = ?");
             $stmt->execute([$role, $permission]);
-            if ((int) $stmt->fetchColumn() > 0) {
-                return true;
-            }
+            return ((int) $stmt->fetchColumn() > 0);
         } catch (Throwable $e) {
             // Fall back to hardcoded arrays if the table isn't created or has issues
         }
