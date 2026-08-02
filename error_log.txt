@@ -611,3 +611,15 @@ File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\reports.php on line 20
 [2026-08-02 04:47:48] PHP Error (2): Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\IPESS\ADMIN\includes\db.php:4)
 File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\reports.php on line 20
 
+[2026-08-02 10:41:42] PHP Error (2): Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\IPESS\scratch\test_post_entities.php:9)
+File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\manage-entities.php on line 24
+
+[2026-08-02 10:41:42] PHP Error (2): Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\IPESS\scratch\test_post_entities.php:9)
+File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\manage-entities.php on line 25
+
+[2026-08-02 10:41:42] PHP Error (2): Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\IPESS\scratch\test_post_entities.php:9)
+File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\manage-entities.php on line 26
+
+[2026-08-02 10:41:42] PHP Error (2): Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\IPESS\scratch\test_post_entities.php:9)
+File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\manage-entities.php on line 27
+

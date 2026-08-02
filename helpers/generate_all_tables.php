@@ -224,11 +224,14 @@ if (!function_exists('generate_all_missing_tables')) {
                 $rCheck = $pdo->prepare("SELECT COUNT(*) FROM roles WHERE role_key = ?");
                 $rCheck->execute([$role]);
                 if ((int) $rCheck->fetchColumn() > 0) {
-                    $stmtDelete = $pdo->prepare("DELETE FROM role_permissions WHERE role_key = ?");
-                    $stmtDelete->execute([$role]);
-                    $stmtInsert = $pdo->prepare("INSERT INTO role_permissions (role_key, permission_key) VALUES (?, ?)");
-                    foreach ($perms as $perm) {
-                        $stmtInsert->execute([$role, $perm]);
+                    // Check if role already has permissions seeded/configured
+                    $pCheck = $pdo->prepare("SELECT COUNT(*) FROM role_permissions WHERE role_key = ?");
+                    $pCheck->execute([$role]);
+                    if ((int) $pCheck->fetchColumn() === 0) {
+                        $stmtInsert = $pdo->prepare("INSERT INTO role_permissions (role_key, permission_key) VALUES (?, ?)");
+                        foreach ($perms as $perm) {
+                            $stmtInsert->execute([$role, $perm]);
+                        }
                     }
                 }
             }

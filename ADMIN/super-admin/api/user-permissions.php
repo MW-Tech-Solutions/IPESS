@@ -22,8 +22,8 @@ if (!in_array(normalize_role($sessionRole), ['SUPER_ADMIN', 'ICT_ADMIN'], true))
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $userId = filter_input(INPUT_GET, 'user_id', FILTER_VALIDATE_INT);
+if ($_SERVER['REQUEST_METHOD'] === 'GET' || (isset($_POST['action']) && $_POST['action'] === 'get_overrides')) {
+    $userId = filter_input(INPUT_GET, 'user_id', FILTER_VALIDATE_INT) ?: filter_input(INPUT_POST, 'user_id', FILTER_VALIDATE_INT);
     if (!$userId) {
         echo json_encode(['success' => false, 'message' => 'Invalid user ID.']);
         exit;

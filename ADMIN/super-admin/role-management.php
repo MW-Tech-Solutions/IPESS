@@ -269,7 +269,11 @@ function openDutiesModal(roleKey, roleName) {
         btn.classList.add('btn-outline-primary');
     });
     
-    fetch(`api/manage-entities.php?action=get_permissions&role_key=${encodeURIComponent(roleKey)}&t=${new Date().getTime()}`)
+    fetch('api/manage-entities.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `action=get_permissions&role_key=${encodeURIComponent(roleKey)}`
+    })
         .then(response => response.json())
         .then(data => {
             if (data.success && data.data) {
@@ -350,7 +354,11 @@ document.querySelectorAll('.edit-permissions-btn').forEach(btn => {
         document.getElementById('permModalTitleName').innerText = userName;
         
         // Fetch current overrides
-        fetch(`api/user-permissions.php?user_id=${userId}&t=${new Date().getTime()}`)
+        fetch('api/user-permissions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `action=get_overrides&user_id=${userId}`
+        })
             .then(res => res.json())
             .then(data => {
                 const overrides = (data.success && data.data && data.data.overrides) ? data.data.overrides : {};

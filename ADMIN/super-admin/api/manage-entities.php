@@ -46,7 +46,7 @@ ensure_role_permissions_table($pdo);
 $action = $_GET['action'] ?? $_POST['action'] ?? 'list';
 
 if ($action === 'get_permissions') {
-    $roleKey = strtoupper(trim($_GET['role_key'] ?? ''));
+    $roleKey = strtoupper(trim($_POST['role_key'] ?? $_GET['role_key'] ?? ''));
     if ($roleKey === '') {
         echo json_encode(['success' => false, 'message' => 'Role key is required.']);
         exit;
