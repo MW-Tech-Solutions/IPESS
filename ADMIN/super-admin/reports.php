@@ -6,6 +6,7 @@ require_role(['SUPER_ADMIN', 'ICT_ADMIN'], 'ADMIN/login.php');
 $faculties = [];
 $departments = [];
 $degrees = [];
+$courses = [];
 $states = [];
 $roles = [];
 
@@ -14,6 +15,12 @@ if (isset($pdo)) {
         $faculties = $pdo->query("SELECT faculty_id, faculty_name FROM faculties ORDER BY faculty_name ASC")->fetchAll(PDO::FETCH_ASSOC);
         $departments = $pdo->query("SELECT dept_id, dept_name, faculty_id FROM departments ORDER BY dept_name ASC")->fetchAll(PDO::FETCH_ASSOC);
         $degrees = $pdo->query("SELECT degree_id, degree_name FROM degree_types ORDER BY degree_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+        $courses = $pdo->query("
+            SELECT c.course_id, c.course_title, c.dept_id, d.faculty_id 
+            FROM courses c
+            LEFT JOIN departments d ON c.dept_id = d.dept_id
+            ORDER BY c.course_title ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
         $states = $pdo->query("SELECT DISTINCT state_origin FROM personal_details WHERE state_origin IS NOT NULL AND state_origin <> '' ORDER BY state_origin ASC")->fetchAll(PDO::FETCH_COLUMN);
         $roles = $pdo->query("SELECT role_id, role_key, role_name FROM roles ORDER BY role_name ASC")->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
@@ -78,7 +85,7 @@ require_once 'includes/topbar.php';
 
             <!-- Student Filters -->
             <div class="row g-3 d-none mt-2 mx-0 px-0 w-100" id="studentFiltersRow">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label fw-semibold text-muted small">Faculty / College</label>
                     <select class="form-select" name="college_id" id="studentFacultySelect">
                         <option value="">All Colleges</option>
@@ -88,7 +95,7 @@ require_once 'includes/topbar.php';
                     </select>
                 </div>
                 
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label fw-semibold text-muted small">Department</label>
                     <select class="form-select" name="department_id" id="studentDeptSelect">
                         <option value="">All Departments</option>
@@ -98,8 +105,18 @@ require_once 'includes/topbar.php';
                     </select>
                 </div>
 
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold text-muted small">Programme / Degree Type</label>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold text-muted small">Academic Programme</label>
+                    <select class="form-select" name="course_id" id="studentCourseSelect">
+                        <option value="">All Programmes</option>
+                        <?php foreach ($courses as $c): ?>
+                            <option value="<?php echo $c['course_id']; ?>" data-dept-id="<?php echo $c['dept_id']; ?>" data-faculty-id="<?php echo $c['faculty_id']; ?>"><?php echo htmlspecialchars($c['course_title']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold text-muted small">Degree Type</label>
                     <select class="form-select" name="degree_id">
                         <option value="">All Degree Types</option>
                         <?php foreach ($degrees as $dg): ?>
@@ -261,6 +278,7 @@ const staffFiltersRow = document.getElementById('staffFiltersRow');
 
 const studentFacultySelect = document.getElementById('studentFacultySelect');
 const studentDeptSelect = document.getElementById('studentDeptSelect');
+const studentCourseSelect = document.getElementById('studentCourseSelect');
 
 const searchInput = document.getElementById('applicantSearchInput');
 const suggestionsList = document.getElementById('applicantSuggestionsList');
@@ -280,9 +298,41 @@ function filterStudentDepts() {
         opt.style.display = (facultyId !== '' && optFacultyId !== facultyId) ? 'none' : 'block';
     });
 }
+
+// Handle dynamic academic programmes selection
+function filterStudentCourses() {
+    if (!studentFacultySelect || !studentDeptSelect || !studentCourseSelect) return;
+    const facultyId = studentFacultySelect.value;
+    const deptId = studentDeptSelect.value;
+    
+    Array.from(studentCourseSelect.options).forEach(opt => {
+        if (!opt.value) return;
+        const optFacultyId = opt.dataset.facultyId || '';
+        const optDeptId = opt.dataset.deptId || '';
+        
+        let show = true;
+        if (facultyId !== '' && optFacultyId !== facultyId) {
+            show = false;
+        }
+        if (deptId !== '' && optDeptId !== deptId) {
+            show = false;
+        }
+        
+        opt.hidden = !show;
+        opt.style.display = show ? 'block' : 'none';
+    });
+}
+
 studentFacultySelect.addEventListener('change', () => {
     studentDeptSelect.value = '';
+    studentCourseSelect.value = '';
     filterStudentDepts();
+    filterStudentCourses();
+});
+
+studentDeptSelect.addEventListener('change', () => {
+    studentCourseSelect.value = '';
+    filterStudentCourses();
 });
 
 // Toggle Filter Rows

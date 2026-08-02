@@ -216,6 +216,10 @@ if ($format === 'DOSSIERS_ZIP') {
         $where[] = 'pc.department = ?';
         $params[] = $filters['department_id'];
     }
+    if (!empty($filters['course_id'])) {
+        $where[] = 'pc.course = ?';
+        $params[] = $filters['course_id'];
+    }
     if (!empty($filters['degree_id'])) {
         $where[] = 'pc.degree_type = ?';
         $params[] = $filters['degree_id'];
@@ -294,23 +298,24 @@ if ($format === 'DOSSIERS_ZIP') {
                 $html = buildReportHtml($reportData);
                 $dompdf = new Dompdf\Dompdf();
                 $dompdf->loadHtml($html);
-            $orientation = in_array(strtolower($reportType), ['student admissions', 'staff records'], true) ? 'landscape' : 'portrait';
-            $dompdf->setPaper('A4', $orientation);
-            $dompdf->render();
-            if (file_put_contents($fullPath, $dompdf->output()) === false) {
-                json_error('Unable to write report file.');
+                $orientation = in_array(strtolower($reportType), ['student admissions', 'staff records'], true) ? 'landscape' : 'portrait';
+                $dompdf->setPaper('A4', $orientation);
+                $dompdf->render();
+                if (file_put_contents($fullPath, $dompdf->output()) === false) {
+                    json_error('Unable to write report file.');
+                }
+            } catch (Throwable $e) {
+                error_log("Dompdf failed in super-admin/reports: " . $e->getMessage() . ". Falling back to simple PDF.");
+                $pdf = buildSimplePdf($lines);
+                if (file_put_contents($fullPath, $pdf) === false) {
+                    json_error('Unable to write report file.');
+                }
             }
-        } catch (Throwable $e) {
-            error_log("Dompdf failed in super-admin/reports: " . $e->getMessage() . ". Falling back to simple PDF.");
+        } else {
             $pdf = buildSimplePdf($lines);
             if (file_put_contents($fullPath, $pdf) === false) {
                 json_error('Unable to write report file.');
             }
-        }
-    } else {
-        $pdf = buildSimplePdf($lines);
-        if (file_put_contents($fullPath, $pdf) === false) {
-            json_error('Unable to write report file.');
         }
     }
 }
@@ -389,6 +394,10 @@ function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters 
             $where[] = 'pc.department = ?';
             $params[] = $filters['department_id'];
         }
+        if (!empty($filters['course_id'])) {
+            $where[] = 'pc.course = ?';
+            $params[] = $filters['course_id'];
+        }
         if (!empty($filters['degree_id'])) {
             $where[] = 'pc.degree_type = ?';
             $params[] = $filters['degree_id'];
@@ -407,30 +416,71 @@ function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters 
         }
         
         $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+        $isExcel = (strtoupper($filters['format'] ?? '') === 'EXCEL');
         
-        $sql = "
-            SELECT 
-                a.application_number,
-                CONCAT(COALESCE(pd.surname,''), ' ', COALESCE(pd.first_name,''), ' ', COALESCE(pd.other_name,'')) AS full_name,
-                u.email,
-                COALESCE(pd.phone, '') AS phone,
-                COALESCE(pd.state_origin, '') AS state_origin,
-                COALESCE(pd.lga, '') AS lga,
-                COALESCE(f.faculty_name, '') AS faculty_name,
-                COALESCE(d.dept_name, '') AS dept_name,
-                a.status,
-                COALESCE(dt.degree_name, '') AS degree_name
-            FROM applications a
-            INNER JOIN users u ON a.user_id = u.user_id
-            LEFT JOIN personal_details pd ON pd.application_id = a.application_id
-            LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
-            LEFT JOIN faculties f ON pc.faculty = f.faculty_id
-            LEFT JOIN departments d ON pc.department = d.dept_id
-            LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
-            $whereSql
-            GROUP BY a.application_id
-            ORDER BY full_name ASC
-        ";
+        if ($isExcel) {
+            $sql = "
+                SELECT 
+                    a.application_number,
+                    COALESCE(pd.surname, '') AS surname,
+                    COALESCE(pd.first_name, '') AS first_name,
+                    COALESCE(pd.other_name, '') AS other_name,
+                    u.email,
+                    COALESCE(pd.phone, '') AS phone,
+                    COALESCE(pd.dob, '') AS dob,
+                    COALESCE(pd.sex, '') AS sex,
+                    COALESCE(pd.nationality, '') AS nationality,
+                    COALESCE(pd.state_origin, '') AS state_origin,
+                    COALESCE(pd.lga, '') AS lga,
+                    COALESCE(pd.address, '') AS address,
+                    COALESCE(f.faculty_name, '') AS faculty_name,
+                    COALESCE(d.dept_name, '') AS dept_name,
+                    COALESCE(c.course_title, '') AS course_title,
+                    COALESCE(dt.degree_name, '') AS degree_name,
+                    COALESCE(sm.mode_name, '') AS mode_name,
+                    a.status,
+                    a.current_status,
+                    a.submitted_at,
+                    a.completion_percentage
+                FROM applications a
+                INNER JOIN users u ON a.user_id = u.user_id
+                LEFT JOIN personal_details pd ON pd.application_id = a.application_id
+                LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
+                LEFT JOIN faculties f ON pc.faculty = f.faculty_id
+                LEFT JOIN departments d ON pc.department = d.dept_id
+                LEFT JOIN courses c ON pc.course = c.course_id
+                LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
+                LEFT JOIN study_modes sm ON pc.mode_of_study = sm.mode_id
+                $whereSql
+                GROUP BY a.application_id
+                ORDER BY surname ASC, first_name ASC
+            ";
+        } else {
+            $sql = "
+                SELECT 
+                    a.application_number,
+                    CONCAT(COALESCE(pd.surname,''), ' ', COALESCE(pd.first_name,''), ' ', COALESCE(pd.other_name,'')) AS full_name,
+                    COALESCE(pd.sex, '') AS sex,
+                    COALESCE(pd.state_origin, '') AS state_origin,
+                    COALESCE(pd.lga, '') AS lga,
+                    COALESCE(f.faculty_name, '') AS faculty_name,
+                    COALESCE(d.dept_name, '') AS dept_name,
+                    COALESCE(c.course_title, '') AS course_title,
+                    COALESCE(dt.degree_name, '') AS degree_name,
+                    a.status
+                FROM applications a
+                INNER JOIN users u ON a.user_id = u.user_id
+                LEFT JOIN personal_details pd ON pd.application_id = a.application_id
+                LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
+                LEFT JOIN faculties f ON pc.faculty = f.faculty_id
+                LEFT JOIN departments d ON pc.department = d.dept_id
+                LEFT JOIN courses c ON pc.course = c.course_id
+                LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
+                $whereSql
+                GROUP BY a.application_id
+                ORDER BY full_name ASC
+            ";
+        }
 
         try {
             $stmt = $pdo->prepare($sql);
@@ -441,25 +491,65 @@ function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters 
         }
         
         $tableRows = [];
-        foreach ($rows as $r) {
-            $tableRows[] = [
-                (string)$r['application_number'],
-                (string)$r['full_name'],
-                (string)$r['email'],
-                (string)$r['phone'],
-                (string)($r['state_origin'] . ($r['lga'] ? ' / ' . $r['lga'] : '')),
-                (string)($r['faculty_name'] . ($r['dept_name'] ? ' / ' . $r['dept_name'] : '')),
-                (string)$r['degree_name'],
-                (string)$r['status']
+        if ($isExcel) {
+            $headers = [
+                'Application Number', 'Surname', 'First Name', 'Other Name', 'Email', 
+                'Phone Number', 'Date of Birth', 'Gender', 'Nationality', 'State of Origin', 
+                'LGA', 'Contact Address', 'Faculty / College', 'Department', 'Academic Programme', 
+                'Degree Type', 'Mode of Study', 'Application Status', 'Workflow Status', 
+                'Submission Date', 'Completion Percentage (%)'
             ];
-        }
-        if (empty($tableRows)) {
-            $tableRows[] = ['No matching records', '', '', '', '', '', '', ''];
+            foreach ($rows as $r) {
+                $tableRows[] = [
+                    (string)$r['application_number'],
+                    (string)$r['surname'],
+                    (string)$r['first_name'],
+                    (string)$r['other_name'],
+                    (string)$r['email'],
+                    (string)$r['phone'],
+                    (string)$r['dob'],
+                    (string)$r['sex'],
+                    (string)$r['nationality'],
+                    (string)$r['state_origin'],
+                    (string)$r['lga'],
+                    (string)$r['address'],
+                    (string)$r['faculty_name'],
+                    (string)$r['dept_name'],
+                    (string)$r['course_title'],
+                    (string)$r['degree_name'],
+                    (string)$r['mode_name'],
+                    (string)$r['status'],
+                    (string)$r['current_status'],
+                    (string)($r['submitted_at'] ? date('Y-m-d H:i:s', strtotime($r['submitted_at'])) : 'N/A'),
+                    (string)$r['completion_percentage']
+                ];
+            }
+            if (empty($tableRows)) {
+                $tableRows[] = array_fill(0, count($headers), '');
+                $tableRows[0][0] = 'No matching records';
+            }
+        } else {
+            $headers = ['App No', 'Full Name', 'Gender', 'State / LGA', 'College / Dept', 'Programme', 'Degree', 'Status'];
+            foreach ($rows as $r) {
+                $tableRows[] = [
+                    (string)$r['application_number'],
+                    (string)$r['full_name'],
+                    (string)$r['sex'],
+                    (string)($r['state_origin'] . ($r['lga'] ? ' / ' . $r['lga'] : '')),
+                    (string)($r['faculty_name'] . ($r['dept_name'] ? ' / ' . $r['dept_name'] : '')),
+                    (string)$r['course_title'],
+                    (string)$r['degree_name'],
+                    (string)$r['status']
+                ];
+            }
+            if (empty($tableRows)) {
+                $tableRows[] = ['No matching records', '', '', '', '', '', '', ''];
+            }
         }
 
         $sections[] = [
             'title' => 'Filtered Student Admissions List',
-            'headers' => ['App No', 'Full Name', 'Email', 'Phone', 'State / LGA', 'College / Dept', 'Degree', 'Status'],
+            'headers' => $headers,
             'rows' => $tableRows,
         ];
 

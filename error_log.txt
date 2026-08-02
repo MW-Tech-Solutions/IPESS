@@ -588,3 +588,26 @@ File: C:\xampp\htdocs\JOSTUM\referee_verify.php on line 118
 [2026-07-18 01:09:37] PHP Error (2): Undefined array key "REQUEST_METHOD"
 File: C:\xampp\htdocs\JOSTUM\referee_verify.php on line 144
 
+[2026-08-02 04:46:31] Uncaught Exception: Unclosed '{' on line 277
+File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\reports.php on line 1041
+Stack trace:
+#0 {main}
+
+[2026-08-02 04:46:53] PHP Error (2): session_set_cookie_params(): Session cookie parameters cannot be changed after headers have already been sent
+File: C:\xampp\htdocs\IPESS\app\includes\session.php on line 15
+
+[2026-08-02 04:46:53] PHP Error (2): session_start(): Session cannot be started after headers have already been sent
+File: C:\xampp\htdocs\IPESS\app\includes\session.php on line 22
+
+[2026-08-02 04:47:34] PHP Error (2): Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\IPESS\ADMIN\includes\db.php:4)
+File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\reports.php on line 20
+
+[2026-08-02 04:47:46] PHP Error (2): Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\IPESS\ADMIN\includes\db.php:4)
+File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\reports.php on line 20
+
+[2026-08-02 04:47:47] PHP Error (2): Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\IPESS\ADMIN\includes\db.php:4)
+File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\reports.php on line 20
+
+[2026-08-02 04:47:48] PHP Error (2): Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\IPESS\ADMIN\includes\db.php:4)
+File: C:\xampp\htdocs\IPESS\ADMIN\super-admin\api\reports.php on line 20
+
