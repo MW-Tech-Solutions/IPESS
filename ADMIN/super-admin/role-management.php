@@ -126,7 +126,7 @@ if (isset($pdo)) {
 </div>
 
 <!-- Role Duties Modal -->
-<div class="modal fade" id="dutiesModal" tabindex="-1">
+<div class="modal fade" id="dutiesModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -182,7 +182,7 @@ if (isset($pdo)) {
 </div>
 
 <!-- User Permissions Override Modal -->
-<div class="modal fade" id="userPermissionsModal" tabindex="-1">
+<div class="modal fade" id="userPermissionsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -232,7 +232,7 @@ document.getElementById('userSearch').addEventListener('input', function() {
 });
 
 function loadRoles() {
-    fetch('api/manage-entities.php?entity=roles&action=list')
+    fetch('api/manage-entities.php?entity=roles&action=list&t=' + new Date().getTime())
         .then(response => response.json())
         .then(data => {
             rolesTableBody.innerHTML = '';
@@ -269,7 +269,7 @@ function openDutiesModal(roleKey, roleName) {
         btn.classList.add('btn-outline-primary');
     });
     
-    fetch(`api/manage-entities.php?action=get_permissions&role_key=${encodeURIComponent(roleKey)}`)
+    fetch(`api/manage-entities.php?action=get_permissions&role_key=${encodeURIComponent(roleKey)}&t=${new Date().getTime()}`)
         .then(response => response.json())
         .then(data => {
             if (data.success && data.data) {
@@ -317,6 +317,7 @@ saveDutiesBtn.addEventListener('click', () => {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            if (document.activeElement) document.activeElement.blur();
             dutiesModal.hide();
             alert('Default duties updated successfully!');
         } else {
@@ -349,7 +350,7 @@ document.querySelectorAll('.edit-permissions-btn').forEach(btn => {
         document.getElementById('permModalTitleName').innerText = userName;
         
         // Fetch current overrides
-        fetch(`api/user-permissions.php?user_id=${userId}`)
+        fetch(`api/user-permissions.php?user_id=${userId}&t=${new Date().getTime()}`)
             .then(res => res.json())
             .then(data => {
                 const overrides = (data.success && data.data && data.data.overrides) ? data.data.overrides : {};
@@ -412,8 +413,9 @@ async function saveUserPermissionOverrides() {
     const result = await res.json();
 
     if (result.success) {
-        alert('User permission overrides saved successfully.');
+        if (document.activeElement) document.activeElement.blur();
         userPermissionsModal.hide();
+        alert('User permission overrides saved successfully.');
     } else {
         alert(result.message || 'Failed to save overrides.');
     }
