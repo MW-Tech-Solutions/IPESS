@@ -697,27 +697,6 @@ function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters 
             ],
         ];
 
-        // 1. College Distribution
-        $facultyRows = safe_rows($pdo, "
-            SELECT f.faculty_name, COUNT(*) AS total
-            FROM programme_choices pc
-            LEFT JOIN faculties f ON f.faculty_id = pc.faculty
-            GROUP BY f.faculty_name
-            ORDER BY total DESC
-            LIMIT 10
-        ");
-        $rows = [];
-        foreach ($facultyRows as $row) {
-            $rows[] = [(string) ($row['faculty_name'] ?: 'Unassigned'), number_format((int) ($row['total'] ?? 0))];
-        }
-        if (empty($rows)) {
-            $rows[] = ['No college data available', '0'];
-        }
-        $sections[] = [
-            'title' => 'College Distribution',
-            'headers' => ['College', 'Applications'],
-            'rows' => $rows,
-        ];
 
         // 2. Department Distribution
         $deptRows = safe_rows($pdo, "

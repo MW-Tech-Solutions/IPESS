@@ -70,7 +70,7 @@ if (isset($pdo)) {
 
 <section class="page-hero">
     <div>
-        <h1>ICTO Overview</h1>
+        <h1><?php echo htmlspecialchars($currentUser['role'] ?? 'ICTO'); ?> Overview</h1>
         <p class="panel-muted">Monitor document queues and approve incoming candidate files.</p>
     </div>
     <div class="hero-actions">
