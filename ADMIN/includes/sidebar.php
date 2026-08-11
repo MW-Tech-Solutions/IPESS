@@ -8,7 +8,7 @@ $sidebarDisplayName = 'Admin Desk';
 $sidebarSubName = 'Admin Panel';
 
 try {
-    require_once __DIR__ . '/../../admin/includes/db.php';
+    require_once __DIR__ . '/../admin/includes/db.php';
     $sessionUserId = (int) ($_SESSION['user_id'] ?? 0);
     if ($sessionUserId > 0 && isset($pdo)) {
         $stmt = $pdo->prepare("

