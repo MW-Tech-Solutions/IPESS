@@ -1,9 +1,9 @@
 	<?php 
 	
 	$servername = "localhost";
-	$username = "root";
-	$password = "";
+	$username = "wdlgdgmy_ipess";
+	$password = "wdlgdgmy_ipess";
 	
-	$conn = new PDO("mysql:host=$servername;dbname=pg", $username, $password);
+	$conn = new PDO("mysql:host=$servername;dbname=wdlgdgmy_ipess", $username, $password);
 	
 	?>

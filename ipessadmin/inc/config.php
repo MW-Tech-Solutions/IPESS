@@ -63,9 +63,9 @@
 		private function initialize(){
 			$this->dbdriver = "pdo_mysql" ;
 			$this->dbhost = "localhost" ;
-			$this->dbuser = "root" ;
-			$this->dbpass = "" ;
-			$this->dbname = "pg" ;
+			$this->dbuser = "wdlgdgmy_ipess" ;
+			$this->dbpass = "wdlgdgmy_ipess" ;
+			$this->dbname = "wdlgdgmy_ipess" ;
 			$this->baseURL = "http://localhost/";
 			$this->rootBaseURL = "/" ;
 			
