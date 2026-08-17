@@ -12,6 +12,13 @@ function app_root_path(): string
     if ($uri !== '' && $uri !== false) {
         $projectName = basename(str_replace('\\', '/', realpath(__DIR__ . '/..') ?: (__DIR__ . '/..')));
         if ($projectName !== '') {
+            // If the project name is NOT in the requested URI, we are running at the root (e.g. domain mapped to folder)
+            $cleanUri = '/' . ltrim($uri, '/');
+            if (strpos(strtolower($cleanUri), '/' . strtolower($projectName) . '/') !== 0 && strtolower($cleanUri) !== '/' . strtolower($projectName)) {
+                $root = '';
+                return $root;
+            }
+
             $pattern = '#^((?:/[^/]*)*/?' . preg_quote($projectName, '#') . ')(?:/.*)?$#i';
             if (preg_match($pattern, $uri, $m)) {
                 $root = rtrim($m[1], '/');
