@@ -182,6 +182,21 @@ try {
         exit;
     }
 
+    if ($action === 'reset_password') {
+        $pdo->beginTransaction();
+
+        $newHash = password_hash('12345678', PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE user_id = ?");
+        $stmt->execute([$newHash, $studentUserId]);
+
+        $adminUserId = (int) ($_SESSION['user_id'] ?? 0);
+        log_audit($pdo, 'Password Reset', $adminUserId, "Password for student user ID {$studentUserId} reset to default by Super Admin");
+
+        $pdo->commit();
+        echo json_encode(['success' => true, 'message' => 'Password reset successfully to 12345678.']);
+        exit;
+    }
+
     if ($action === 'save_referees') {
         $refereeIds = $_POST['referee_id'] ?? [];
         $emails = $_POST['email'] ?? [];

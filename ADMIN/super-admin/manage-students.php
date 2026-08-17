@@ -376,6 +376,9 @@ require_once 'includes/topbar.php';
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#student-slips-tab" type="button">Slips & Letters</button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#student-password-tab" type="button">Reset Password</button>
+                    </li>
                 </ul>
 
                 <div class="tab-content">
@@ -626,6 +629,24 @@ require_once 'includes/topbar.php';
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="student-password-tab">
+                        <div class="card border-danger bg-light">
+                            <div class="card-body">
+                                <h5 class="card-title text-danger fw-bold"><i class="fas fa-key me-2"></i>Reset Student Password</h5>
+                                <p class="text-muted mb-3">Resetting this student's password will set it to the default: <strong>12345678</strong>. They can use this password to log in and change it later.</p>
+                                <div class="alert alert-danger d-flex align-items-center mb-3" role="alert">
+                                    <i class="fas fa-exclamation-circle me-2 fs-5"></i>
+                                    <div>
+                                        <strong>Warning:</strong> This action cannot be undone. Please ensure you are resetting the password for the correct applicant.
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-danger fw-bold mt-2" id="btnResetPassword">
+                                    Reset Password to 12345678
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1001,6 +1022,55 @@ if (undoBtn) {
         } finally {
             undoBtn.disabled = false;
             undoBtn.textContent = oldText;
+        }
+    });
+}
+
+// Reset Password execution handler
+const resetPwdBtn = document.getElementById('btnResetPassword');
+if (resetPwdBtn) {
+    resetPwdBtn.addEventListener('click', async () => {
+        const studentUserId = biodataForm.querySelector('[name="student_user_id"]').value;
+        const applicationId = biodataForm.querySelector('[name="application_id"]').value;
+        if (!studentUserId || !applicationId) {
+            alert('No student profile loaded.');
+            return;
+        }
+        if (!confirm('Are you sure you want to reset this applicant\'s password to 12345678?')) {
+            return;
+        }
+        resetPwdBtn.disabled = true;
+        const oldText = resetPwdBtn.textContent;
+        resetPwdBtn.textContent = 'Processing...';
+        try {
+            const fd = new FormData();
+            fd.append('action', 'reset_password');
+            fd.append('student_user_id', studentUserId);
+            fd.append('application_id', applicationId);
+            
+            const response = await fetch('api/manage-students.php', {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin'
+            });
+            const text = await response.text();
+            let data = null;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                throw new Error(text || 'Invalid server response');
+            }
+            if (!data.success) {
+                throw new Error(data.message || 'Password reset failed');
+            }
+            alert(data.message || 'Password reset successfully to 12345678.');
+            const modal = getManageStudentModal();
+            if (modal) modal.hide();
+        } catch (error) {
+            alert(error.message || 'Error executing password reset.');
+        } finally {
+            resetPwdBtn.disabled = false;
+            resetPwdBtn.textContent = oldText;
         }
     });
 }
