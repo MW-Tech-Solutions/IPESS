@@ -3,14 +3,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$servername = "localhost";
-$username = "root";
-$password = "";
-
 try {
-    $con = new PDO("mysql:host=$servername;dbname=pg", $username, $password);
-    $con->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
+    require_once __DIR__ . '/../../app/config/database.php';
+    $con = db();
+} catch (Throwable $e) {
     die("Database connection failed: " . $e->getMessage());
 }
 
