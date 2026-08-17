@@ -1,15 +1,29 @@
 <?php
 //session_start();
-	if($_SESSION['roleid']!="" && $_SESSION['roleid']!=""){
+	if(!empty($_SESSION['roleid'])){
 		$rolesession = $_SESSION['roleid'];
 		$usersession = $_SESSION['userid'];
-		}
+	}
 		
-		$checklogin = $con->query("SELECT * FROM user_access WHERE userName = '$usersession' AND activeStatus = '0' ")->rowCount();
-			if($checklogin>0){
-				
-				header("location:logout.php");
-			}
+	$checklogin = 0;
+	try {
+		$stmtCheck = $con->prepare("SELECT COUNT(*) FROM users WHERE (user_id = ? OR email = ?) AND account_status != 'Active'");
+		$stmtCheck->execute([$usersession, $usersession]);
+		$checklogin = (int)$stmtCheck->fetchColumn();
+	} catch (Throwable $e) {}
+	
+	if ($checklogin === 0) {
+		try {
+			$stmtCheckLegacy = $con->prepare("SELECT COUNT(*) FROM user_access WHERE (userName = ? OR staffIDs = ?) AND activeStatus = '0'");
+			$stmtCheckLegacy->execute([$usersession, $usersession]);
+			$checklogin = (int)$stmtCheckLegacy->fetchColumn();
+		} catch (Throwable $e) {}
+	}
+
+	if($checklogin > 0){
+		header("location:logout.php");
+		exit;
+	}
 		
 		date_default_timezone_set("Africa/Lagos");
 		//Creating Function
@@ -49,11 +63,39 @@ return $timeCalc;
 		
 	
 	
-$getprofile = $con->query("SELECT * FROM user_access WHERE userName = '$usersession' ")->fetch(PDO::FETCH_ASSOC);
-$images = $getprofile['pixUrl'];
-$fullname = $getprofile['title']." ".$getprofile['FirstName']." ".$getprofile['MiddleName']." ".$getprofile['LastName'];
-$emailddress = $getprofile['EmailAddress'];
-$phoneno = $getprofile['phoneno'];
+$images = '';
+$fullname = 'System User';
+$emailddress = '';
+$phoneno = '';
+
+// 1. Try fetching from users table
+$userFound = false;
+try {
+    $stmtUser = $con->prepare("SELECT * FROM users WHERE user_id = ? OR email = ? LIMIT 1");
+    $stmtUser->execute([$usersession, $usersession]);
+    $uData = $stmtUser->fetch(PDO::FETCH_ASSOC);
+    if ($uData) {
+        $fullname = $uData['full_name'] ?? 'System User';
+        $emailddress = $uData['email'] ?? '';
+        $images = $uData['avatar_url'] ?? '';
+        $userFound = true;
+    }
+} catch (Throwable $e) {}
+
+// 2. Try fetching from user_access table if not found in users
+if (!$userFound) {
+    try {
+        $stmtAccess = $con->prepare("SELECT * FROM user_access WHERE userName = ? OR staffIDs = ? LIMIT 1");
+        $stmtAccess->execute([$usersession, $usersession]);
+        $getprofile = $stmtAccess->fetch(PDO::FETCH_ASSOC);
+        if ($getprofile) {
+            $images = $getprofile['pixUrl'] ?? '';
+            $fullname = trim(($getprofile['title'] ?? '') . " " . ($getprofile['FirstName'] ?? '') . " " . ($getprofile['MiddleName'] ?? '') . " " . ($getprofile['LastName'] ?? ''));
+            $emailddress = $getprofile['EmailAddress'] ?? '';
+            $phoneno = $getprofile['phoneno'] ?? '';
+        }
+    } catch (Throwable $e) {}
+}
 
 $getrole = $con->query("SELECT * FROM acd_tbluser WHERE ID = '$rolesession' OR LOWER(access) = LOWER('$rolesession') LIMIT 1")->fetch(PDO::FETCH_ASSOC);
 $rolename = $getrole ? $getrole['access'] : $rolesession;
