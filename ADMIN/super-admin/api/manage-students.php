@@ -293,6 +293,37 @@ try {
             }
         }
 
+        // Propagate updated name, email, and phone to student_profiles and supervisor_students
+        $profile = fetch_student_profile($pdo, $studentUserId);
+        $appNo = $profile['student']['application_number'] ?? '';
+        $calcFullName = trim($biodataFields['first_name'] . ' ' . $biodataFields['surname']);
+        if ($biodataFields['other_name'] !== '') {
+            $calcFullName .= ' ' . $biodataFields['other_name'];
+        }
+        $finalName = $fullName !== '' ? $fullName : $calcFullName;
+
+        $hasStudentProfiles = false;
+        try {
+            $pdo->query("SELECT 1 FROM `student_profiles` LIMIT 0");
+            $hasStudentProfiles = true;
+        } catch (Throwable $e) {}
+
+        if ($hasStudentProfiles) {
+            $stmtProfile = $pdo->prepare("UPDATE student_profiles SET full_name = ?, email = ?, phone = ? WHERE student_id = ? OR email = ?");
+            $stmtProfile->execute([$finalName, $email, $biodataFields['phone'], $appNo, $profile['student']['email'] ?? '']);
+        }
+
+        $hasSupervisorStudents = false;
+        try {
+            $pdo->query("SELECT 1 FROM `supervisor_students` LIMIT 0");
+            $hasSupervisorStudents = true;
+        } catch (Throwable $e) {}
+
+        if ($hasSupervisorStudents) {
+            $stmtSup = $pdo->prepare("UPDATE supervisor_students SET full_name = ?, email = ? WHERE student_id = ? OR student_user_id = ?");
+            $stmtSup->execute([$finalName, $email, $appNo, $studentUserId]);
+        }
+
         $pdo->commit();
 
         echo json_encode(['success' => true, 'message' => 'Student biodata updated successfully.']);
@@ -338,6 +369,55 @@ try {
             'career_objectives' => trim((string) ($_POST['career_objectives'] ?? '')) ?: null,
         ];
         upsert_single_application_row($pdo, 'research_details', $applicationId, $researchFields);
+
+        // Fetch course title
+        $courseTitle = '';
+        if ($courseId > 0) {
+            $stmtCourse = $pdo->prepare("SELECT course_title FROM courses WHERE course_id = ?");
+            $stmtCourse->execute([$courseId]);
+            $courseTitle = $stmtCourse->fetchColumn() ?: '';
+        }
+
+        // 1. Update users table's faculty_id and department_id
+        $userUpdate = $pdo->prepare("UPDATE users SET department_id = ?, faculty_id = ? WHERE user_id = ?");
+        $userUpdate->execute([
+            $departmentId > 0 ? $departmentId : null,
+            $facultyId > 0 ? $facultyId : null,
+            $studentUserId
+        ]);
+
+        // Fetch application number
+        $stmtAppNum = $pdo->prepare("SELECT application_number FROM applications WHERE application_id = ?");
+        $stmtAppNum->execute([$applicationId]);
+        $appNo = $stmtAppNum->fetchColumn() ?: '';
+
+        // 2. Update student_profiles if it exists
+        if ($courseTitle !== '') {
+            $hasStudentProfiles = false;
+            try {
+                $pdo->query("SELECT 1 FROM `student_profiles` LIMIT 0");
+                $hasStudentProfiles = true;
+            } catch (Throwable $e) {}
+
+            if ($hasStudentProfiles) {
+                $stmtProfile = $pdo->prepare("UPDATE student_profiles SET programme = ? WHERE student_id = ? OR email = (SELECT email FROM users WHERE user_id = ? LIMIT 1)");
+                $stmtProfile->execute([$courseTitle, $appNo, $studentUserId]);
+            }
+        }
+
+        // 3. Update supervisor_students if it exists
+        if ($courseTitle !== '') {
+            $hasSupervisorStudents = false;
+            try {
+                $pdo->query("SELECT 1 FROM `supervisor_students` LIMIT 0");
+                $hasSupervisorStudents = true;
+            } catch (Throwable $e) {}
+
+            if ($hasSupervisorStudents) {
+                $stmtSup = $pdo->prepare("UPDATE supervisor_students SET programme = ?, department_id = ? WHERE student_id = ? OR student_user_id = ?");
+                $stmtSup->execute([$courseTitle, $departmentId > 0 ? $departmentId : null, $appNo, $studentUserId]);
+            }
+        }
 
         $pdo->commit();
         echo json_encode(['success' => true, 'message' => 'Student academics updated successfully.']);

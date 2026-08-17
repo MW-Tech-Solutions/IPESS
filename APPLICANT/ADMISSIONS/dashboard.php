@@ -82,7 +82,7 @@ if ($app_data) {
     $current_step = isset($_GET['step']) ? (int)$_GET['step'] : 1;
 }
 
-if (!isset($_SESSION['form_data']) && isset($_SESSION['application_id'])) {
+if (isset($_SESSION['application_id'])) {
     $app_id = $_SESSION['application_id'];
     $_SESSION['form_data'] = [];
 

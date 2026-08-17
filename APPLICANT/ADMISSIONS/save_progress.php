@@ -432,13 +432,22 @@ try {
                     redirect_to('APPLICANT/ADMISSIONS/dashboard.php?step=9');
                     exit();
                 }
-                $year = date('Y');
-                $prefix = "APP/IPESS/{$year}/";
-                $stmt_serial = $pdo->prepare("SELECT MAX(CAST(SUBSTRING_INDEX(application_number, '/', -1) AS UNSIGNED)) FROM applications WHERE application_number LIKE ?");
-                $stmt_serial->execute([$prefix . '%']);
-                $maxSerial = (int)$stmt_serial->fetchColumn();
-                $nextSerial = $maxSerial + 1;
-                $appNumber = $prefix . str_pad((string)$nextSerial, 4, '0', STR_PAD_LEFT);
+                // Check if this application already has an application number assigned
+                $stmt_check = $pdo->prepare("SELECT application_number FROM applications WHERE application_id = ?");
+                $stmt_check->execute([$application_id]);
+                $existing_app_number = $stmt_check->fetchColumn();
+
+                if (!empty($existing_app_number) && strpos($existing_app_number, 'APP/') === 0) {
+                    $appNumber = $existing_app_number;
+                } else {
+                    $year = date('Y');
+                    $prefix = "APP/IPESS/{$year}/";
+                    $stmt_serial = $pdo->prepare("SELECT MAX(CAST(SUBSTRING_INDEX(application_number, '/', -1) AS UNSIGNED)) FROM applications WHERE application_number LIKE ?");
+                    $stmt_serial->execute([$prefix . '%']);
+                    $maxSerial = (int)$stmt_serial->fetchColumn();
+                    $nextSerial = $maxSerial + 1;
+                    $appNumber = $prefix . str_pad((string)$nextSerial, 4, '0', STR_PAD_LEFT);
+                }
                 
                 $stmt = $pdo->prepare("UPDATE applications SET status = 'Submitted', current_status = 'SUBMITTED', application_number = ?, submitted_at = NOW() WHERE application_id = ?");
                 $stmt->execute([$appNumber, $application_id]);

@@ -442,9 +442,19 @@ try {
             case 9: 
     if (isset($_POST['declaration'])) {
        
-        $appYear = date('Y');
-        $formattedSerial = str_pad($application_id, 4, '0', STR_PAD_LEFT);
-        $appNumber = "APP/IPESS/{$appYear}/{$formattedSerial}";
+        // Check if this application already has an application number assigned
+        $stmt_check = $pdo->prepare("SELECT application_number FROM applications WHERE application_id = ?");
+        $stmt_check->execute([$application_id]);
+        $existing_app_number = $stmt_check->fetchColumn();
+
+        if (!empty($existing_app_number) && strpos($existing_app_number, 'APP/') === 0) {
+            $appNumber = $existing_app_number;
+        } else {
+            $appYear = date('Y');
+            $formattedSerial = str_pad($application_id, 4, '0', STR_PAD_LEFT);
+            $appNumber = "APP/IPESS/{$appYear}/{$formattedSerial}";
+        }
+
         $stmtApp = $pdo->prepare("
                 UPDATE applications 
                 SET application_number = ?, 
