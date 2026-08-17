@@ -108,7 +108,7 @@ $avatarInitial = strtoupper(substr($currentUser['email'] ?: $currentUser['name']
                             <li><span class="dropdown-item-text small text-muted"><?php echo htmlspecialchars($currentUser['name']); ?></span></li>
                             <li><a class="dropdown-item" href="#" onclick="openAdminProfileModal(event)"><i class="fas fa-user me-2"></i> Profile</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="../logout.php"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
+                            <li><a class="dropdown-item" href="<?php echo app_url('ADMIN/logout.php'); ?>"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
                         </ul>
                     </div>
                 </div>

@@ -2,14 +2,14 @@
 require_once __DIR__ . '/../../app/bootstrap.php';
 
 $userRole = normalize_role(current_user_role());
-
 $currentPage = basename($_SERVER['PHP_SELF']);
 $sidebarDisplayName = 'Admin Desk';
 $sidebarSubName = 'Admin Panel';
 
+$pdo = db();
+$sessionUserId = (int) ($_SESSION['user_id'] ?? 0);
+
 try {
-    require_once __DIR__ . '/../admin/includes/db.php';
-    $sessionUserId = (int) ($_SESSION['user_id'] ?? 0);
     if ($sessionUserId > 0 && isset($pdo)) {
         $stmt = $pdo->prepare("
             SELECT u.full_name, u.email, r.role_name 
@@ -36,219 +36,120 @@ try {
 } catch (Exception $e) {
 }
 
-// Dynamically determine the dynamic Reports URL
-$reportsUrl = 'ADMIN/admin/reports.php';
-if (in_array($userRole, ['SUPER_ADMIN', 'ICT_ADMIN'], true)) {
-    $reportsUrl = 'ADMIN/super-admin/reports.php';
-} elseif (in_array($userRole, ['DEPARTMENT_ADMIN', 'HOD'], true)) {
-    $reportsUrl = 'ADMIN/dept-admin/department-reports.php';
-} elseif ($userRole === 'REVIEWER') {
-    $reportsUrl = 'ADMIN/reviewer/reviewer-reports.php';
-} elseif ($userRole === 'SUPERVISOR') {
-    $reportsUrl = 'ADMIN/supervisor/supervisor-reports.php';
+// ------------------------------------------------------
+// Dynamic Sidebar Processing (Clone to Personal Tables)
+// ------------------------------------------------------
+if ($sessionUserId > 0 && isset($pdo)) {
+    try {
+        $stmtRight = $pdo->prepare("SELECT * FROM right_page_main_menus WHERE roleID = ?");
+        $stmtRight->execute([$userRole]);
+        
+        while ($readpages = $stmtRight->fetch(PDO::FETCH_ASSOC)) {
+            $pageID = $readpages['pageID'];
+            $tabID = $readpages['tabID'];
+            $roleID = $readpages['roleID'];
+            $keep_active = $readpages['keep_active'] ?? 'inactive';
+            $page_status = $readpages['page_status'];
+            $pageType = $readpages['pageType'];
+            
+            // Get latest URL, Name and folder dynamically from page_main_menus
+            $stmtMain = $pdo->prepare("SELECT page_url, menu_name, folder FROM page_main_menus WHERE pageID = ? LIMIT 1");
+            $stmtMain->execute([$pageID]);
+            $mainPage = $stmtMain->fetch(PDO::FETCH_ASSOC) ?: [];
+            
+            $page_url = $mainPage['page_url'] ?? $readpages['page_url'] ?? '';
+            $menu_name = $mainPage['menu_name'] ?? $readpages['menu_name'] ?? '';
+            $folderids = $mainPage['folder'] ?? '';
+            
+            // Ensure personal tab exists for this user
+            $checkTab = $pdo->prepare("SELECT COUNT(*) FROM personal_page_menu_tab WHERE tabID = ? AND userID = ?");
+            $checkTab->execute([$tabID, $sessionUserId]);
+            if ($checkTab->fetchColumn() < 1) {
+                $stmtGetTab = $pdo->prepare("SELECT * FROM page_menu_tab WHERE ID = ? AND tab_status = 1");
+                $stmtGetTab->execute([$tabID]);
+                $tab = $stmtGetTab->fetch(PDO::FETCH_ASSOC);
+                if ($tab) {
+                    $stmtInsTab = $pdo->prepare("
+                        INSERT INTO personal_page_menu_tab (tabID, tab_name, open_active, userID, tab_status, collapslink) 
+                        VALUES (?, ?, ?, ?, ?, 'collapsed')
+                    ");
+                    $stmtInsTab->execute([$tabID, $tab['tab_name'], 'notopen', $sessionUserId, $tab['tab_status']]);
+                }
+            }
+            
+            // Ensure personal right page exists for this user
+            $checkPerson = $pdo->prepare("SELECT COUNT(*) FROM pesonal_right_page_main_menus WHERE pageID = ? AND userID = ?");
+            $checkPerson->execute([$pageID, $sessionUserId]);
+            if ($checkPerson->fetchColumn() < 1) {
+                $stmtInsPerson = $pdo->prepare("
+                    INSERT INTO pesonal_right_page_main_menus (pageID, menu_name, roleID, page_status, pageType, tabID, page_url, keep_active, userID, folderID) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $stmtInsPerson->execute([$pageID, $menu_name, $roleID, $page_status, $pageType, $tabID, $page_url, $keep_active, $sessionUserId, $folderids]);
+            }
+        }
+        
+        // Update active page status
+        $stmtMenus = $pdo->prepare("SELECT userpageID, page_url, tabID FROM pesonal_right_page_main_menus WHERE userID = ?");
+        $stmtMenus->execute([$sessionUserId]);
+        $activePageId = null;
+        $activeTabId = null;
+        $phpSelf = $_SERVER['PHP_SELF'] ?? '';
+        
+        while ($menu = $stmtMenus->fetch(PDO::FETCH_ASSOC)) {
+            if (strpos($phpSelf, $menu['page_url']) !== false) {
+                $activePageId = $menu['userpageID'];
+                $activeTabId = $menu['tabID'];
+                break;
+            }
+        }
+        
+        if ($activePageId !== null) {
+            $stmtAct = $pdo->prepare("UPDATE pesonal_right_page_main_menus SET keep_active = 'active' WHERE userpageID = ? AND userID = ?");
+            $stmtAct->execute([$activePageId, $sessionUserId]);
+            
+            $stmtDeact = $pdo->prepare("UPDATE pesonal_right_page_main_menus SET keep_active = 'inactive' WHERE userpageID != ? AND userID = ?");
+            $stmtDeact->execute([$activePageId, $sessionUserId]);
+            
+            $stmtTabAct = $pdo->prepare("UPDATE personal_page_menu_tab SET open_active = 'show', collapslink = '' WHERE tabID = ? AND userID = ?");
+            $stmtTabAct->execute([$activeTabId, $sessionUserId]);
+            
+            $stmtTabDeact = $pdo->prepare("UPDATE personal_page_menu_tab SET open_active = 'notopen', collapslink = 'collapsed' WHERE tabID != ? AND userID = ?");
+            $stmtTabDeact->execute([$activeTabId, $sessionUserId]);
+        }
+    } catch (Throwable $e) {
+        error_log("Sidebar dynamic processing error: " . $e->getMessage());
+    }
 }
 
-// Define the available pages and the permissions needed to view them
-$menuSections = [
-    'core' => [
-        'label' => 'Core',
-        'items' => [
-            [
-                'label' => 'Dashboard',
-                'url' => dashboard_for_role($userRole),
-                'icon' => 'fas fa-tachometer-alt',
-                'condition' => true
-            ]
-        ]
-    ],
-    'reviewer' => [
-        'label' => 'Reviewer Work',
-        'items' => [
-            [
-                'label' => 'Assigned Applications',
-                'url' => 'ADMIN/reviewer/assigned-applications.php',
-                'icon' => 'fas fa-folder-open',
-                'condition' => ($userRole === 'REVIEWER' || has_permission('review_applications'))
-            ],
-            [
-                'label' => 'Feedback Management',
-                'url' => 'ADMIN/reviewer/feedback-management.php',
-                'icon' => 'fas fa-comments',
-                'condition' => ($userRole === 'REVIEWER' || has_permission('review_applications'))
-            ],
-            [
-                'label' => 'Review History',
-                'url' => 'ADMIN/reviewer/review-history.php',
-                'icon' => 'fas fa-history',
-                'condition' => ($userRole === 'REVIEWER' || has_permission('review_applications'))
-            ]
-        ]
-    ],
-    'supervisor' => [
-        'label' => 'Supervision',
-        'items' => [
-            [
-                'label' => 'My Students',
-                'url' => 'ADMIN/supervisor/my-students.php',
-                'icon' => 'fas fa-users',
-                'condition' => ($userRole === 'SUPERVISOR' || has_permission('view_students'))
-            ],
-            [
-                'label' => 'Student Interaction',
-                'url' => 'ADMIN/supervisor/student-interaction.php',
-                'icon' => 'fas fa-comments',
-                'condition' => ($userRole === 'SUPERVISOR' || has_permission('manage_supervision'))
-            ],
-            [
-                'label' => 'Chats',
-                'url' => 'ADMIN/supervisor/chats.php',
-                'icon' => 'fas fa-comment-dots',
-                'condition' => ($userRole === 'SUPERVISOR')
-            ],
-            [
-                'label' => 'Progress Tracking',
-                'url' => 'ADMIN/supervisor/progress-tracking.php',
-                'icon' => 'fas fa-chart-line',
-                'condition' => ($userRole === 'SUPERVISOR')
-            ],
-            [
-                'label' => 'Milestones',
-                'url' => 'ADMIN/supervisor/milestones.php',
-                'icon' => 'fas fa-flag-checkered',
-                'condition' => ($userRole === 'SUPERVISOR')
-            ]
-        ]
-    ],
-    'workflow' => [
-        'label' => 'Workflow & Admissions',
-        'module' => 'admissions',
-        'items' => [
-            [
-                'label' => 'Application Management',
-                'url' => 'ADMIN/admin/application-management.php',
-                'icon' => 'fas fa-file-alt',
-                'permissions' => ['view_applications', 'view_applicants']
-            ],
-            [
-                'label' => 'Document Verification',
-                'url' => 'ADMIN/admin/document-verification.php',
-                'icon' => 'fas fa-check-circle',
-                'permissions' => ['verify_applicants']
-            ],
-            [
-                'label' => 'Referees',
-                'url' => 'ADMIN/admin/referees.php',
-                'icon' => 'fas fa-user-check',
-                'permissions' => ['view_applications']
-            ],
-            [
-                'label' => 'Admission Decisions',
-                'url' => 'ADMIN/admin/admission-decisions.php',
-                'icon' => 'fas fa-gavel',
-                'permissions' => ['manage_admissions']
-            ],
-            [
-                'label' => 'Department Vetting',
-                'url' => 'ADMIN/dept-admin/department-applications.php',
-                'icon' => 'fas fa-folder-open',
-                'permissions' => ['department_review']
-            ],
-            [
-                'label' => 'Faculty Review',
-                'url' => 'ADMIN/faculty/applications.php',
-                'icon' => 'fas fa-university',
-                'permissions' => ['faculty_review']
-            ],
-            [
-                'label' => 'PG School Review',
-                'url' => 'ADMIN/pg-admin/applications.php',
-                'icon' => 'fas fa-graduation-cap',
-                'permissions' => ['pg_review', 'review_applications']
-            ],
-            [
-                'label' => 'Admissions Processing',
-                'url' => 'ADMIN/ict-staff/admissions.php',
-                'icon' => 'fas fa-id-card',
-                'permissions' => ['ict_processing']
-            ],
-            [
-                'label' => 'Supervisor Assignment',
-                'url' => 'ADMIN/dept-admin/supervisor-management.php',
-                'icon' => 'fas fa-user-plus',
-                'permissions' => ['assign_supervisor', 'supervisor_management']
-            ]
-        ]
-    ],
-    'admin' => [
-        'label' => 'Administration',
-        'items' => [
-            [
-                'label' => 'User Management',
-                'url' => 'ADMIN/super-admin/user-management.php',
-                'icon' => 'fas fa-users-cog',
-                'permissions' => ['manage_users', 'user_management']
-            ],
-            [
-                'label' => 'Role Management',
-                'url' => 'ADMIN/super-admin/role-management.php',
-                'icon' => 'fas fa-user-shield',
-                'permissions' => ['manage_roles', 'role_management']
-            ],
-            [
-                'label' => 'Manage Students',
-                'url' => 'ADMIN/super-admin/manage-students.php',
-                'icon' => 'fas fa-user-graduate',
-                'permissions' => ['manage_students', 'view_students']
-            ]
-        ]
-    ],
-    'ict' => [
-        'label' => 'ICT Tools',
-        'items' => [
-            [
-                'label' => 'Activate Admissions',
-                'url' => 'ADMIN/super-admin/activate-admissions.php',
-                'icon' => 'fas fa-toggle-on',
-                'permissions' => ['ict_processing', 'generate_matric_number', 'admission_letter', 'acceptance_letter']
-            ],
-            [
-                'label' => 'Reset Authenticator',
-                'url' => 'ADMIN/super-admin/reset-authenticator.php',
-                'icon' => 'fas fa-mobile-alt',
-                'permissions' => ['reset_authenticator']
-            ],
-            [
-                'label' => 'Module Settings',
-                'url' => 'ADMIN/super-admin/modules.php',
-                'icon' => 'fas fa-cubes',
-                'condition' => ($userRole === 'SUPER_ADMIN')
-            ]
-        ]
-    ],
-    'intel' => [
-        'label' => 'System & Intelligence',
-        'items' => [
-            [
-                'label' => 'Reports',
-                'url' => $reportsUrl,
-                'icon' => 'fas fa-chart-bar',
-                'permissions' => ['reports']
-            ],
-            [
-                'label' => 'Audit Logs',
-                'url' => 'ADMIN/super-admin/audit-logs.php',
-                'icon' => 'fas fa-shield-alt',
-                'permissions' => ['view_audit_logs']
-            ],
-            [
-                'label' => 'System Settings',
-                'url' => 'ADMIN/super-admin/settings.php',
-                'icon' => 'fas fa-cog',
-                'permissions' => ['settings']
-            ]
-        ]
-    ]
-];
+// Dynamically determine the dashboard URL
+$dashboardUrl = 'ADMIN/general/dashboard.php';
+try {
+    $stmtDash = $pdo->prepare("SELECT pageName FROM dash_borad WHERE userType = ? AND PageStatus = 1 LIMIT 1");
+    $stmtDash->execute([$userRole]);
+    $dbDash = $stmtDash->fetchColumn();
+    if ($dbDash) {
+        $dashboardUrl = $dbDash;
+    } else {
+        $dashboardUrl = dashboard_for_role($userRole);
+    }
+} catch (Throwable $e) {}
+
+// Icon Helper mapping based on Tab names
+function get_tab_icon(string $tabName): string {
+    $tabName = strtolower(trim($tabName));
+    return match ($tabName) {
+        'core' => 'fas fa-tachometer-alt',
+        'reviewer work' => 'fas fa-folder-open',
+        'supervision' => 'fas fa-users',
+        'workflow & admissions', 'workflow' => 'fas fa-file-alt',
+        'administration' => 'fas fa-users-cog',
+        'ict tools' => 'fas fa-toggle-on',
+        'system & intelligence', 'intelligence' => 'fas fa-chart-bar',
+        'developer' => 'fas fa-code',
+        default => 'fas fa-link'
+    };
+}
 ?>
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
@@ -261,59 +162,70 @@ $menuSections = [
         </div>
     </div>
 
-    <?php foreach ($menuSections as $sectionKey => $section): ?>
-        <?php
-        // Skip module-specific section if the module is disabled
-        if (isset($section['module']) && !is_module_accessible($section['module'])) {
-            continue;
-        }
+    <!-- Static Core / Dashboard Section -->
+    <div class="sidebar-section">
+        <div class="sidebar-label">Core</div>
+        <ul class="sidebar-nav">
+            <?php
+            $requestSelf = $_SERVER['PHP_SELF'] ?? '';
+            $isDashActive = (strpos($requestSelf, $dashboardUrl) !== false || $currentPage === 'dashboard.php');
+            ?>
+            <li>
+                <a class="<?php echo $isDashActive ? 'active' : ''; ?>" href="<?php echo app_url($dashboardUrl); ?>">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+        </ul>
+    </div>
 
-        // Filter items based on permission check
-        $visibleItems = [];
-        foreach ($section['items'] as $item) {
-            $showItem = false;
-            
-            if (isset($item['condition'])) {
-                $showItem = (bool) $item['condition'];
-            } elseif (isset($item['permissions'])) {
-                foreach ($item['permissions'] as $perm) {
-                    if (has_permission($perm)) {
-                        $showItem = true;
-                        break;
-                    }
+    <!-- Dynamic Database-driven Sidebar sections -->
+    <?php
+    if ($sessionUserId > 0) {
+        try {
+            $stmtTabs = $pdo->prepare("SELECT * FROM personal_page_menu_tab WHERE tab_status = 1 AND userID = ? ORDER BY tabID");
+            $stmtTabs->execute([$sessionUserId]);
+            while ($tab = $stmtTabs->fetch(PDO::FETCH_ASSOC)):
+                $tabID = $tab['tabID'];
+                
+                // Fetch visible links inside this category
+                $stmtItems = $pdo->prepare("
+                    SELECT DISTINCT pageID, page_url, menu_name, keep_active 
+                    FROM pesonal_right_page_main_menus 
+                    WHERE tabID = ? AND userID = ? AND page_status = 1 AND pageType = 'link' 
+                    ORDER BY pageID
+                ");
+                $stmtItems->execute([$tabID, $sessionUserId]);
+                $items = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+                
+                if (empty($items)) {
+                    continue;
                 }
-            } else {
-                $showItem = true;
-            }
-
-            if ($showItem) {
-                $visibleItems[] = $item;
-            }
+                
+                $tabIcon = get_tab_icon($tab['tab_name']);
+                ?>
+                <div class="sidebar-section">
+                    <div class="sidebar-label"><?php echo htmlspecialchars($tab['tab_name'], ENT_QUOTES, 'UTF-8'); ?></div>
+                    <ul class="sidebar-nav">
+                        <?php foreach ($items as $item): 
+                            $isActive = ($item['keep_active'] === 'active');
+                        ?>
+                            <li>
+                                <a class="<?php echo $isActive ? 'active' : ''; ?>" href="<?php echo app_url($item['page_url']); ?>">
+                                    <i class="<?php echo $tabIcon; ?>"></i>
+                                    <span><?php echo htmlspecialchars($item['menu_name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php 
+            endwhile;
+        } catch (Throwable $e) {
+            error_log("Sidebar dynamic rendering error: " . $e->getMessage());
         }
-
-        // If no items in this section are visible to the user, skip rendering the section header entirely
-        if (empty($visibleItems)) {
-            continue;
-        }
-        ?>
-        <div class="sidebar-section">
-            <div class="sidebar-label"><?php echo htmlspecialchars($section['label'], ENT_QUOTES, 'UTF-8'); ?></div>
-            <ul class="sidebar-nav">
-                <?php foreach ($visibleItems as $item): ?>
-                    <?php
-                    $requestSelf = $_SERVER['PHP_SELF'] ?? '';
-                    $isActive = (strpos($requestSelf, $item['url']) !== false);
-                    ?>
-                    <li>
-                        <a class="<?php echo $isActive ? 'active' : ''; ?>" href="<?php echo app_url($item['url']); ?>">
-                            <i class="<?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?>"></i>
-                            <span><?php echo htmlspecialchars($item['label'], ENT_QUOTES, 'UTF-8'); ?></span>
-                        </a>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        </div>
-    <?php endforeach; ?>
+    }
+    ?>
 
     <div class="sidebar-footer">
         <div><?php echo htmlspecialchars($sidebarDisplayName, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -327,3 +239,4 @@ $menuSections = [
     border-radius: 10px;
 }
 </style>
+

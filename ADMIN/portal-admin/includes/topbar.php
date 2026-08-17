@@ -44,7 +44,7 @@ $avatarInitial = strtoupper(substr($currentUser['email'] ?: $currentUser['name']
                 </span>
                 <span><?php echo htmlspecialchars($currentUser['email']); ?></span>
             </div>
-            <a class="btn btn-outline-secondary btn-sm" href="../logout.php">
+            <a class="btn btn-outline-secondary btn-sm" href="<?php echo app_url('ADMIN/logout.php'); ?>">
                 <i class="fas fa-sign-out-alt me-1"></i> Logout
             </a>
         </div>

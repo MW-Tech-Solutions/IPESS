@@ -140,30 +140,72 @@ function verify_totp(string $secret, string $code, int $window = 1): bool {
 }
 
 
-function user_login_query(PDO $pdo, string $email): ?array {
+function user_login_query(PDO $pdo, string $identity): ?array {
     $flags = get_user_column_flags($pdo);
     $passwordColumn = $flags['password_hash'] ? 'password_hash' : 'password';
     $totpSelect = $flags['totp_secret'] ? ', u.totp_secret, u.totp_enabled' : '';
 
+    $user = null;
     if ($flags['role_id']) {
         $stmt = $pdo->prepare("
             SELECT u.user_id, u.{$passwordColumn} AS password_hash, r.role_key AS role, u.full_name, u.account_status{$totpSelect}
             FROM users u
             LEFT JOIN roles r ON u.role_id = r.role_id
-            WHERE u.email = :email
+            WHERE u.email = :identity
             LIMIT 1
         ");
-        $stmt->bindParam(':email', $email);
+        $stmt->bindParam(':identity', $identity);
         $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    } else if ($flags['role']) {
+        $stmt = $pdo->prepare("SELECT user_id, {$passwordColumn} AS password_hash, role, full_name, account_status{$totpSelect} FROM users WHERE email = :identity LIMIT 1");
+        $stmt->bindParam(':identity', $identity);
+        $stmt->execute();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
-    if ($flags['role']) {
-        $stmt = $pdo->prepare("SELECT user_id, {$passwordColumn} AS password_hash, role, full_name, account_status{$totpSelect} FROM users WHERE email = :email LIMIT 1");
-        $stmt->bindParam(':email', $email);
-        $stmt->execute();
-        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    if ($user) {
+        return $user;
     }
+
+    // Fallback to legacy user_access table (allows login with email OR username)
+    try {
+        $stmtAccess = $pdo->prepare("
+            SELECT staffIDs AS user_id, passWord AS password_hash, userRoleID, EmailAddress AS email, FirstName, LastName
+            FROM user_access
+            WHERE EmailAddress = :identity1 OR userName = :identity2
+            LIMIT 1
+        ");
+        $stmtAccess->bindParam(':identity1', $identity);
+        $stmtAccess->bindParam(':identity2', $identity);
+        $stmtAccess->execute();
+        $legacyUser = $stmtAccess->fetch(PDO::FETCH_ASSOC);
+        if ($legacyUser) {
+            $roleMapKeys = [
+                1  => 'DEVELOPER',
+                12 => 'SUPER_ADMIN',
+                13 => 'ICTO',
+                2  => 'SUPERVISOR',
+                4  => 'HOD',
+                5  => 'FACULTY_OFFICER',
+                7  => 'ICT_ADMIN',
+                8  => 'REGISTRY',
+                11 => 'ACADEMIC_MANAGER'
+            ];
+            $legacyRoleKey = $roleMapKeys[(int)$legacyUser['userRoleID']] ?? 'SUPER_ADMIN';
+
+            return [
+                'user_id' => (int) $legacyUser['user_id'],
+                'password_hash' => $legacyUser['password_hash'], // MD5 hash
+                'role' => $legacyRoleKey,
+                'full_name' => trim(($legacyUser['FirstName'] ?? '') . ' ' . ($legacyUser['LastName'] ?? '')),
+                'account_status' => 'Active',
+                'totp_secret' => '',
+                'totp_enabled' => 0,
+                'is_legacy' => true
+            ];
+        }
+    } catch (Throwable $e) {}
 
     return null;
 }
@@ -219,14 +261,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if (isset($_SESSION['pending_admin_login'])) {
             unset($_SESSION['pending_admin_login']);
         }
-        $email = trim($_POST['email'] ?? '');
+        $identity = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        if (empty($email) || empty($password)) {
-            $error = 'Email and password are required.';
+        if (empty($identity) || empty($password)) {
+            $error = 'Username/Email and password are required.';
         } else {
             try {
-                $user = user_login_query($pdo, $email);
+                $user = user_login_query($pdo, $identity);
 
                 $roleKeys = [];
                 try {
@@ -243,7 +285,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 }
 
                 $loginRole = normalize_role($user['role'] ?? '');
-                if ($user && password_verify($password, $user['password_hash']) && in_array($loginRole, array_map('normalize_role', $roleKeys), true)) {
+                $passwordMatch = false;
+                if ($user) {
+                    if (!empty($user['is_legacy'])) {
+                        $passwordMatch = ($user['password_hash'] === md5($password));
+                    } else {
+                        $passwordMatch = password_verify($password, $user['password_hash']);
+                    }
+                }
+                if ($user && $passwordMatch && in_array($loginRole, array_map('normalize_role', $roleKeys), true)) {
                     // Check if account status is Active
                     $accStatus = $user['account_status'] ?? 'Active';
                     if (strtolower($accStatus) !== 'active') {
@@ -264,24 +314,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             }
                         }
 
-                        if ($totpEnabled === 0) {
-                            // Bypass OTP and log in immediately
-                            $_SESSION['user_id'] = (int) $user['user_id'];
-                            $_SESSION['role'] = $loginRole;
-                            $_SESSION['last_activity'] = time();
-                            session_write_close();
-                            admin_redirect_by_role($loginRole);
-                        } else {
-                            $_SESSION['pending_admin_login'] = [
-                                'user_id' => (int) $user['user_id'],
-                                'role' => $loginRole,
-                                'email' => $email,
-                                'name' => $user['full_name'] ?? 'Admin User',
-                                'totp_secret' => $totpSecret,
-                                'totp_enabled' => $totpEnabled
-                            ];
-                            $show_otp = true;
-                        }
+                        // OTP is disabled completely as requested - bypass and log in immediately
+                        $_SESSION['user_id'] = (int) $user['user_id'];
+                        $_SESSION['role'] = $loginRole;
+                        $_SESSION['last_activity'] = time();
+                        session_write_close();
+                        admin_redirect_by_role($loginRole);
                     }
                 } else {
                     $error = 'Invalid credentials provided.';
@@ -684,10 +722,10 @@ if (!$show_otp && isset($_SESSION['pending_admin_login'])) {
 
                             <div class="form-group">
                                 <input
-                                    type="email"
+                                    type="text"
                                     class="form-control"
                                     name="email"
-                                    placeholder="Email Address"
+                                    placeholder="Username or Email Address"
                                     required
                                 >
                             </div>

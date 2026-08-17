@@ -1,0 +1,130 @@
+:root {
+    --bg-dark: #0f172a;
+    --bg-light: #1e293b;
+    --text-white: #ffffff;
+    --text-muted: #94a3b8;
+    --danger: #ef4444;
+}
+
+/* Topbar */
+.topbar {
+    height: 64px;
+    padding: 0 20px;
+    background: var(--bg-dark);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text-white);
+    box-shadow: 0 2px 10px rgba(0,0,0,.15);
+}
+
+/* Left */
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.topbar-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--text-white);
+    font-size: 20px;
+    cursor: pointer;
+}
+
+/* Right */
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+/* Icons */
+.topbar-icon {
+    position: relative;
+    cursor: pointer;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    background: var(--danger);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 50%;
+}
+
+/* Profile */
+.profile-dropdown {
+    position: relative;
+}
+
+.profile-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    background: var(--bg-light);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Dropdown */
+.dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 60px;
+    background: #020617;
+    min-width: 180px;
+    border-radius: 8px;
+    display: none;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0,0,0,.3);
+}
+
+.dropdown-menu a {
+    padding: 12px 16px;
+    color: var(--text-white);
+    text-decoration: none;
+    display: flex;
+    gap: 10px;
+}
+
+.dropdown-menu a:hover {
+    background: var(--bg-light);
+}
+
+.divider {
+    height: 1px;
+    background: #1e293b;
+}
+
+.logout {
+    color: #f87171;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-name {
+        display: none;
+    }
+
+    .mobile-menu-btn {
+        display: block;
+    }
+}

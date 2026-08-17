@@ -5,6 +5,15 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/session.php';
 require_once JOSTUM_ROOT . '/config/urls.php';
 
+if (session_status() === PHP_SESSION_ACTIVE) {
+    if (isset($_SESSION['user_id'])) {
+        $_SESSION['userid'] = $_SESSION['user_id'];
+    }
+    if (isset($_SESSION['role'])) {
+        $_SESSION['roleid'] = $_SESSION['role'];
+    }
+}
+
 const JOSTUM_ROLES = [
     'SUPER_ADMIN',
     'ICT_ADMIN',
@@ -24,6 +33,7 @@ const JOSTUM_ROLES = [
     'REVIEWER',
     'ICT_STAFF',
     'STUDENT',
+    'DEVELOPER',
 ];
 
 const JOSTUM_LEGACY_ROLE_MAP = [
@@ -112,11 +122,29 @@ if (!function_exists('require_role')) {
     function require_role(array $roles, string $loginPath = 'login.php'): void
     {
         require_login($loginPath);
-        $allowed = array_map('normalize_role', $roles);
-        if (!in_array(current_user_role(), $allowed, true)) {
-            http_response_code(403);
-            exit('403 Forbidden');
+        $currentRole = current_user_role();
+        if ($currentRole === 'DEVELOPER') {
+            return;
         }
+
+        // Check if the current user has this page in their dynamic menus (ignoring query strings)
+        $uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+        $currentFile = basename($uriPath ?? '');
+        if ($currentFile) {
+            try {
+                require_once JOSTUM_ROOT . '/app/config/database.php';
+                $pdo = db();
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM pesonal_right_page_main_menus WHERE page_url LIKE ? AND userID = ?");
+                $stmt->execute(['%' . $currentFile, $_SESSION['userid'] ?? '']);
+                if ((int)$stmt->fetchColumn() > 0) {
+                    return; // Dynamic sidebar access allowed!
+                }
+            } catch (Throwable $e) {}
+        }
+
+        // Access denied if the page is not in their sidebar menu configuration
+        http_response_code(403);
+        exit('403 Forbidden');
     }
 }
 
@@ -125,8 +153,8 @@ if (!function_exists('has_permission')) {
     {
         $role = normalize_role($role ?? current_user_role());
 
-        // Always allow super admins and ICT admins full control
-        if (in_array($role, ['SUPER_ADMIN', 'ICT_ADMIN'], true)) {
+        // Always allow developers full control (SUPER_ADMIN and ICT_ADMIN now undergo DB checks)
+        if (in_array($role, ['DEVELOPER'], true)) {
             return true;
         }
 
@@ -138,6 +166,26 @@ if (!function_exists('has_permission')) {
         try {
             require_once JOSTUM_ROOT . '/app/config/database.php';
             $pdo = db();
+
+            // Check if the user has the page for this permission in their dynamic sidebar/menu
+            $permissionPageMap = [
+                'manage_students' => 'manage-students.php',
+                'view_students' => 'manage-students.php',
+                'manage_users' => 'user-management.php',
+                'user_management' => 'user-management.php',
+                'manage_roles' => 'role-management.php',
+                'role_management' => 'role-management.php',
+                'verify_applicants' => 'document-verification.php',
+                'settings' => 'settings.php'
+            ];
+            if (isset($permissionPageMap[$permission]) && isset($_SESSION['userid'])) {
+                $targetPage = $permissionPageMap[$permission];
+                $stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM pesonal_right_page_main_menus WHERE page_url LIKE ? AND userID = ?");
+                $stmtCheck->execute(['%' . $targetPage, $_SESSION['userid']]);
+                if ((int)$stmtCheck->fetchColumn() > 0) {
+                    return true;
+                }
+            }
             
             // Check user override first!
             if ($userId !== null && $userId > 0) {
@@ -239,19 +287,20 @@ if (!function_exists('dashboard_for_role')) {
         $role = normalize_role($role ?? current_user_role());
         
         $dashboard = match ($role) {
-            'SUPER_ADMIN'        => 'ADMIN/super-admin/dashboard.php',
-            'ICT_ADMIN'          => 'ADMIN/ict-admin/dashboard.php',
-            'PORTAL_ADMIN'       => 'ADMIN/portal-admin/dashboard.php',
+            'DEVELOPER'          => 'ipessadmin/developer-dashboard.php',
+            'SUPER_ADMIN'        => 'ipessadmin/super-admin-dashboard.php',
+            'ICT_ADMIN'          => 'ipessadmin/ict-admin-dashboard.php',
+            'PORTAL_ADMIN'       => 'ipessadmin/portal-admin-dashboard.php',
             'REGISTRY'           => 'modules/registry/dashboard.php',
-            'ICTO'               => 'ADMIN/icto/dashboard.php',
-            'FACULTY_OFFICER'    => 'ADMIN/faculty/dashboard.php',
-            'PG_SCHOOL_OFFICER'  => 'ADMIN/pg-admin/dashboard.php',
-            'ICT_STAFF'          => 'ADMIN/ict-staff/dashboard.php',
-            'DEPARTMENT_ADMIN', 'HOD' => 'ADMIN/dept-admin/dashboard.php',
-            'SUPERVISOR'         => 'ADMIN/supervisor/dashboard.php',
-            'REVIEWER'           => 'ADMIN/reviewer/dashboard.php',
+            'ICTO'               => 'ipessadmin/icto-dashboard.php',
+            'FACULTY_OFFICER'    => 'ipessadmin/faculty-dashboard.php',
+            'PG_SCHOOL_OFFICER'  => 'ipessadmin/pg-admin-dashboard.php',
+            'ICT_STAFF'          => 'ipessadmin/ict-staff-dashboard.php',
+            'DEPARTMENT_ADMIN', 'HOD' => 'ipessadmin/dept-admin-dashboard.php',
+            'SUPERVISOR'         => 'ipessadmin/supervisor-dashboard.php',
+            'REVIEWER'           => 'ipessadmin/reviewer-dashboard.php',
             'STUDENT'            => 'APPLICANT/ADMISSIONS/dashboard.php',
-            default              => 'ADMIN/general/dashboard.php'
+            default              => 'ipessadmin/general-dashboard.php'
         };
 
         if ($dashboard !== null) {
@@ -259,9 +308,9 @@ if (!function_exists('dashboard_for_role')) {
         }
 
         if (has_permission('view_applications', $role)) {
-            return 'ADMIN/admin/dashboard.php';
+            return 'ipessadmin/admin-dashboard.php';
         }
 
-        return 'ADMIN/login.php';
+        return 'ipessadmin/login.php';
     }
 }

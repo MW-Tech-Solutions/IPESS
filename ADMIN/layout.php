@@ -87,7 +87,7 @@ require_role(['PG_SCHOOL_OFFICER', 'ADMISSIONS_OFFICER', 'PORTAL_ADMIN', 'SUPER_
                             <li><a class="dropdown-item" href="#"><i class="fas fa-user"></i> Profile</a></li>
                             <li><a class="dropdown-item" href="#"><i class="fas fa-cog"></i> Settings</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="/logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                            <li><a class="dropdown-item" href="<?php echo app_url('ADMIN/logout.php'); ?>"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                         </ul>
                     </li>
                 </ul>

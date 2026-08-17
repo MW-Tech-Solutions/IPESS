@@ -6,34 +6,34 @@ function app_root_path(): string
         return $root;
     }
 
+    // PRIMARY: Use REQUEST_URI — always the correct web path, works on any server.
+    // E.g. REQUEST_URI = '/IPESS/ipessadmin/login.php' → root = '/IPESS'
+    $uri = strtok($_SERVER['REQUEST_URI'] ?? '', '?#');
+    if ($uri !== '' && $uri !== false) {
+        $projectName = basename(str_replace('\\', '/', realpath(__DIR__ . '/..') ?: (__DIR__ . '/..')));
+        if ($projectName !== '') {
+            $pattern = '#^((?:/[^/]*)*/?' . preg_quote($projectName, '#') . ')(?:/.*)?$#i';
+            if (preg_match($pattern, $uri, $m)) {
+                $root = rtrim($m[1], '/');
+                return $root;
+            }
+        }
+    }
+
+    // FALLBACK: DOCUMENT_ROOT comparison
     $projectRoot = str_replace('\\', '/', realpath(__DIR__ . '/..') ?: (__DIR__ . '/..'));
     $documentRoot = str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: ($_SERVER['DOCUMENT_ROOT'] ?? ''));
-
     if ($documentRoot !== '' && stripos($projectRoot, $documentRoot) === 0) {
         $relative = substr($projectRoot, strlen($documentRoot));
         $relative = '/' . trim($relative, '/');
         $root = $relative === '/' ? '' : $relative;
-    } else {
-        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
-        $parts = $scriptName !== '' ? explode('/', trim(str_replace('\\', '/', $scriptName), '/')) : [];
-        $projectName = basename($projectRoot);
-        
-        $index = false;
-        foreach ($parts as $i => $part) {
-            if (strcasecmp($part, $projectName) === 0) {
-                $index = $i;
-                break;
-            }
-        }
-        
-        if ($index !== false) {
-            $root = '/' . implode('/', array_slice($parts, 0, $index + 1));
-        } else {
-            $root = '';
-        }
+        return $root;
     }
 
-    return rtrim($root, '/');
+    // LAST RESORT: project folder name
+    $projectName = basename(str_replace('\\', '/', realpath(__DIR__ . '/..') ?: (__DIR__ . '/..')));
+    $root = $projectName !== '' ? '/' . $projectName : '';
+    return $root;
 }
 
 function app_origin(): string
