@@ -29,48 +29,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_role'])) {
                 </div>';
     } else {
         try {
-            // 1. Get role details
+            // 1. Get role details from roles table
             $stmtRole = $con->prepare("SELECT role_id, role_key, role_name FROM roles WHERE role_id = ? LIMIT 1");
             $stmtRole->execute([$newRoleId]);
             $roleInfo = $stmtRole->fetch(PDO::FETCH_ASSOC);
             $roleName = $roleInfo['role_name'] ?? 'Role #' . $newRoleId;
             $roleKey = $roleInfo['role_key'] ?? 'GENERAL';
 
-            // 2. Fetch target user by staffIDs or email or user_id
-            $stmtGetUA = $con->prepare("SELECT * FROM user_access WHERE staffIDs = ? OR userName = ? OR EmailAddress = ? LIMIT 1");
-            $stmtGetUA->execute([$userIdToUpdate, $userIdToUpdate, $userIdToUpdate]);
-            $uaRow = $stmtGetUA->fetch(PDO::FETCH_ASSOC);
+            // 2. Fetch target user to get their user_id, email, username
+            $stmtGet = $con->prepare("
+                SELECT u.user_id, u.email, COALESCE(ua.userName, u.email) AS username, COALESCE(ua.staffIDs, u.user_id) AS staff_id
+                FROM users u
+                LEFT JOIN user_access ua ON ua.EmailAddress = u.email
+                WHERE u.user_id = ? OR u.email = ? OR ua.staffIDs = ? OR ua.userName = ?
+                LIMIT 1
+            ");
+            $stmtGet->execute([$userIdToUpdate, $userIdToUpdate, $userIdToUpdate, $userIdToUpdate]);
+            $userRow = $stmtGet->fetch(PDO::FETCH_ASSOC);
 
-            $userEmail = $uaRow['EmailAddress'] ?? '';
-            $userName = $uaRow['userName'] ?? '';
-            $staffId = $uaRow['staffIDs'] ?? $userIdToUpdate;
-
-            // 3. Update user_access table
-            $stmtUpUA = $con->prepare("UPDATE user_access SET userRoleID = ? WHERE staffIDs = ? OR EmailAddress = ?");
-            $stmtUpUA->execute([$newRoleId, $staffId, $userEmail]);
-
-            // 4. Update modern users table
-            if ($userEmail !== '') {
-                $stmtUpUsers = $con->prepare("UPDATE users SET role_id = ? WHERE email = ?");
-                $stmtUpUsers->execute([$newRoleId, $userEmail]);
+            if (!$userRow) {
+                // Try fetching directly from user_access
+                $stmtGetUA = $con->prepare("SELECT staffIDs AS staff_id, staffIDs AS user_id, EmailAddress AS email, userName AS username FROM user_access WHERE staffIDs = ? OR userName = ? OR EmailAddress = ? LIMIT 1");
+                $stmtGetUA->execute([$userIdToUpdate, $userIdToUpdate, $userIdToUpdate]);
+                $userRow = $stmtGetUA->fetch(PDO::FETCH_ASSOC);
             }
+
+            $userEmail = $userRow['email'] ?? $userIdToUpdate;
+            $userName = $userRow['username'] ?? '';
+            $uid = $userRow['user_id'] ?? $userIdToUpdate;
+
+            // 3. Update modern users table
+            $stmtUpUsers = $con->prepare("UPDATE users SET role_id = ? WHERE user_id = ? OR email = ?");
+            $stmtUpUsers->execute([$newRoleId, $uid, $userEmail]);
+
+            // 4. Update legacy user_access table
+            try {
+                $stmtUpUA = $con->prepare("UPDATE user_access SET userRoleID = ? WHERE EmailAddress = ? OR staffIDs = ? OR userName = ?");
+                $stmtUpUA->execute([$newRoleId, $userEmail, $uid, $userName]);
+            } catch (Throwable $e) {}
 
             // 5. Purge stale cached sidebar rows so the new role's menus take effect immediately
-            if ($userName !== '') {
-                $con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?")->execute([$userName]);
-                $con->prepare("DELETE FROM personal_page_menu_tab WHERE userID = ?")->execute([$userName]);
-            }
-            if ($userEmail !== '') {
-                $con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?")->execute([$userEmail]);
-                $con->prepare("DELETE FROM personal_page_menu_tab WHERE userID = ?")->execute([$userEmail]);
-            }
+            try {
+                if ($userName !== '') {
+                    $con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?")->execute([$userName]);
+                    $con->prepare("DELETE FROM personal_page_menu_tab WHERE userID = ?")->execute([$userName]);
+                }
+                if ($userEmail !== '') {
+                    $con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?")->execute([$userEmail]);
+                    $con->prepare("DELETE FROM personal_page_menu_tab WHERE userID = ?")->execute([$userEmail]);
+                }
+                if ($uid !== '') {
+                    $con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?")->execute([$uid]);
+                    $con->prepare("DELETE FROM personal_page_menu_tab WHERE userID = ?")->execute([$uid]);
+                }
+            } catch (Throwable $e) {}
 
             $msg = '<div class="alert alert-success alert-dismissible fade show" role="alert">
-                        <i class="bi bi-check-circle-fill me-2"></i><strong>Success!</strong> User role has been changed to <strong>' . htmlspecialchars($roleName) . '</strong>. Permissions and sidebar navigation have been refreshed.
+                        <i class="bi bi-check-circle-fill me-2"></i><strong>Success!</strong> User role has been changed to <strong>' . htmlspecialchars($roleName) . '</strong> (' . htmlspecialchars($roleKey) . '). Permissions and sidebar navigation have been refreshed.
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>';
 
-            $selectedUserId = $staffId;
+            $selectedUserId = $uid;
         } catch (Throwable $e) {
             $msg = '<div class="alert alert-danger alert-dismissible fade show" role="alert">
                         <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>Error:</strong> ' . htmlspecialchars($e->getMessage()) . '
@@ -80,35 +99,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_role'])) {
     }
 }
 
+// Fetch all staff users for the dropdown (from users table with user_access fallback)
+$allStaff = [];
+try {
+    $stmtUsers = $con->query("
+        SELECT u.user_id, u.email AS EmailAddress, u.full_name, u.role_id,
+               COALESCE(r.role_name, 'Unassigned') AS current_role_name,
+               COALESCE(ua.staffIDs, u.user_id) AS staff_id,
+               COALESCE(ua.userName, u.email) AS username
+        FROM users u
+        LEFT JOIN roles r ON r.role_id = u.role_id
+        LEFT JOIN user_access ua ON ua.EmailAddress = u.email
+        ORDER BY u.full_name ASC, u.email ASC
+    ");
+    if ($stmtUsers) {
+        $allStaff = $stmtUsers->fetchAll(PDO::FETCH_ASSOC);
+    }
+} catch (Throwable $e) {
+    try {
+        $stmtUA = $con->query("
+            SELECT staffIDs AS staff_id, staffIDs AS user_id, EmailAddress,
+                   TRIM(CONCAT(COALESCE(title, ''), ' ', COALESCE(FirstName, ''), ' ', COALESCE(LastName, ''))) AS full_name,
+                   userName AS username, userRoleID AS role_id, 'Staff' AS current_role_name
+            FROM user_access
+            ORDER BY FirstName ASC
+        ");
+        if ($stmtUA) {
+            $allStaff = $stmtUA->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (Throwable $ex) {}
+}
+
 // If a user ID is specified, load their info
 if (!empty($selectedUserId)) {
     try {
         $stmtUser = $con->prepare("
-            SELECT ua.*, u.role_id AS modern_role_id, r.role_name AS modern_role_name, r.role_key
-            FROM user_access ua
-            LEFT JOIN users u ON u.email = ua.EmailAddress
+            SELECT u.user_id, u.email AS EmailAddress, u.full_name, u.role_id,
+                   COALESCE(r.role_name, 'Unassigned') AS modern_role_name,
+                   r.role_key,
+                   COALESCE(ua.staffIDs, u.user_id) AS staff_id,
+                   COALESCE(ua.userName, u.email) AS userName
+            FROM users u
             LEFT JOIN roles r ON r.role_id = u.role_id
-            WHERE ua.staffIDs = ? OR ua.userName = ? OR ua.EmailAddress = ?
+            LEFT JOIN user_access ua ON ua.EmailAddress = u.email
+            WHERE u.user_id = ? OR u.email = ? OR ua.staffIDs = ? OR ua.userName = ?
             LIMIT 1
         ");
-        $stmtUser->execute([$selectedUserId, $selectedUserId, $selectedUserId]);
+        $stmtUser->execute([$selectedUserId, $selectedUserId, $selectedUserId, $selectedUserId]);
         $targetUser = $stmtUser->fetch(PDO::FETCH_ASSOC);
-    } catch (Throwable $e) {}
+    } catch (Throwable $e) {
+        try {
+            $stmtUser2 = $con->prepare("
+                SELECT staffIDs AS user_id, staffIDs AS staff_id, EmailAddress,
+                       TRIM(CONCAT(COALESCE(title, ''), ' ', COALESCE(FirstName, ''), ' ', COALESCE(LastName, ''))) AS full_name,
+                       userName, userRoleID AS role_id, 'Staff' AS modern_role_name
+                FROM user_access
+                WHERE staffIDs = ? OR userName = ? OR EmailAddress = ?
+                LIMIT 1
+            ");
+            $stmtUser2->execute([$selectedUserId, $selectedUserId, $selectedUserId]);
+            $targetUser = $stmtUser2->fetch(PDO::FETCH_ASSOC);
+        } catch (Throwable $ex) {}
+    }
 }
-
-// Fetch all staff users for the dropdown
-$allStaff = [];
-try {
-    $allStaff = $con->query("
-        SELECT ua.staffIDs, ua.title, ua.FirstName, ua.MiddleName, ua.LastName, ua.EmailAddress, ua.userName, ua.userRoleID,
-               COALESCE(r.role_name, ac.access, 'N/A') AS current_role_name
-        FROM user_access ua
-        LEFT JOIN users u ON u.email = ua.EmailAddress
-        LEFT JOIN roles r ON r.role_id = u.role_id
-        LEFT JOIN acd_tbluser ac ON ac.ID = ua.userRoleID
-        ORDER BY ua.FirstName ASC, ua.LastName ASC
-    ")->fetchAll(PDO::FETCH_ASSOC);
-} catch (Throwable $e) {}
 
 // Fetch all available roles
 $allRoles = [];
@@ -191,11 +244,12 @@ $mypagename = "Change User Role";
                     <select name="id" class="form-select form-select-lg" onchange="this.form.submit()">
                       <option value="">-- Choose a Staff User --</option>
                       <?php foreach ($allStaff as $st): 
-                        $stFull = trim("{$st['title']} {$st['FirstName']} {$st['MiddleName']} {$st['LastName']}");
-                        $isSelected = ($targetUser && $targetUser['staffIDs'] == $st['staffIDs']) ? 'selected' : '';
+                        $stName = !empty($st['full_name']) ? $st['full_name'] : $st['EmailAddress'];
+                        $stId = !empty($st['user_id']) ? $st['user_id'] : $st['staff_id'];
+                        $isSelected = ($targetUser && ($targetUser['user_id'] == $stId || $targetUser['EmailAddress'] == $st['EmailAddress'])) ? 'selected' : '';
                       ?>
-                        <option value="<?= htmlspecialchars($st['staffIDs']) ?>" <?= $isSelected ?>>
-                          <?= htmlspecialchars($stFull) ?> (<?= htmlspecialchars($st['EmailAddress']) ?>) - Current: <?= htmlspecialchars($st['current_role_name']) ?>
+                        <option value="<?= htmlspecialchars($stId) ?>" <?= $isSelected ?>>
+                          <?= htmlspecialchars($stName) ?> (<?= htmlspecialchars($st['EmailAddress']) ?>) - Current: <?= htmlspecialchars($st['current_role_name']) ?>
                         </option>
                       <?php endforeach; ?>
                     </select>
@@ -209,8 +263,8 @@ $mypagename = "Change User Role";
               </form>
 
               <?php if ($targetUser): 
-                $targetFull = trim("{$targetUser['title']} {$targetUser['FirstName']} {$targetUser['MiddleName']} {$targetUser['LastName']}");
-                $currentRoleDisplay = $targetUser['modern_role_name'] ?: 'Unassigned / Custom';
+                $targetFull = !empty($targetUser['full_name']) ? $targetUser['full_name'] : $targetUser['EmailAddress'];
+                $currentRoleDisplay = !empty($targetUser['modern_role_name']) ? $targetUser['modern_role_name'] : 'Unassigned / Custom';
               ?>
                 <div class="user-card-highlight mb-4">
                   <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
@@ -218,7 +272,7 @@ $mypagename = "Change User Role";
                       <h5 class="fw-bold mb-1 text-dark"><?= htmlspecialchars($targetFull) ?></h5>
                       <div class="text-muted small">
                         <i class="bi bi-envelope me-1"></i> <?= htmlspecialchars($targetUser['EmailAddress']) ?> &nbsp;|&nbsp;
-                        <i class="bi bi-person me-1"></i> Username: <strong><?= htmlspecialchars($targetUser['userName']) ?></strong>
+                        <i class="bi bi-person me-1"></i> Username: <strong><?= htmlspecialchars($targetUser['userName'] ?? $targetUser['EmailAddress']) ?></strong>
                       </div>
                     </div>
                     <div>
@@ -231,14 +285,14 @@ $mypagename = "Change User Role";
 
                 <!-- Update Role Form -->
                 <form method="POST" action="change_user_role.php">
-                  <input type="hidden" name="target_user_id" value="<?= htmlspecialchars($targetUser['staffIDs']) ?>">
+                  <input type="hidden" name="target_user_id" value="<?= htmlspecialchars($targetUser['user_id'] ?? $targetUser['staff_id']) ?>">
 
                   <div class="mb-4">
                     <label class="form-label fw-bold text-dark">Assign New Role <span class="text-danger">*</span></label>
                     <select name="new_role_id" class="form-select form-select-lg" required>
                       <option value="">-- Select New Role --</option>
                       <?php foreach ($allRoles as $role): 
-                        $isCurrentRole = ($targetUser['modern_role_id'] == $role['role_id'] || $targetUser['userRoleID'] == $role['role_id']);
+                        $isCurrentRole = ($targetUser['role_id'] == $role['role_id']);
                       ?>
                         <option value="<?= htmlspecialchars($role['role_id']) ?>" <?= $isCurrentRole ? 'selected' : '' ?>>
                           <?= htmlspecialchars($role['role_name']) ?> (<?= htmlspecialchars($role['role_key']) ?>)
