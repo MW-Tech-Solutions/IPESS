@@ -97,19 +97,53 @@ if (!$userFound) {
     } catch (Throwable $e) {}
 }
 
-$rolename = $rolesession;
+$rolename = 'Staff';
+
+// 1. Try resolving by user_id from users table JOIN roles
 try {
-    $getrole = $con->query("SELECT * FROM acd_tbluser WHERE ID = '$rolesession' OR LOWER(access) = LOWER('$rolesession') LIMIT 1")->fetch(PDO::FETCH_ASSOC);
-    if ($getrole) {
-        $rolename = $getrole['access'];
-    }
-} catch (Throwable $e) {
-    try {
-        $getrole = $con->query("SELECT * FROM roles WHERE role_id = '$rolesession' OR LOWER(role_key) = LOWER('$rolesession') LIMIT 1")->fetch(PDO::FETCH_ASSOC);
-        if ($getrole) {
-            $rolename = $getrole['role_name'];
+    $uid = $_SESSION['user_id'] ?? $_SESSION['userid'] ?? 0;
+    if ($uid) {
+        $stmtUserRole = $con->prepare("
+            SELECT r.role_name 
+            FROM users u 
+            INNER JOIN roles r ON u.role_id = r.role_id 
+            WHERE u.user_id = ? OR u.email = ?
+            LIMIT 1
+        ");
+        $stmtUserRole->execute([$uid, $usersession]);
+        $fetchedName = $stmtUserRole->fetchColumn();
+        if ($fetchedName) {
+            $rolename = $fetchedName;
         }
-    } catch (Throwable $ex) {}
+    }
+} catch (Throwable $e) {}
+
+// 2. If not found, try resolving from roles table by role key / role id
+if ($rolename === 'Staff' && !empty($rolesession)) {
+    try {
+        $stmtRole = $con->prepare("SELECT role_name FROM roles WHERE role_id = ? OR LOWER(role_key) = LOWER(?) OR LOWER(role_name) = LOWER(?) LIMIT 1");
+        $stmtRole->execute([$rolesession, $rolesession, $rolesession]);
+        $fetchedName = $stmtRole->fetchColumn();
+        if ($fetchedName) {
+            $rolename = $fetchedName;
+        }
+    } catch (Throwable $e) {}
+}
+
+// 3. Fallback: try resolving from acd_tbluser
+if ($rolename === 'Staff' && !empty($rolesession)) {
+    try {
+        $stmtLegacy = $con->prepare("SELECT access FROM acd_tbluser WHERE ID = ? OR LOWER(access) = LOWER(?) LIMIT 1");
+        $stmtLegacy->execute([$rolesession, $rolesession]);
+        $fetchedName = $stmtLegacy->fetchColumn();
+        if ($fetchedName) {
+            $rolename = $fetchedName;
+        }
+    } catch (Throwable $e) {}
+}
+
+if ($rolename === 'Staff' && !empty($rolesession)) {
+    $rolename = ucwords(strtolower(str_replace('_', ' ', $rolesession)));
 }
 
 $getorgan= $con->query("SELECT * FROM organization_information  ")->fetch(PDO::FETCH_ASSOC);
