@@ -1,29 +1,40 @@
-name: Deploy PHP & Bootstrap App to Bluehost
+name: Deploy to Bluehost on Push
 
 on:
   push:
     branches:
-      - main  # Triggers when you push code to main branch
+      - main
 
 jobs:
-  php-deploy:
-    name: 🚀 Deploy PHP Project
+  deploy:
+    name: 🚀 FTP Deploy to Production
     runs-on: ubuntu-latest
-    steps:
-    - name: 🚚 Get latest code
-      uses: actions/checkout@v4
 
-    - name: 📂 Sync PHP Files to Bluehost
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./  # Uploads the entire root directory
-        server-dir: ./
-        exclude: |
-          **/.git*
-          **/.git*/**
-          **/.github/**
-          **/uploads/**
-          **/uploads
+    steps:
+      - name: 🚚 Checkout latest code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # needed for changed-files detection
+
+      - name: 📂 Sync files to Bluehost via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          exclude: |
+            **/.git/**
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            **/vendor/**
+            **/uploads/**
+            **/adminpictures/**
+            **/storage/**
+            **/*.sql
+            **/*.zip
+            **/error_log.txt
+            **/scratch/**
+            **/.env
