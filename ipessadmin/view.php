@@ -183,6 +183,7 @@ if (empty($candidateFullName)) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <style>
         :root {
@@ -199,6 +200,17 @@ if (empty($candidateFullName)) {
             color: #1e293b;
             font-size: 13.5px;
             line-height: 1.5;
+        }
+
+        .pdf-canvas-container canvas {
+            max-width: 100% !important;
+            height: auto !important;
+            margin: 10px auto;
+            display: block;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: #ffffff;
         }
 
         /* Top Action Bar */
@@ -702,16 +714,12 @@ if (empty($candidateFullName)) {
                             <?php if ($isImage): ?>
                                 <img src="<?= htmlspecialchars($docUrl) ?>" alt="<?= htmlspecialchars($docTitle) ?>" class="attached-doc-img">
                             <?php elseif ($isPdf): ?>
-                                <div class="no-print mb-3">
-                                    <iframe src="<?= htmlspecialchars($docUrl) ?>" class="attached-doc-embed" style="width:100%; height:650px; border:1px solid #cbd5e1; border-radius:6px;"></iframe>
-                                </div>
-                                <div class="p-4 bg-light border rounded text-center">
-                                    <i class="bi bi-file-earmark-pdf-fill text-danger fs-1 d-block mb-2"></i>
-                                    <h6 class="fw-bold"><?= htmlspecialchars($docTitle) ?> (PDF Document)</h6>
-                                    <p class="text-muted small mb-3">Official verification PDF uploaded by candidate.</p>
-                                    <a href="<?= htmlspecialchars($docUrl) ?>" target="_blank" class="btn btn-primary btn-sm px-4">
-                                        <i class="bi bi-box-arrow-up-right me-1"></i> Open Original PDF
-                                    </a>
+                                <!-- Inline High-Resolution PDF.js Page Canvas Renderer (Screen + Print) -->
+                                <div class="pdf-canvas-container" data-pdf-url="<?= htmlspecialchars($docUrl) ?>"></div>
+
+                                <!-- Native PDF Viewer (Fallback / Screen Interactive) -->
+                                <div class="pdf-native-fallback no-print mt-2">
+                                    <iframe src="<?= htmlspecialchars($docUrl) ?>" style="width:100%; height:800px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;"></iframe>
                                 </div>
                             <?php else: ?>
                                 <div class="p-4 bg-light border rounded text-center">
@@ -747,6 +755,49 @@ if (empty($candidateFullName)) {
     </div>
 
     <script>
+    // PDF.js worker setup
+    if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        document.querySelectorAll('.pdf-canvas-container').forEach(function(container) {
+            const url = container.dataset.pdfUrl;
+            if (!url) return;
+
+            const fallback = container.parentElement.querySelector('.pdf-native-fallback');
+
+            pdfjsLib.getDocument(url).promise.then(function(pdf) {
+                // When PDF.js successfully renders pages, hide the iframe fallback so there's no duplicate
+                if (fallback) {
+                    fallback.style.display = 'none';
+                }
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    pdf.getPage(pageNum).then(function(page) {
+                        const scale = 1.8; // High-resolution scale for crisp reading & printing
+                        const viewport = page.getViewport({ scale: scale });
+                        const canvas = document.createElement('canvas');
+                        canvas.className = 'attached-doc-img pdf-page-canvas mb-3';
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+
+                        const renderContext = {
+                            canvasContext: context,
+                            viewport: viewport
+                        };
+                        page.render(renderContext);
+                        container.appendChild(canvas);
+                    });
+                }
+            }).catch(function(err) {
+                console.warn('PDF.js inline rendering fallback to iframe:', err);
+                if (fallback) {
+                    fallback.style.display = 'block';
+                }
+            });
+        });
+    }
+
     function triggerPrintDossier() {
         window.focus();
         setTimeout(function() {
