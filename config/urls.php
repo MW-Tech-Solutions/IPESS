@@ -6,40 +6,17 @@ function app_root_path(): string
         return $root;
     }
 
-    // PRIMARY: Use REQUEST_URI — always the correct web path, works on any server.
-    // E.g. REQUEST_URI = '/IPESS/ipessadmin/login.php' → root = '/IPESS'
     $uri = strtok($_SERVER['REQUEST_URI'] ?? '', '?#');
-    if ($uri !== '' && $uri !== false) {
-        $projectName = basename(str_replace('\\', '/', realpath(__DIR__ . '/..') ?: (__DIR__ . '/..')));
-        if ($projectName !== '') {
-            // If the project name is NOT in the requested URI, we are running at the root (e.g. domain mapped to folder)
-            $cleanUri = '/' . ltrim($uri, '/');
-            if (strpos(strtolower($cleanUri), '/' . strtolower($projectName) . '/') !== 0 && strtolower($cleanUri) !== '/' . strtolower($projectName)) {
-                $root = '';
-                return $root;
-            }
+    $cleanUri = '/' . ltrim($uri ?: '', '/');
 
-            $pattern = '#^((?:/[^/]*)*/?' . preg_quote($projectName, '#') . ')(?:/.*)?$#i';
-            if (preg_match($pattern, $uri, $m)) {
-                $root = rtrim($m[1], '/');
-                return $root;
-            }
-        }
-    }
-
-    // FALLBACK: DOCUMENT_ROOT comparison
-    $projectRoot = str_replace('\\', '/', realpath(__DIR__ . '/..') ?: (__DIR__ . '/..'));
-    $documentRoot = str_replace('\\', '/', realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: ($_SERVER['DOCUMENT_ROOT'] ?? ''));
-    if ($documentRoot !== '' && stripos($projectRoot, $documentRoot) === 0) {
-        $relative = substr($projectRoot, strlen($documentRoot));
-        $relative = '/' . trim($relative, '/');
-        $root = $relative === '/' ? '' : $relative;
+    // Only use '/IPESS' prefix if '/IPESS/' or '/ipess/' is explicitly present in the requested URL path (e.g. local XAMPP)
+    if (preg_match('#^/ipess(/|$)#i', $cleanUri)) {
+        $root = '/IPESS';
         return $root;
     }
 
-    // LAST RESORT: project folder name
-    $projectName = basename(str_replace('\\', '/', realpath(__DIR__ . '/..') ?: (__DIR__ . '/..')));
-    $root = $projectName !== '' ? '/' . $projectName : '';
+    // On production/live domains (or when mapped to root), the application root is always empty string
+    $root = '';
     return $root;
 }
 

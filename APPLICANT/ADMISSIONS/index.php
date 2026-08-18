@@ -504,7 +504,7 @@ $portalLinks = [
                 <ul>
                     <li><a href="https://cipessfuam.edu.ng/">CIPESS Portal Home</a></li>
                     <li><a href="https://uam.edu.ng/">JOSTUM Main Website</a></li>
-                    <li><a href="<?php echo rtrim(app_url('ipessadmin'), '/'); ?>">Admin Login</a></li>
+                    <li><a href="<?php echo app_url('ipessadmin/login.php'); ?>">Admin Login</a></li>
                 </ul>
             </div>
         </div>
