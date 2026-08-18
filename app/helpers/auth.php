@@ -122,27 +122,36 @@ if (!function_exists('require_role')) {
     function require_role(array $roles, string $loginPath = 'login.php'): void
     {
         require_login($loginPath);
-        $currentRole = current_user_role();
+        $currentRole = normalize_role(current_user_role());
+        
+        // 1. Full unrestricted access for DEVELOPER
         if ($currentRole === 'DEVELOPER') {
             return;
         }
 
-        // Check if the current user has this page in their dynamic menus (ignoring query strings)
+        // 2. Allow if current user's role is in the required roles list
+        $normalizedRoles = array_map('normalize_role', $roles);
+        if (in_array($currentRole, $normalizedRoles, true)) {
+            return;
+        }
+
+        // 3. Fallback: Check if the user has this page in their dynamic menus
         $uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
         $currentFile = basename($uriPath ?? '');
         if ($currentFile) {
             try {
                 require_once JOSTUM_ROOT . '/app/config/database.php';
                 $pdo = db();
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM pesonal_right_page_main_menus WHERE page_url LIKE ? AND userID = ?");
-                $stmt->execute(['%' . $currentFile, $_SESSION['userid'] ?? '']);
+                $userId = $_SESSION['user_id'] ?? $_SESSION['userid'] ?? '';
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM pesonal_right_page_main_menus WHERE page_url LIKE ? AND (userID = ? OR userRoleID = ?)");
+                $stmt->execute(['%' . $currentFile, $userId, $_SESSION['roleid'] ?? '']);
                 if ((int)$stmt->fetchColumn() > 0) {
                     return; // Dynamic sidebar access allowed!
                 }
             } catch (Throwable $e) {}
         }
 
-        // Access denied if the page is not in their sidebar menu configuration
+        // Access denied if not permitted
         http_response_code(403);
         exit('403 Forbidden');
     }

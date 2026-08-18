@@ -129,32 +129,36 @@ if (!is_dir($target_dir)) {
 					$rawPwd = $_POST['pwd'] ?? '';
 					$newHash = password_hash($rawPwd, PASSWORD_DEFAULT);
 					
-					$roleMap = [
-						1  => 'DEVELOPER',
-						12 => 'SUPER_ADMIN',
-						13 => 'ICTO',
-						2  => 'SUPERVISOR',
-						4  => 'HOD',
-						5  => 'FACULTY_OFFICER',
-						7  => 'ICT_ADMIN',
-						8  => 'REGISTRY',
-						11 => 'ACADEMIC_MANAGER'
-					];
-					$roleKey = $roleMap[(int)$rolecode] ?? 'SUPER_ADMIN';
+					// 1. Try resolving $rolecode directly as a role_id in the roles table
+					$stmtRole = $con->prepare("SELECT role_id, role_key FROM roles WHERE role_id = ? LIMIT 1");
+					$stmtRole->execute([(int)$rolecode]);
+					$roleRow = $stmtRole->fetch(PDO::FETCH_ASSOC);
 
-					// Resolve modern role_id dynamically by key
-					$stmtRole = $con->prepare("SELECT role_id FROM roles WHERE role_key = ? LIMIT 1");
-					$stmtRole->execute([$roleKey]);
-					$newRoleId = $stmtRole->fetchColumn();
+					if ($roleRow) {
+						$newRoleId = (int)$roleRow['role_id'];
+						$roleKey = $roleRow['role_key'];
+					} else {
+						// 2. Fallback to legacy acd_tbluser ID mapping
+						$roleMap = [
+							1  => 'DEVELOPER',
+							2  => 'SUPERVISOR',
+							3  => 'REVIEWER',
+							4  => 'HOD',
+							5  => 'FACULTY_OFFICER',
+							6  => 'ICTO',
+							7  => 'ICT_ADMIN',
+							8  => 'REGISTRY',
+							9  => 'REVIEWER',
+							10 => 'ACADEMIC_MANAGER',
+							11 => 'ACADEMIC_MANAGER',
+							12 => 'SUPER_ADMIN',
+							13 => 'ICTO'
+						];
+						$roleKey = $roleMap[(int)$rolecode] ?? 'SUPER_ADMIN';
 
-					if (!$newRoleId) {
-						if ($roleKey === 'ICTO') {
-							$stmtRole->execute(['ICT_STAFF']);
-							$newRoleId = $stmtRole->fetchColumn();
-						}
-					}
-					if (!$newRoleId) {
-						$newRoleId = 1; // Default fallback to SUPER_ADMIN/DEVELOPER
+						$stmtRole2 = $con->prepare("SELECT role_id FROM roles WHERE role_key = ? LIMIT 1");
+						$stmtRole2->execute([$roleKey]);
+						$newRoleId = $stmtRole2->fetchColumn() ?: 1;
 					}
 
 					$checkUsers = $con->prepare("SELECT user_id FROM users WHERE email = ? LIMIT 1");
