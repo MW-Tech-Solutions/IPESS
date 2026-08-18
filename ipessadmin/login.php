@@ -306,26 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = 'Username/Email and password are required.';
         } else {
             try {
-                // Auto-heal any invalid role_id values in the users table by checking against user_access.userRoleID
-                try {
-                    $pdo->exec("
-                        UPDATE users u
-                        INNER JOIN user_access ua ON u.email = ua.EmailAddress
-                        SET u.role_id = CASE ua.userRoleID
-                            WHEN 1 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'SUPER_ADMIN' LIMIT 1), 1)
-                            WHEN 12 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'SUPER_ADMIN' LIMIT 1), 1)
-                            WHEN 13 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'ICTO' LIMIT 1), (SELECT role_id FROM roles WHERE role_key = 'ICT_STAFF' LIMIT 1), 1)
-                            WHEN 2 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'SUPERVISOR' LIMIT 1), 1)
-                            WHEN 4 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'HOD' LIMIT 1), 1)
-                            WHEN 5 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'FACULTY_OFFICER' LIMIT 1), 1)
-                            WHEN 7 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'ICT_ADMIN' LIMIT 1), 1)
-                            WHEN 8 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'REGISTRY' LIMIT 1), 1)
-                            WHEN 11 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'ACADEMIC_MANAGER' LIMIT 1), 1)
-                            ELSE u.role_id
-                        END
-                        WHERE u.role_id IS NULL OR u.role_id NOT IN (SELECT role_id FROM roles)
-                    ");
-                } catch (Throwable $e) {}
+
 
                 $user = user_login_query($pdo, $identity);
 

@@ -36,26 +36,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_role'])) {
             $roleName = $roleInfo['role_name'] ?? 'Role #' . $newRoleId;
             $roleKey = $roleInfo['role_key'] ?? 'GENERAL';
 
-            // 2. Fetch target user to get their user_id, email, username
-            $stmtGet = $con->prepare("
-                SELECT u.user_id, u.email, COALESCE(ua.userName, u.email) AS username, COALESCE(ua.staffIDs, u.user_id) AS staff_id
-                FROM users u
-                LEFT JOIN user_access ua ON ua.EmailAddress = u.email
-                WHERE u.user_id = ? OR u.email = ? OR ua.staffIDs = ? OR ua.userName = ?
-                LIMIT 1
-            ");
-            $stmtGet->execute([$userIdToUpdate, $userIdToUpdate, $userIdToUpdate, $userIdToUpdate]);
+            // 2. Fetch target user to get user_id & email
+            $stmtGet = $con->prepare("SELECT user_id, email, full_name FROM users WHERE user_id = ? OR email = ? LIMIT 1");
+            $stmtGet->execute([$userIdToUpdate, $userIdToUpdate]);
             $userRow = $stmtGet->fetch(PDO::FETCH_ASSOC);
 
-            if (!$userRow) {
-                // Try fetching directly from user_access
-                $stmtGetUA = $con->prepare("SELECT staffIDs AS staff_id, staffIDs AS user_id, EmailAddress AS email, userName AS username FROM user_access WHERE staffIDs = ? OR userName = ? OR EmailAddress = ? LIMIT 1");
-                $stmtGetUA->execute([$userIdToUpdate, $userIdToUpdate, $userIdToUpdate]);
-                $userRow = $stmtGetUA->fetch(PDO::FETCH_ASSOC);
-            }
-
             $userEmail = $userRow['email'] ?? $userIdToUpdate;
-            $userName = $userRow['username'] ?? '';
             $uid = $userRow['user_id'] ?? $userIdToUpdate;
 
             // 3. Update modern users table
@@ -65,15 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_role'])) {
             // 4. Update legacy user_access table
             try {
                 $stmtUpUA = $con->prepare("UPDATE user_access SET userRoleID = ? WHERE EmailAddress = ? OR staffIDs = ? OR userName = ?");
-                $stmtUpUA->execute([$newRoleId, $userEmail, $uid, $userName]);
+                $stmtUpUA->execute([$newRoleId, $userEmail, $uid, $userEmail]);
             } catch (Throwable $e) {}
 
             // 5. Purge stale cached sidebar rows so the new role's menus take effect immediately
             try {
-                if ($userName !== '') {
-                    $con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?")->execute([$userName]);
-                    $con->prepare("DELETE FROM personal_page_menu_tab WHERE userID = ?")->execute([$userName]);
-                }
                 if ($userEmail !== '') {
                     $con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?")->execute([$userEmail]);
                     $con->prepare("DELETE FROM personal_page_menu_tab WHERE userID = ?")->execute([$userEmail]);
@@ -99,17 +81,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_role'])) {
     }
 }
 
-// Fetch all staff users for the dropdown (from users table with user_access fallback)
+// Fetch all staff users for the dropdown directly from users table joined with roles
 $allStaff = [];
 try {
     $stmtUsers = $con->query("
         SELECT u.user_id, u.email AS EmailAddress, u.full_name, u.role_id,
                COALESCE(r.role_name, 'Unassigned') AS current_role_name,
-               COALESCE(ua.staffIDs, u.user_id) AS staff_id,
-               COALESCE(ua.userName, u.email) AS username
+               u.user_id AS staff_id,
+               u.email AS username
         FROM users u
         LEFT JOIN roles r ON r.role_id = u.role_id
-        LEFT JOIN user_access ua ON ua.EmailAddress = u.email
         ORDER BY u.full_name ASC, u.email ASC
     ");
     if ($stmtUsers) {
@@ -137,15 +118,14 @@ if (!empty($selectedUserId)) {
             SELECT u.user_id, u.email AS EmailAddress, u.full_name, u.role_id,
                    COALESCE(r.role_name, 'Unassigned') AS modern_role_name,
                    r.role_key,
-                   COALESCE(ua.staffIDs, u.user_id) AS staff_id,
-                   COALESCE(ua.userName, u.email) AS userName
+                   u.user_id AS staff_id,
+                   u.email AS userName
             FROM users u
             LEFT JOIN roles r ON r.role_id = u.role_id
-            LEFT JOIN user_access ua ON ua.EmailAddress = u.email
-            WHERE u.user_id = ? OR u.email = ? OR ua.staffIDs = ? OR ua.userName = ?
+            WHERE u.user_id = ? OR u.email = ?
             LIMIT 1
         ");
-        $stmtUser->execute([$selectedUserId, $selectedUserId, $selectedUserId, $selectedUserId]);
+        $stmtUser->execute([$selectedUserId, $selectedUserId]);
         $targetUser = $stmtUser->fetch(PDO::FETCH_ASSOC);
     } catch (Throwable $e) {
         try {
