@@ -55,10 +55,23 @@ if($_SESSION['roleid']!="" && $_SESSION['roleid']!=""){
 		
 		// Map numeric role ID from acd_tbluser to the standard string role key (e.g. 'DEVELOPER')
 		$mappedRoleKey = $rolecode;
-		$stmtAcd = $con->prepare("SELECT access FROM acd_tbluser WHERE ID = ? LIMIT 1");
-		$stmtAcd->execute([$rolecode]);
-		$acdRow = $stmtAcd->fetch(PDO::FETCH_ASSOC);
-		$roleName = $acdRow ? trim($acdRow['access']) : '';
+		$roleName = '';
+		try {
+			$stmtAcd = $con->prepare("SELECT access FROM acd_tbluser WHERE ID = ? LIMIT 1");
+			$stmtAcd->execute([$rolecode]);
+			$acdRow = $stmtAcd->fetch(PDO::FETCH_ASSOC);
+			$roleName = $acdRow ? trim($acdRow['access']) : '';
+		} catch (Throwable $e) {
+			try {
+				$stmtAcd = $con->prepare("SELECT role_name, role_key FROM roles WHERE role_id = ? OR role_key = ? LIMIT 1");
+				$stmtAcd->execute([$rolecode, $rolecode]);
+				$acdRow = $stmtAcd->fetch(PDO::FETCH_ASSOC);
+				if ($acdRow) {
+					$roleName = trim($acdRow['role_name']);
+					$mappedRoleKey = $acdRow['role_key'];
+				}
+			} catch (Throwable $ex) {}
+		}
 		if (!empty($roleName)) {
 			$stmtRoleMap = $con->prepare("
 				SELECT role_key 

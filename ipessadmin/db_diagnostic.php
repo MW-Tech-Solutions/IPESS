@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/admin/db.php';
+require_once __DIR__ . '/db.php';
 
 // Simple protection: only allow access with ?secure_key=jostum_debug_2026
 $secure_key = $_GET['secure_key'] ?? $_POST['secure_key'] ?? '';

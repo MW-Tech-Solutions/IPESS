@@ -726,3 +726,39 @@ Stack trace:
 #2 C:\xampp\htdocs\IPESS\ipessadmin\api\download-applicant.php(349): buildApplicantPdf(Object(PDO), 21)
 #3 {main}
 
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+
+[2026-08-18 01:32:20] PHP Error (2): Undefined array key "id"
+File: C:\Users\muhdm\.gemini\antigravity-ide\brain\52f9a32c-f84f-4f5b-af9b-72d49f62cb18\scratch\db_test.php on line 12
+

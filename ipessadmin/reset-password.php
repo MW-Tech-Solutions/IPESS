@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/admin/db.php';
+require_once __DIR__ . '/db.php';
 
 $token = $_GET['token'] ?? '';
 $error = '';
@@ -49,6 +49,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hashed = password_hash($newPassword, PASSWORD_BCRYPT);
         $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE user_id = ?");
         $stmt->execute([$hashed, (int) $resetRow['user_id']]);
+
+        try {
+            $md5Password = md5($newPassword);
+            $stmtAccess = $pdo->prepare("UPDATE user_access SET passWord = ? WHERE EmailAddress = ?");
+            $stmtAccess->execute([$md5Password, $resetRow['email']]);
+        } catch (Throwable $e) {}
 
         $stmt = $pdo->prepare("DELETE FROM password_resets WHERE id = ?");
         $stmt->execute([(int) $resetRow['id']]);

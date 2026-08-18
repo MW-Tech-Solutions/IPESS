@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 $pageTitle = 'Application Records';
 $pageSubtitle = 'Official record of all student application submissions.';
 
@@ -13,7 +13,10 @@ $allowedStatus = ['Draft', 'Submitted', 'Admitted', 'Rejected'];
 if (!in_array($filterStatus, $allowedStatus, true)) $filterStatus = '';
 
 $page  = max(1, (int)($_GET['page'] ?? 1));
-$limit = in_array((int)($_GET['limit'] ?? 50), [50, 75, 100, 200], true) ? (int)$_GET['limit'] : 50;
+$limit = (int)($_GET['limit'] ?? 50);
+if ($limit <= 0 || !in_array($limit, [50, 75, 100, 200], true)) {
+    $limit = 50;
+}
 
 $stats        = ['total' => 0, 'submitted' => 0, 'admitted' => 0, 'rejected' => 0];
 $records      = [];

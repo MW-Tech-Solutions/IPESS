@@ -165,7 +165,12 @@ function user_login_query(PDO $pdo, string $identity): ?array {
     }
 
     if ($user) {
-        return $user;
+        // If role is null (invalid/missing role_id FK), fall through to legacy table
+        if (empty($user['role'])) {
+            $user = null;
+        } else {
+            return $user;
+        }
     }
 
     // Fallback to legacy user_access table (allows login with email OR username)
@@ -183,26 +188,57 @@ function user_login_query(PDO $pdo, string $identity): ?array {
         if ($legacyUser) {
             $roleMapKeys = [
                 1  => 'DEVELOPER',
-                12 => 'SUPER_ADMIN',
-                13 => 'ICTO',
                 2  => 'SUPERVISOR',
+                3  => 'REVIEWER',
                 4  => 'HOD',
                 5  => 'FACULTY_OFFICER',
+                6  => 'ICTO',
                 7  => 'ICT_ADMIN',
                 8  => 'REGISTRY',
-                11 => 'ACADEMIC_MANAGER'
+                9  => 'REVIEWER',
+                10 => 'ACADEMIC_MANAGER',
+                11 => 'ACADEMIC_MANAGER',
+                12 => 'SUPER_ADMIN',
+                13 => 'ICTO',
             ];
-            $legacyRoleKey = $roleMapKeys[(int)$legacyUser['userRoleID']] ?? 'SUPER_ADMIN';
+            $legacyRoleId = (int)($legacyUser['userRoleID'] ?? 0);
+            $legacyRoleKey = $roleMapKeys[$legacyRoleId] ?? null;
+
+            // If not in legacy map, look up from the modern users+roles table by email
+            if ($legacyRoleKey === null) {
+                try {
+                    $stmtModernRole = $pdo->prepare("
+                        SELECT r.role_key FROM users u
+                        LEFT JOIN roles r ON u.role_id = r.role_id
+                        WHERE u.email = ? AND r.role_key IS NOT NULL LIMIT 1
+                    ");
+                    $stmtModernRole->execute([$legacyUser['email'] ?? '']);
+                    $legacyRoleKey = $stmtModernRole->fetchColumn() ?: 'SUPER_ADMIN';
+                } catch (Throwable $e) {
+                    $legacyRoleKey = 'SUPER_ADMIN';
+                }
+            }
+
+            // Self-heal: fix the role_id in the modern users table so next login goes through modern path
+            try {
+                $stmtRoleId = $pdo->prepare("SELECT role_id FROM roles WHERE role_key = ? LIMIT 1");
+                $stmtRoleId->execute([$legacyRoleKey]);
+                $correctRoleId = $stmtRoleId->fetchColumn();
+                if ($correctRoleId) {
+                    $stmtFix = $pdo->prepare("UPDATE users SET role_id = ? WHERE email = ?");
+                    $stmtFix->execute([$correctRoleId, $legacyUser['email'] ?? '']);
+                }
+            } catch (Throwable $fixErr) {}
 
             return [
-                'user_id' => (int) $legacyUser['user_id'],
-                'password_hash' => $legacyUser['password_hash'], // MD5 hash
-                'role' => $legacyRoleKey,
-                'full_name' => trim(($legacyUser['FirstName'] ?? '') . ' ' . ($legacyUser['LastName'] ?? '')),
+                'user_id'        => (int) $legacyUser['user_id'],
+                'password_hash'  => $legacyUser['password_hash'], // MD5 hash
+                'role'           => $legacyRoleKey,
+                'full_name'      => trim(($legacyUser['FirstName'] ?? '') . ' ' . ($legacyUser['LastName'] ?? '')),
                 'account_status' => 'Active',
-                'totp_secret' => '',
-                'totp_enabled' => 0,
-                'is_legacy' => true
+                'totp_secret'    => '',
+                'totp_enabled'   => 0,
+                'is_legacy'      => true
             ];
         }
     } catch (Throwable $e) {}
@@ -270,6 +306,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = 'Username/Email and password are required.';
         } else {
             try {
+                // Auto-heal any invalid role_id values in the users table by checking against user_access.userRoleID
+                try {
+                    $pdo->exec("
+                        UPDATE users u
+                        INNER JOIN user_access ua ON u.email = ua.EmailAddress
+                        SET u.role_id = CASE ua.userRoleID
+                            WHEN 1 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'SUPER_ADMIN' LIMIT 1), 1)
+                            WHEN 12 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'SUPER_ADMIN' LIMIT 1), 1)
+                            WHEN 13 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'ICTO' LIMIT 1), (SELECT role_id FROM roles WHERE role_key = 'ICT_STAFF' LIMIT 1), 1)
+                            WHEN 2 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'SUPERVISOR' LIMIT 1), 1)
+                            WHEN 4 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'HOD' LIMIT 1), 1)
+                            WHEN 5 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'FACULTY_OFFICER' LIMIT 1), 1)
+                            WHEN 7 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'ICT_ADMIN' LIMIT 1), 1)
+                            WHEN 8 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'REGISTRY' LIMIT 1), 1)
+                            WHEN 11 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'ACADEMIC_MANAGER' LIMIT 1), 1)
+                            ELSE u.role_id
+                        END
+                        WHERE u.role_id IS NULL OR u.role_id NOT IN (SELECT role_id FROM roles)
+                    ");
+                } catch (Throwable $e) {}
+
                 $user = user_login_query($pdo, $identity);
 
                 $roleKeys = [];

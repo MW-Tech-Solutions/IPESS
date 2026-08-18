@@ -31,6 +31,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$user) {
+                try {
+                    $stmtAccess = $pdo->prepare("SELECT staffIDs AS user_id, FirstName, LastName FROM user_access WHERE EmailAddress = ? LIMIT 1");
+                    $stmtAccess->execute([$email]);
+                    $legacyUser = $stmtAccess->fetch(PDO::FETCH_ASSOC);
+                    if ($legacyUser) {
+                        $fullName = trim(($legacyUser['FirstName'] ?? '') . ' ' . ($legacyUser['LastName'] ?? ''));
+                        $tempHash = password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
+                        $stmtIns = $pdo->prepare("INSERT INTO users (email, full_name, password_hash, account_status) VALUES (?, ?, ?, 'Active')");
+                        $stmtIns->execute([$email, $fullName, $tempHash]);
+                        $newUserId = $pdo->lastInsertId();
+                        $user = [
+                            'user_id' => $newUserId,
+                            'full_name' => $fullName
+                        ];
+                    }
+                } catch (Throwable $e) {}
+            }
+
+            if (!$user) {
                 $error = 'No account found with that email address.';
             } else {
                 $token = bin2hex(random_bytes(32));

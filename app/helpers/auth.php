@@ -287,20 +287,24 @@ if (!function_exists('dashboard_for_role')) {
         $role = normalize_role($role ?? current_user_role());
         
         $dashboard = match ($role) {
-            'DEVELOPER'          => 'ipessadmin/developer-dashboard.php',
-            'SUPER_ADMIN'        => 'ipessadmin/super-admin-dashboard.php',
-            'ICT_ADMIN'          => 'ipessadmin/ict-admin-dashboard.php',
-            'PORTAL_ADMIN'       => 'ipessadmin/portal-admin-dashboard.php',
-            'REGISTRY'           => 'modules/registry/dashboard.php',
-            'ICTO'               => 'ipessadmin/icto-dashboard.php',
-            'FACULTY_OFFICER'    => 'ipessadmin/faculty-dashboard.php',
-            'PG_SCHOOL_OFFICER'  => 'ipessadmin/pg-admin-dashboard.php',
-            'ICT_STAFF'          => 'ipessadmin/ict-staff-dashboard.php',
-            'DEPARTMENT_ADMIN', 'HOD' => 'ipessadmin/dept-admin-dashboard.php',
-            'SUPERVISOR'         => 'ipessadmin/supervisor-dashboard.php',
-            'REVIEWER'           => 'ipessadmin/reviewer-dashboard.php',
-            'STUDENT'            => 'APPLICANT/ADMISSIONS/dashboard.php',
-            default              => 'ipessadmin/general-dashboard.php'
+            'DEVELOPER'                       => 'ipessadmin/developer-dashboard.php',
+            'SUPER_ADMIN'                     => 'ipessadmin/super-admin-dashboard.php',
+            'ICT_ADMIN'                       => 'ipessadmin/ict-admin-dashboard.php',
+            'ICT_SUPPORT'                     => 'ipessadmin/ict-admin-dashboard.php',
+            'PORTAL_ADMIN'                    => 'ipessadmin/portal-admin-dashboard.php',
+            'REGISTRY'                        => 'modules/registry/dashboard.php',
+            'ICTO'                            => 'ipessadmin/icto-dashboard.php',
+            'ICT_STAFF'                       => 'ipessadmin/ict-staff-dashboard.php',
+            'FACULTY_OFFICER'                 => 'ipessadmin/faculty-dashboard.php',
+            'PG_SCHOOL_OFFICER'               => 'ipessadmin/pg-admin-dashboard.php',
+            'DEPARTMENT_ADMIN', 'HOD'         => 'ipessadmin/dept-admin-dashboard.php',
+            'SUPERVISOR'                      => 'ipessadmin/supervisor-dashboard.php',
+            'REVIEWER'                        => 'ipessadmin/reviewer-dashboard.php',
+            'STUDENT'                         => 'APPLICANT/ADMISSIONS/dashboard.php',
+            'ADMIN', 'ACADEMIC_MANAGER',
+            'STUDENT_MANAGER', 'SUPERVISOR_MANAGER',
+            'ADMISSIONS_OFFICER'              => 'ipessadmin/general-dashboard.php',
+            default                           => 'ipessadmin/general-dashboard.php'
         };
 
         if ($dashboard !== null) {

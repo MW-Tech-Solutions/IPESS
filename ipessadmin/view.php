@@ -677,37 +677,7 @@ try {
     <div class="row g-4">
         <div class="col-lg-8">
             
-            <!-- <div class="card-custom">
-                <div class="section-header">
-                    <span class="section-title"><i class="bi bi-person-lines-fill me-2 text-muted"></i> Personal & Programme Details</span>
-                </div>
-                <div class="card-body-custom">
-                    <div class="row g-4">
-                        <div class="col-md-6">
-                            <span class="label-text">Applied Degree</span>
-                            <div class="value-text fs-5"><?php echo htmlspecialchars($app['degree_type']); ?></div>
-                            <div class="text-muted small mt-1"><?php echo htmlspecialchars($app['course']); ?></div>
-                        </div>
-                        <div class="col-md-6">
-                            <span class="label-text">Mode of Study</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['mode_of_study']); ?></div>
-                        </div>
-                        <div class="col-12"><hr class="text-muted opacity-25"></div>
-                        <div class="col-md-4">
-                            <span class="label-text">Gender</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['sex']); ?></div>
-                        </div>
-                        <div class="col-md-4">
-                            <span class="label-text">Phone Number</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['phone']); ?></div>
-                        </div>
-                        <div class="col-md-4">
-                            <span class="label-text">Origin</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['state_origin']); ?></div>
-                        </div>
-                    </div>
-                </div>
-            </div> -->
+
             <div class="card-custom">
                 <div class="section-header">
                     <span class="section-title"><i class="bi bi-person-lines-fill me-2 text-muted"></i> Personal & Programme Details</span>
@@ -734,15 +704,15 @@ try {
                         <div class="col-12"><hr class="text-muted opacity-25"></div>
                         <div class="col-md-4">
                             <span class="label-text">Gender</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['sex']); ?></div>
+                            <div class="value-text"><?php echo htmlspecialchars($app['sex'] ?? ''); ?></div>
                         </div>
                         <div class="col-md-4">
                             <span class="label-text">Phone Number</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['phone']); ?></div>
+                            <div class="value-text"><?php echo htmlspecialchars($app['phone'] ?? ''); ?></div>
                         </div>
                         <div class="col-md-4">
                             <span class="label-text">Origin</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['state_origin']); ?></div>
+                            <div class="value-text"><?php echo htmlspecialchars($app['state_origin'] ?? ''); ?></div>
                         </div>
                     </div>
                 </div>
@@ -919,11 +889,11 @@ try {
                         <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">NYSC Status</h6>
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted small">Status</span>
-                            <span class="fw-medium text-end"><?php echo htmlspecialchars($app['nysc_status']); ?></span>
+                            <span class="fw-medium text-end"><?php echo htmlspecialchars($app['nysc_status'] ?? ''); ?></span>
                         </div>
                         <div class="d-flex justify-content-between">
                             <span class="text-muted small">Cert No.</span>
-                            <span class="fw-medium text-end font-monospace small bg-light px-2 rounded"><?php echo htmlspecialchars($app['certificate_number'] ?: 'N/A'); ?></span>
+                            <span class="fw-medium text-end font-monospace small bg-light px-2 rounded"><?php echo htmlspecialchars($app['certificate_number'] ?? 'N/A'); ?></span>
                         </div>
                     </div>
 

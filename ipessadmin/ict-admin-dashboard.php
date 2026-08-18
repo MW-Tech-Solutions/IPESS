@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../app/bootstrap.php';
 enforce_session_timeout(900, 'login.php');
-require_role(['ICT_ADMIN'], 'login.php');
+require_role(['ICT_ADMIN', 'ICT_SUPPORT', 'ICTO', 'ICT_STAFF'], 'login.php');
 
 $pageTitle = 'Command Center';
 $pageSubtitle = 'Institution-wide view of admissions, verification flow, and referee reports.';

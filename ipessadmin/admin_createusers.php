@@ -5,6 +5,27 @@ include("inc/selectorVendor.php");
 //include("includes/ProcessorVendor.php");
 $myclass = new selectorVendor();
 
+// Auto-heal any invalid role_id values in the users table by checking against user_access.userRoleID
+try {
+    $con->exec("
+        UPDATE users u
+        INNER JOIN user_access ua ON u.email = ua.EmailAddress
+        SET u.role_id = CASE ua.userRoleID
+            WHEN 1 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'SUPER_ADMIN' LIMIT 1), 1)
+            WHEN 12 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'SUPER_ADMIN' LIMIT 1), 1)
+            WHEN 13 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'ICTO' LIMIT 1), (SELECT role_id FROM roles WHERE role_key = 'ICT_STAFF' LIMIT 1), 1)
+            WHEN 2 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'SUPERVISOR' LIMIT 1), 1)
+            WHEN 4 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'HOD' LIMIT 1), 1)
+            WHEN 5 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'FACULTY_OFFICER' LIMIT 1), 1)
+            WHEN 7 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'ICT_ADMIN' LIMIT 1), 1)
+            WHEN 8 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'REGISTRY' LIMIT 1), 1)
+            WHEN 11 THEN COALESCE((SELECT role_id FROM roles WHERE role_key = 'ACADEMIC_MANAGER' LIMIT 1), 1)
+            ELSE u.role_id
+        END
+        WHERE u.role_id IS NULL OR u.role_id NOT IN (SELECT role_id FROM roles)
+    ");
+} catch (Throwable $e) {}
+
 	if($_SESSION['roleid']!="" && $_SESSION['roleid']!=""){
 		$rolesession = $_SESSION['roleid'];
 		$usersession = $_SESSION['userid'];
@@ -50,144 +71,117 @@ if (!is_dir($target_dir)) {
 			$deviceAddress = $_POST['deviceAddress'];
 			$rolecode = $_POST['rolecode'];
 			
+		$photolink = "";
+		$uploadOk = 1;
+		$imagesupload = "";
+
+		if (!empty($_FILES["fileToUpload"]["name"])) {
 			$target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
-			$photolink = $target_file;
-$uploadOk = 1;
-$imageFileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
-  $check = getimagesize($_FILES["fileToUpload"]["tmp_name"]);
-  if($check !== false) {
-   // echo "File is an image - ' . $check["mime"] . '.";
-	
-	$msg = '<div class="alert alert-warning" role="alert">
-						File is an image - ' . $check["mime"] . '.
+			$imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
+			$check = getimagesize($_FILES["fileToUpload"]["tmp_name"]);
+			if ($check !== false) {
+				$uploadOk = 1;
+			} else {
+				$msg = '<div class="alert alert-warning" role="alert">File is not an image.</div>';
+				$uploadOk = 0;
+			}
+
+			// Check if file already exists
+			if ($uploadOk && file_exists($target_file)) {
+				$msg = '<div class="alert alert-info" role="alert">Sorry, file already exists.</div>';
+				$uploadOk = 0;
+			}
+
+			// Check file size
+			if ($uploadOk && $_FILES["fileToUpload"]["size"] > 500000) {
+				$msg = '<div class="alert alert-warning" role="alert">Sorry, your file is too large.</div>';
+				$uploadOk = 0;
+			}
+
+			// Allow certain file formats
+			if ($uploadOk && $imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg" && $imageFileType != "gif") {
+				$msg = '<div class="alert alert-warning" role="alert">Sorry, only JPG, JPEG, PNG & GIF files are allowed.</div>';
+				$uploadOk = 0;
+			}
+
+			if ($uploadOk) {
+				if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+					$photolink = $target_file;
+					$imagesupload = "and the file " . htmlspecialchars(basename($_FILES["fileToUpload"]["name"])) . " has been uploaded.";
+				} else {
+					$msg = '<div class="alert alert-danger" role="alert">Sorry, there was an error uploading your file.</div>';
+					$uploadOk = 0;
+				}
+			}
+		}
+
+		if ($uploadOk == 1) {
+			$checkdata = $con->query("SELECT * FROM user_access where EmailAddress = '$emails' AND userName = '$UserName' ")->rowCount();	
+			if ($checkdata < 1) {
+				$con->query("INSERT INTO user_access
+				(title,FirstName,MiddleName,LastName,userName,passWord,EmailAddress,
+				mackAddress,pixUrl,createdDate,createdTime,activeStatus,phoneno,userRoleID,approveUser) 
+				VALUES('$usertitle','$firstname','$middlename','$lastname','$UserName','$pwd','$emails','$deviceAddress',
+				'$photolink','$createdDate','','1','$phoneno','$rolecode','pending')");	
+
+				// Synchronize with the modern users table
+				try {
+					$rawPwd = $_POST['pwd'] ?? '';
+					$newHash = password_hash($rawPwd, PASSWORD_DEFAULT);
+					
+					$roleMap = [
+						1  => 'DEVELOPER',
+						12 => 'SUPER_ADMIN',
+						13 => 'ICTO',
+						2  => 'SUPERVISOR',
+						4  => 'HOD',
+						5  => 'FACULTY_OFFICER',
+						7  => 'ICT_ADMIN',
+						8  => 'REGISTRY',
+						11 => 'ACADEMIC_MANAGER'
+					];
+					$roleKey = $roleMap[(int)$rolecode] ?? 'SUPER_ADMIN';
+
+					// Resolve modern role_id dynamically by key
+					$stmtRole = $con->prepare("SELECT role_id FROM roles WHERE role_key = ? LIMIT 1");
+					$stmtRole->execute([$roleKey]);
+					$newRoleId = $stmtRole->fetchColumn();
+
+					if (!$newRoleId) {
+						if ($roleKey === 'ICTO') {
+							$stmtRole->execute(['ICT_STAFF']);
+							$newRoleId = $stmtRole->fetchColumn();
+						}
+					}
+					if (!$newRoleId) {
+						$newRoleId = 1; // Default fallback to SUPER_ADMIN/DEVELOPER
+					}
+
+					$checkUsers = $con->prepare("SELECT user_id FROM users WHERE email = ? LIMIT 1");
+					$checkUsers->execute([$emails]);
+					$existsInUsers = $checkUsers->fetchColumn();
+
+					if ($existsInUsers) {
+						$stmtUp = $con->prepare("UPDATE users SET full_name = ?, password_hash = ?, role_id = ? WHERE email = ?");
+						$stmtUp->execute([$fullname, $newHash, $newRoleId, $emails]);
+					} else {
+						$stmtIns = $con->prepare("INSERT INTO users (email, full_name, password_hash, role_id, account_status, created_at) VALUES (?, ?, ?, ?, 'Active', NOW())");
+						$stmtIns->execute([$emails, $fullname, $newHash, $newRoleId]);
+					}
+				} catch (Throwable $syncError) {
+					// Silently fail if table structure varies to prevent blocking user capture
+				}
+
+				$msg = '<div class="alert alert-success" role="alert">
+						 User has been captured Successfully ' . $imagesupload . '
 						</div>';
-	
-	
-    $uploadOk = 1;
-  } else {
-    //echo "File is not an image.";
-	
-	$msg = '<div class="alert alert-warning" role="alert">
-						File is not an image.
-						</div>';
-    $uploadOk = 0;
-  }
-
-
-// Check if file already exists
-if (file_exists($target_file)) {
-  //echo "Sorry, file already exists.";
-  
-  $msg = '<div class="alert alert-info" role="alert">
-						Sorry, your file is too large.
-						</div>';
-  
-  $uploadOk = 0;
-}
-
-// Check file size
-if ($_FILES["fileToUpload"]["size"] > 500000) {
-  //echo "Sorry, your file is too large.";
-  
-  $msg = '<div class="alert alert-warning" role="alert">
-						Sorry, your file is too large.
-						</div>';
-  
-  $uploadOk = 0;
-}
-
-// Allow certain file formats
-if($imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg"
-&& $imageFileType != "gif" ) {
-  //echo "Sorry, only JPG, JPEG, PNG & GIF files are allowed.";
-  $msg = '<div class="alert alert-warning" role="alert">
-						Sorry, only JPG, JPEG, PNG & GIF files are allowed.
-						</div>';
-  $uploadOk = 0;
-}
-
-// Check if $uploadOk is set to 0 by an error
-if ($uploadOk == 0) {
-  //echo "Sorry, your file was not uploaded.";
-  $msg = '<div class="alert alert-danger" role="alert">
-						Sorry, your file was not uploaded
-						</div>';
-// if everything is ok, try to upload file
-} else {
-	$checkdata = $con->query("SELECT * FROM user_access where EmailAddress = '$emails' AND userName = '$UserName' ")->rowCount();	
-			if($checkdata<1){
-  if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-    $imagesupload = "the file ". htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])). " has been uploaded.";
-	
-	
-	
-				
-		$con->query("INSERT INTO user_access
-		(title,FirstName,MiddleName,LastName,userName,passWord,EmailAddress,
-		mackAddress,pixUrl,createdDate,createdTime,activeStatus,phoneno,userRoleID,approveUser) 
-		VALUES('$usertitle','$firstname','$middlename','$lastname','$UserName','$pwd','$emails','$deviceAddress',
-		'$photolink','$createdDate','','1','$phoneno','$rolecode','pending')");	
-
-        // Synchronize with the modern users table
-        try {
-            $rawPwd = $_POST['pwd'] ?? '';
-            $newHash = password_hash($rawPwd, PASSWORD_DEFAULT);
-            $roleMap = [
-                1  => 12, // Developer -> DEVELOPER
-                12 => 1,  // Supper User Support -> SUPER_ADMIN
-                13 => 6,  // ICT Officer -> ICTO
-                2  => 4,  // Course Lecturer -> SUPERVISOR
-                4  => 24, // HOD -> HOD
-                5  => 22, // Dean of Studies -> FACULTY_OFFICER
-                7  => 14, // School Admin -> ICT_ADMIN
-                8  => 27, // Registrar -> REGISTRY
-                11 => 17  // Academic Officer -> ACADEMIC_MANAGER
-            ];
-            $newRoleId = $roleMap[(int)$rolecode] ?? null;
-
-            $checkUsers = $con->prepare("SELECT user_id FROM users WHERE email = ? LIMIT 1");
-            $checkUsers->execute([$emails]);
-            $existsInUsers = $checkUsers->fetchColumn();
-
-            if ($existsInUsers) {
-                $stmtUp = $con->prepare("UPDATE users SET full_name = ?, password_hash = ?, role_id = ? WHERE email = ?");
-                $stmtUp->execute([$fullname, $newHash, $newRoleId, $emails]);
-            } else {
-                $stmtIns = $con->prepare("INSERT INTO users (email, full_name, password_hash, role_id, account_status, created_at) VALUES (?, ?, ?, ?, 'Active', NOW())");
-                $stmtIns->execute([$emails, $fullname, $newHash, $newRoleId]);
-            }
-        } catch (Throwable $syncError) {
-            // Silently fail if table structure varies to prevent blocking user capture
-        }
-
-		$msg = '<div class="alert alert-success" role="alert">
-						 User has been captured Successfully and '.$imagesupload.'
-						</div>';
-			
-	
-	
-	
-	
-	
-  } else {
-    echo "Sorry, there was an error uploading your file.";
-  }
-  }else{
-				
+			} else {
 				$msg = '<div class="alert alert-danger" role="alert">
 					 Sorry record already Exist
 					</div>';
-				
 			}
-  
-}	
-			
-			
-		
-			
-			
-			
 		}
+	}
 
 
 
@@ -350,11 +344,41 @@ if ($uploadOk == 0) {
 								<option value="">-- Select Option -- </option>
 					
 								<?php 
-						$getuser = $con->query("SELECT * FROM acd_tbluser WHERE `status` = '1' ");
-								while($readuser = $getuser->fetch(PDO::FETCH_ASSOC)){
-								?>
-								<option value="<?php echo $readuser['ID'] ?>"><?php echo $readuser['access'] ?></option>
-								<?php
+														$uniqueRoles = [];
+								// 1. Fetch from roles
+								try {
+									$getuser = $con->query("SELECT role_id, role_name FROM roles");
+									while($readuser = $getuser->fetch(PDO::FETCH_ASSOC)){
+										$name = trim($readuser['role_name']);
+										$key = strtolower($name);
+										if (!isset($uniqueRoles[$key]) && $name !== '') {
+											$uniqueRoles[$key] = [
+												'id' => $readuser['role_id'],
+												'name' => $name
+											];
+										}
+									}
+								} catch (Throwable $e) {}
+
+								// 2. Fetch from acd_tbluser
+								try {
+									$getuser = $con->query("SELECT ID, access FROM acd_tbluser WHERE `status` = '1' ");
+									while($readuser = $getuser->fetch(PDO::FETCH_ASSOC)){
+										$name = trim($readuser['access']);
+										$key = strtolower($name);
+										if (!isset($uniqueRoles[$key]) && $name !== '') {
+											$uniqueRoles[$key] = [
+												'id' => $readuser['ID'],
+												'name' => $name
+											];
+										}
+									}
+								} catch (Throwable $e) {}
+
+								if (count($uniqueRoles) > 0) {
+									foreach ($uniqueRoles as $r) {
+										echo '<option value="' . $r['id'] . '">' . htmlspecialchars($r['name']) . '</option>';
+									}
 								}
 								?>
 								</select>
@@ -374,7 +398,6 @@ if ($uploadOk == 0) {
                               aria-label="658 799 8941"
                               aria-describedby="basic-default-passport"
 							  accept="image/*" onchange="loadFile(event)"
-							  required
                             />
 							<img id="output"/>
 							<div class="form-text">Passport width 120px, height 150px</div>

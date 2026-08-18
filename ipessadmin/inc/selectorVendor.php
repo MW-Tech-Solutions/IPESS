@@ -153,47 +153,71 @@ function selectAllItemCategoryView(){
 		
 	function selectRoleView(){
 		$select = "";
-	//$selectstatus = "SELECT * from acd_tbluser WHERE `status` = ?  " ;
-      $selectstatus = "SELECT * from acd_tbluser WHERE 1  " ;
-								
-	$getstatus = $this->entityManager->prepare($selectstatus);
-	
-	$getstatus->execute(array() );
-	
-	if($getstatus->rowCount() > 0 ):
-	
-		while( $result = $getstatus->fetchObject()):
-	 
-			$select .= '<option value="'.$result->ID.'">'.$result->access .' </option>';
-		endwhile;
-	
-		else:
-		$select = '<option value="">No Record Found</option>';
-		endif;	
-	return $select;
-	
+		$rolesLoaded = false;
+		try {
+			$selectstatus = "SELECT * from acd_tbluser WHERE 1  " ;
+			$getstatus = $this->entityManager->prepare($selectstatus);
+			$getstatus->execute(array() );
+			if($getstatus->rowCount() > 0 ):
+				while( $result = $getstatus->fetchObject()):
+					$select .= '<option value="'.$result->ID.'">'.$result->access .' </option>';
+				endwhile;
+				$rolesLoaded = true;
+			endif;
+		} catch (Throwable $e) {}
+
+		if (!$rolesLoaded) {
+			try {
+				$selectstatus = "SELECT * from roles  " ;
+				$getstatus = $this->entityManager->prepare($selectstatus);
+				$getstatus->execute(array() );
+				if($getstatus->rowCount() > 0 ):
+					while( $result = $getstatus->fetchObject()):
+						$select .= '<option value="'.$result->role_id.'">'.$result->role_name .' </option>';
+					endwhile;
+				else:
+					$select = '<option value="">No Record Found</option>';
+				endif;
+			} catch (Throwable $ex) {
+				$select = '<option value="">No Record Found</option>';
+			}
 		}
+		return $select;
+	}
 		
 	function selectDutTypeView(){
 		$select = "";
-	$dutype = "SELECT * from acd_tbluser WHERE 1 " ;
-										
-	$querydutype = $this->entityManager->prepare($dutype);
-	
-	$querydutype->execute(array( ) );
-	
-	if($querydutype->rowCount() > 0 ):
-	
-		while( $result = $querydutype->fetchObject()):
-	 
-			$select .= '<option value="'.$result->ID.'">'.$result->access.' </option>';
-		endwhile;
-	
-		else:
-		$select = '<option value="">No Record Found</option>';
-		endif;	
-	return $select;
+		$rolesLoaded = false;
+		try {
+			$dutype = "SELECT * from acd_tbluser WHERE 1 " ;
+			$querydutype = $this->entityManager->prepare($dutype);
+			$querydutype->execute(array( ) );
+			if($querydutype->rowCount() > 0 ):
+				while( $result = $querydutype->fetchObject()):
+					$select .= '<option value="'.$result->ID.'">'.$result->access.' </option>';
+				endwhile;
+				$rolesLoaded = true;
+			endif;
+		} catch (Throwable $e) {}
+
+		if (!$rolesLoaded) {
+			try {
+				$dutype = "SELECT * from roles " ;
+				$querydutype = $this->entityManager->prepare($dutype);
+				$querydutype->execute(array( ) );
+				if($querydutype->rowCount() > 0 ):
+					while( $result = $querydutype->fetchObject()):
+						$select .= '<option value="'.$result->role_id.'">'.$result->role_name.' </option>';
+					endwhile;
+				else:
+					$select = '<option value="">No Record Found</option>';
+				endif;
+			} catch (Throwable $ex) {
+				$select = '<option value="">No Record Found</option>';
+			}
 		}
+		return $select;
+	}
 	function selectofficeCategoryView(){
 		$select = "";
 	$offcat = "SELECT * from hr_office_category WHERE offCatStatus = ? " ;

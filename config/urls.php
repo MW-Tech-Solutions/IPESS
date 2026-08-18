@@ -52,8 +52,9 @@ function app_origin(): string
     return $scheme . '://' . $host;
 }
 
-function app_url(string $path = ''): string
+function app_url(?string $path = ''): string
 {
+    $path = $path ?? '';
     if (preg_match('#^https?://#i', $path)) {
         return $path;
     }
@@ -77,9 +78,9 @@ function app_url(string $path = ''): string
     return ($root !== '' ? $root : '') . $path;
 }
 
-function app_absolute_url(string $path = ''): string
+function app_absolute_url(?string $path = ''): string
 {
-    return rtrim(app_origin(), '/') . app_url($path);
+    return rtrim(app_origin(), '/') . app_url($path ?? '');
 }
 
 function redirect_to(string $path, int $code = 302): void

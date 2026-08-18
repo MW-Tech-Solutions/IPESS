@@ -50,6 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE user_id = ?");
         $stmt->execute([$hashed, (int) $resetRow['user_id']]);
 
+        try {
+            $md5Password = md5($newPassword);
+            $stmtAccess = $pdo->prepare("UPDATE user_access SET passWord = ? WHERE EmailAddress = ?");
+            $stmtAccess->execute([$md5Password, $resetRow['email']]);
+        } catch (Throwable $e) {}
+
         $stmt = $pdo->prepare("DELETE FROM password_resets WHERE id = ?");
         $stmt->execute([(int) $resetRow['id']]);
 

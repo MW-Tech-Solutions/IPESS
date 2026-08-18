@@ -97,8 +97,20 @@ if (!$userFound) {
     } catch (Throwable $e) {}
 }
 
-$getrole = $con->query("SELECT * FROM acd_tbluser WHERE ID = '$rolesession' OR LOWER(access) = LOWER('$rolesession') LIMIT 1")->fetch(PDO::FETCH_ASSOC);
-$rolename = $getrole ? $getrole['access'] : $rolesession;
+$rolename = $rolesession;
+try {
+    $getrole = $con->query("SELECT * FROM acd_tbluser WHERE ID = '$rolesession' OR LOWER(access) = LOWER('$rolesession') LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+    if ($getrole) {
+        $rolename = $getrole['access'];
+    }
+} catch (Throwable $e) {
+    try {
+        $getrole = $con->query("SELECT * FROM roles WHERE role_id = '$rolesession' OR LOWER(role_key) = LOWER('$rolesession') LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+        if ($getrole) {
+            $rolename = $getrole['role_name'];
+        }
+    } catch (Throwable $ex) {}
+}
 
 $getorgan= $con->query("SELECT * FROM organization_information  ")->fetch(PDO::FETCH_ASSOC);
 $oragname = $getorgan['organName'];

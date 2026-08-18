@@ -18,7 +18,7 @@
 		$usertype = $con->query("SELECT * FROM dash_borad WHERE userType = '$rolesession' ")->fetch(PDO::FETCH_ASSOC);
 			
 			//$dashboard = explode(".",$usertype['pageName']);
-			$dashboardname = $usertype['pageName']; //$dashboard[0];
+			$dashboardname = !empty($usertype['pageName']) ? $usertype['pageName'] : ''; //$dashboard[0];
 		
 		//create dynamic tabs and menus for individual users
 		$personalrole = $con->query("SELECT * FROM right_page_main_menus WHERE roleID = '$rolesession' ");
@@ -117,9 +117,9 @@
 		$myactivepage = ($mypage=$urlpages)?$activebyid['keep_active']:"";
 		*/
 		$getdashboard = $con->query("SELECT * FROM dash_borad WHERE userType = '$rolesession' ")->fetch(PDO::FETCH_ASSOC);
-		$firstdash = explode(".",$getdashboard['pageName']);
-		$mydashboard = $getdashboard['pageName']; //$firstdash[0];
-		$folders = $getdashboard['folder'];
+		$mydashboard = !empty($getdashboard['pageName']) ? $getdashboard['pageName'] : 'ipessadmin/general-dashboard.php';
+		$firstdash = explode(".", $mydashboard);
+		$folders = !empty($getdashboard['folder']) ? $getdashboard['folder'] : 'ipessadmin';
 		?>
 <aside id="sidebar" class="sidebar">
 

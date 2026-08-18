@@ -36,7 +36,21 @@ $myclass = new selectorVendor();
 		   $errors = ""; //"INSERT INTO page_main_menus(menu_name,page_status,pageType,tabID,page_url) VALUES( '$tabname', '1','$pageType','$tabID', '$url' )" ;
 		
 		
-		$add = $con->query("INSERT INTO acd_tbluser(access,status) VALUES( '$descriptions', '1' )");
+		$add = false;
+		$insertedAcd = false;
+		try {
+			$add = $con->query("INSERT INTO acd_tbluser(access,status) VALUES( '$descriptions', '1' )");
+			$insertedAcd = true;
+		} catch (Throwable $e) {}
+
+		try {
+			$roleKey = strtoupper(str_replace(' ', '_', $descriptions));
+			$stmt = $con->prepare("INSERT INTO roles(role_key, role_name, description) VALUES(?, ?, ?)");
+			$insertedModern = $stmt->execute([$roleKey, $descriptions, $descriptions]);
+			if (!$insertedAcd) {
+				$add = $insertedModern;
+			}
+		} catch (Throwable $ex) {}
 		
 		
 		if($add){

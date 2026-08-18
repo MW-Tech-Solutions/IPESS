@@ -172,6 +172,38 @@ require_once 'includes/sidebar.php';
 require_once 'includes/dev_topbar.php';
 ?>
 
+<style>
+.pagination .page-item {
+    margin: 0 2px;
+}
+.pagination .page-link {
+    border-radius: 6px !important;
+    border: 1px solid #e9ecef;
+    color: #495057;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    transition: all 0.2s ease-in-out;
+}
+.pagination .page-link:hover {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #0d6efd;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+.pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(13, 110, 253, 0.25);
+}
+.pagination .page-item.disabled .page-link {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    color: #adb5bd;
+}
+</style>
+
 <div class="content-container">
             
 <div class="kpi-cards">
@@ -357,16 +389,70 @@ require_once 'includes/dev_topbar.php';
         <?php if ($totalPages > 1): ?>
         <nav aria-label="Page navigation">
             <ul class="pagination pagination-sm mb-0">
+                <!-- Previous Button -->
                 <li class="page-item <?= ($page <= 1) ? 'disabled' : '' ?>">
-                    <a class="page-link" href="<?= buildUrl($page - 1) ?>">Previous</a>
+                    <a class="page-link" href="<?= buildUrl($page - 1) ?>" aria-label="Previous">
+                        <span aria-hidden="true">&laquo; Prev</span>
+                    </a>
                 </li>
-                <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                    <li class="page-item <?= ($i == $page) ? 'active' : '' ?>">
-                        <a class="page-link" href="<?= buildUrl($i) ?>"><?= $i ?></a>
-                    </li>
-                <?php endfor; ?>
+                
+                <?php
+                $range = 2; // Number of pages to show before and after the current page
+                $showEllipsisStart = false;
+                $showEllipsisEnd = false;
+                
+                $startPage = $page - $range;
+                $endPage = $page + $range;
+                
+                if ($startPage < 1) {
+                    $endPage += (1 - $startPage);
+                    $startPage = 1;
+                }
+                
+                if ($endPage > $totalPages) {
+                    $startPage -= ($endPage - $totalPages);
+                    $endPage = $totalPages;
+                    if ($startPage < 1) {
+                        $startPage = 1;
+                    }
+                }
+                
+                if ($startPage > 1) {
+                    $showEllipsisStart = true;
+                }
+                
+                if ($endPage < $totalPages) {
+                    $showEllipsisEnd = true;
+                }
+                
+                // Show First Page
+                if ($showEllipsisStart) {
+                    echo '<li class="page-item"><a class="page-link" href="' . buildUrl(1) . '">1</a></li>';
+                    if ($startPage > 2) {
+                        echo '<li class="page-item disabled"><span class="page-link">&hellip;</span></li>';
+                    }
+                }
+                
+                // Show Pages in Range
+                for ($i = $startPage; $i <= $endPage; $i++) {
+                    $activeClass = ($i == $page) ? 'active' : '';
+                    echo '<li class="page-item ' . $activeClass . '"><a class="page-link" href="' . buildUrl($i) . '">' . $i . '</a></li>';
+                }
+                
+                // Show Last Page
+                if ($showEllipsisEnd) {
+                    if ($endPage < $totalPages - 1) {
+                        echo '<li class="page-item disabled"><span class="page-link">&hellip;</span></li>';
+                    }
+                    echo '<li class="page-item"><a class="page-link" href="' . buildUrl($totalPages) . '">' . $totalPages . '</a></li>';
+                }
+                ?>
+                
+                <!-- Next Button -->
                 <li class="page-item <?= ($page >= $totalPages) ? 'disabled' : '' ?>">
-                    <a class="page-link" href="<?= buildUrl($page + 1) ?>">Next</a>
+                    <a class="page-link" href="<?= buildUrl($page + 1) ?>" aria-label="Next">
+                        <span aria-hidden="true">Next &raquo;</span>
+                    </a>
                 </li>
             </ul>
         </nav>

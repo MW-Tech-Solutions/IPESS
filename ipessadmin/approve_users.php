@@ -114,8 +114,20 @@ include("inc/selectorVendor.php");
 					$fullusername = $readusers['title']." ".$readusers['FirstName']." ".$readusers['MiddleName']." ".$readusers['LastName'];
 					$phoneno  = $readusers['phoneno'];
 					$myrole  = $readusers['userRoleID'];
-					$getuserrole = $con->query("SELECT * FROM acd_tbluser WHERE ID = '$myrole' ")->fetch(PDO::FETCH_ASSOC);
-					$userrolename = $getuserrole['access'];
+					$userrolename = 'N/A';
+					try {
+						$getuserrole = $con->query("SELECT * FROM acd_tbluser WHERE ID = '$myrole' ")->fetch(PDO::FETCH_ASSOC);
+						if ($getuserrole) {
+							$userrolename = $getuserrole['access'];
+						}
+					} catch (Throwable $e) {
+						try {
+							$getuserrole = $con->query("SELECT * FROM roles WHERE role_id = '$myrole' ")->fetch(PDO::FETCH_ASSOC);
+							if ($getuserrole) {
+								$userrolename = $getuserrole['role_name'];
+							}
+						} catch (Throwable $ex) {}
+					}
 					
 				  ?>
                   <tr>

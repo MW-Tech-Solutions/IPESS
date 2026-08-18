@@ -106,15 +106,30 @@ while ($readusers = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $readusers['LastName']
     );
 
-    $roleStmt = $con->prepare("SELECT access FROM acd_tbluser WHERE ID = ?");
-    $roleStmt->execute([$readusers['userRoleID']]);
-    $role = $roleStmt->fetch(PDO::FETCH_ASSOC);
+    $roleName = 'N/A';
+    try {
+        $roleStmt = $con->prepare("SELECT access FROM acd_tbluser WHERE ID = ?");
+        $roleStmt->execute([$readusers['userRoleID']]);
+        $role = $roleStmt->fetch(PDO::FETCH_ASSOC);
+        if ($role) {
+            $roleName = $role['access'];
+        }
+    } catch (Throwable $e) {
+        try {
+            $roleStmt = $con->prepare("SELECT role_name FROM roles WHERE role_id = ? LIMIT 1");
+            $roleStmt->execute([$readusers['userRoleID']]);
+            $role = $roleStmt->fetch(PDO::FETCH_ASSOC);
+            if ($role) {
+                $roleName = $role['role_name'];
+            }
+        } catch (Throwable $ex) {}
+    }
 ?>
 
 <tr>
   <td><?= $sno ?></td>
   <td><?= htmlspecialchars($fullusername) ?></td>
-  <td><?= htmlspecialchars($role['access'] ?? 'N/A') ?></td>
+  <td><?= htmlspecialchars($roleName) ?></td>
   <td><?= htmlspecialchars($readusers['phoneno']) ?></td>
   <td><?= htmlspecialchars($readusers['EmailAddress']) ?></td>
   <td><?= htmlspecialchars($readusers['userName']) ?></td>
