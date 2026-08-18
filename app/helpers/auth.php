@@ -71,9 +71,17 @@ if (!function_exists('current_user_role')) {
         }
 
         $sessionRole = $_SESSION['role'] ?? '';
+
+        // If explicitly set as STUDENT or inside APPLICANT portal, preserve STUDENT role
+        $uriPath = (string)($_SERVER['REQUEST_URI'] ?? '');
+        if (strtoupper($sessionRole) === 'STUDENT' || stripos($uriPath, '/APPLICANT/') !== false) {
+            $cachedRole = 'STUDENT';
+            return $cachedRole;
+        }
+
         $userId = (int) ($_SESSION['user_id'] ?? 0);
 
-        if ($userId > 0) {
+        if ($userId > 0 && empty($sessionRole)) {
             try {
                 require_once JOSTUM_ROOT . '/app/config/database.php';
                 $pdo = db();
@@ -95,7 +103,7 @@ if (!function_exists('current_user_role')) {
             }
         }
 
-        $cachedRole = normalize_role($sessionRole);
+        $cachedRole = normalize_role($sessionRole ?: 'STUDENT');
         return $cachedRole;
     }
 }
@@ -124,8 +132,8 @@ if (!function_exists('require_role')) {
         require_login($loginPath);
         $currentRole = normalize_role(current_user_role());
         
-        // 1. Full unrestricted access for DEVELOPER
-        if ($currentRole === 'DEVELOPER') {
+        // 1. Full unrestricted access for DEVELOPER and SUPER_ADMIN previews
+        if ($currentRole === 'DEVELOPER' || $currentRole === 'SUPER_ADMIN') {
             return;
         }
 
@@ -135,7 +143,13 @@ if (!function_exists('require_role')) {
             return;
         }
 
-        // 3. Fallback: Check if the user has this page in their dynamic menus
+        // 3. For student portals, if logged in via user_id, grant student access
+        if (in_array('STUDENT', $normalizedRoles, true) && is_logged_in()) {
+            $_SESSION['role'] = 'STUDENT';
+            return;
+        }
+
+        // 4. Fallback: Check if the user has this page in their dynamic menus
         $uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
         $currentFile = basename($uriPath ?? '');
         if ($currentFile) {
@@ -151,9 +165,9 @@ if (!function_exists('require_role')) {
             } catch (Throwable $e) {}
         }
 
-        // Access denied if not permitted
-        http_response_code(403);
-        exit('403 Forbidden');
+        // Redirect to login if access is not permitted
+        redirect_to($loginPath);
+        exit;
     }
 }
 

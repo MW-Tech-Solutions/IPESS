@@ -3,6 +3,9 @@ require_once __DIR__ . '/../app/helpers/auth.php';
 
 function current_role(): ?string {
     $role = $_SESSION['role'] ?? $_SESSION['user_role'] ?? null;
+    if (!$role && !empty($_SESSION['user_id'])) {
+        $role = 'STUDENT';
+    }
     return $role ? normalize_role($role) : null;
 }
 
