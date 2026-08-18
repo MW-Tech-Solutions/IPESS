@@ -409,7 +409,7 @@ if (empty($candidateFullName)) {
             <a href="#attached-docs-section" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-paperclip me-1"></i> Jump to Attachments (<?= count($uploaded_documents) ?>)
             </a>
-            <button onclick="window.print()" class="btn btn-success btn-sm fw-bold px-3 py-2 shadow-sm">
+            <button type="button" class="btn btn-success btn-sm fw-bold px-3 py-2 shadow-sm btn-dossier-print" id="btnPrintTop" style="cursor:pointer;">
                 <i class="bi bi-printer-fill me-1"></i> Print Complete Dossier (Slip + Attachments)
             </button>
         </div>
@@ -702,15 +702,15 @@ if (empty($candidateFullName)) {
                             <?php if ($isImage): ?>
                                 <img src="<?= htmlspecialchars($docUrl) ?>" alt="<?= htmlspecialchars($docTitle) ?>" class="attached-doc-img">
                             <?php elseif ($isPdf): ?>
-                                <div class="no-print mb-2">
-                                    <embed src="<?= htmlspecialchars($docUrl) ?>" type="application/pdf" class="attached-doc-embed">
+                                <div class="no-print mb-3">
+                                    <iframe src="<?= htmlspecialchars($docUrl) ?>" class="attached-doc-embed" style="width:100%; height:650px; border:1px solid #cbd5e1; border-radius:6px;"></iframe>
                                 </div>
                                 <div class="p-4 bg-light border rounded text-center">
                                     <i class="bi bi-file-earmark-pdf-fill text-danger fs-1 d-block mb-2"></i>
                                     <h6 class="fw-bold"><?= htmlspecialchars($docTitle) ?> (PDF Document)</h6>
-                                    <p class="text-muted small mb-3">For best quality, you can open or print the original PDF file directly.</p>
+                                    <p class="text-muted small mb-3">Official verification PDF uploaded by candidate.</p>
                                     <a href="<?= htmlspecialchars($docUrl) ?>" target="_blank" class="btn btn-primary btn-sm px-4">
-                                        <i class="bi bi-download me-1"></i> View / Download Full PDF
+                                        <i class="bi bi-box-arrow-up-right me-1"></i> Open Original PDF
                                     </a>
                                 </div>
                             <?php else: ?>
@@ -741,10 +741,33 @@ if (empty($candidateFullName)) {
 
     <!-- Floating Print Button for Fast Access -->
     <div class="position-fixed bottom-0 end-0 p-4 no-print" style="z-index: 1050;">
-        <button onclick="window.print()" class="btn btn-success btn-lg shadow-lg fw-bold rounded-pill px-4 py-3">
-            <i class="bi bi-printer-fill me-2 fs-5"></i> Print Dossier (Slip + Attachments)
+        <button type="button" class="btn btn-success btn-lg shadow-lg fw-bold rounded-pill px-4 py-3 btn-dossier-print" style="cursor:pointer;">
+            <i class="bi bi-printer-fill me-2 fs-5"></i> Print Complete Dossier (Slip + Attachments)
         </button>
     </div>
 
+    <script>
+    function triggerPrintDossier() {
+        window.focus();
+        setTimeout(function() {
+            try {
+                window.print();
+            } catch (err) {
+                console.error("Print error:", err);
+                document.execCommand('print', false, null);
+            }
+        }, 150);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.btn-dossier-print').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                triggerPrintDossier();
+            });
+        });
+    });
+    </script>
 </body>
 </html>
