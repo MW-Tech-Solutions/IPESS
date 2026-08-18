@@ -176,8 +176,12 @@ if($_SESSION['roleid']!="" && $_SESSION['roleid']!=""){
         <div class="col-md-12">
 
           <div class="card">
-            <div class="card-body">
-              <h5 class="card-title">Assign Page To role</h5>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0">Assign Page To Role</h5>
+                <a href="reset_role_permissions.php" class="btn btn-outline-danger btn-sm">
+                  <i class="bi bi-arrow-counterclockwise me-1"></i> Reset / Clear Permissions
+                </a>
+              </div>
 				<?php echo $msg; ?>
               <!-- Vertical Form -->
               <form class="row g-3" method = "POST">

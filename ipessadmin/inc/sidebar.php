@@ -20,96 +20,82 @@
 			//$dashboard = explode(".",$usertype['pageName']);
 			$dashboardname = !empty($usertype['pageName']) ? $usertype['pageName'] : ''; //$dashboard[0];
 		
-		// Determine all matching role keys/IDs for this staff user
+		// Determine exact role keys/IDs strictly for this staff user
 		$possibleRoles = array_unique(array_filter([
 			$rolesession,
 			$_SESSION['role'] ?? '',
-			$_SESSION['role_id'] ?? '',
-			$_SESSION['userRoleID'] ?? ''
+			$_SESSION['role_id'] ?? ''
 		]));
 
 		if ($usersession) {
 			try {
-				$stmtStaffRole = $con->prepare("SELECT userRoleID, userName, staffIDs FROM user_access WHERE userName = ? OR staffIDs = ? OR EmailAddress = ? LIMIT 1");
+				$stmtStaffRole = $con->prepare("SELECT userRoleID FROM user_access WHERE userName = ? OR staffIDs = ? OR EmailAddress = ? LIMIT 1");
 				$stmtStaffRole->execute([$usersession, $usersession, $usersession]);
-				$staffData = $stmtStaffRole->fetch(PDO::FETCH_ASSOC);
-				if ($staffData) {
-					$uRoleId = (int)($staffData['userRoleID'] ?? 0);
-					if ($uRoleId > 0) {
-						$possibleRoles[] = (string)$uRoleId;
-						$stmtModern = $con->prepare("SELECT role_id, role_key, role_name FROM roles WHERE role_id = ? OR role_key = ? LIMIT 1");
-						$stmtModern->execute([$uRoleId, $rolesession]);
-						$modRow = $stmtModern->fetch(PDO::FETCH_ASSOC);
-						if ($modRow) {
-							$possibleRoles[] = $modRow['role_key'];
-							$possibleRoles[] = (string)$modRow['role_id'];
-							$possibleRoles[] = $modRow['role_name'];
-						}
-						$stmtAcd = $con->prepare("SELECT access FROM acd_tbluser WHERE ID = ? LIMIT 1");
-						$stmtAcd->execute([$uRoleId]);
-						$acdName = $stmtAcd->fetchColumn();
-						if ($acdName) {
-							$possibleRoles[] = $acdName;
-							$possibleRoles[] = strtoupper(str_replace(' ', '_', $acdName));
-						}
+				$uRoleId = (int)$stmtStaffRole->fetchColumn();
+				if ($uRoleId > 0) {
+					$possibleRoles[] = (string)$uRoleId;
+					
+					// Resolve exact modern role_key & role_name
+					$stmtModern = $con->prepare("SELECT role_key, role_name FROM roles WHERE role_id = ? OR role_key = ? LIMIT 1");
+					$stmtModern->execute([$uRoleId, $rolesession]);
+					$modRow = $stmtModern->fetch(PDO::FETCH_ASSOC);
+					if ($modRow) {
+						if (!empty($modRow['role_key'])) $possibleRoles[] = $modRow['role_key'];
+						if (!empty($modRow['role_name'])) $possibleRoles[] = $modRow['role_name'];
+					}
+
+					// Resolve legacy acd_tbluser name
+					$stmtAcd = $con->prepare("SELECT access FROM acd_tbluser WHERE ID = ? LIMIT 1");
+					$stmtAcd->execute([$uRoleId]);
+					$acdName = $stmtAcd->fetchColumn();
+					if ($acdName) {
+						$possibleRoles[] = $acdName;
 					}
 				}
 			} catch (Throwable $e) {}
 		}
 
-		if (in_array('ICT_ADMIN', $possibleRoles, true) || in_array('7', $possibleRoles, true) || in_array('14', $possibleRoles, true)) {
-			$possibleRoles = array_merge($possibleRoles, ['ICT_ADMIN', '14', '7', 'School Admin', 'SCHOOL_ADMIN', 'ICT Admin']);
-		}
-		if (in_array('SUPER_ADMIN', $possibleRoles, true) || in_array('12', $possibleRoles, true) || in_array('1', $possibleRoles, true)) {
-			$possibleRoles = array_merge($possibleRoles, ['SUPER_ADMIN', '1', '12', 'Supper User Support', 'SUPPER_USER_SUPPORT', 'Super Admin']);
-		}
-		if (in_array('ICT_SUPPORT', $possibleRoles, true) || in_array('15', $possibleRoles, true)) {
-			$possibleRoles = array_merge($possibleRoles, ['ICT_SUPPORT', '15', 'ICT Support', 'ICT_ADMIN', '14', '7']);
-		}
-		if (in_array('ICTO', $possibleRoles, true) || in_array('13', $possibleRoles, true) || in_array('6', $possibleRoles, true)) {
-			$possibleRoles = array_merge($possibleRoles, ['ICTO', '13', '6', 'ICT Officer', 'ICT_OFFICER']);
-		}
-		if (in_array('DEVELOPER', $possibleRoles, true) || in_array('1', $possibleRoles, true)) {
-			$possibleRoles = array_merge($possibleRoles, ['DEVELOPER', '1', 'Developer']);
-		}
-
 		$possibleRoles = array_values(array_unique(array_filter($possibleRoles)));
 
-		// Clear stale personal menu entries if user's role has changed
-		$rolePlaceholders = implode(',', array_fill(0, count($possibleRoles), '?'));
-		$stmtDelStale = $con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ? AND roleID NOT IN ($rolePlaceholders)");
-		$delParams = array_merge([$usersession], $possibleRoles);
-		$stmtDelStale->execute($delParams);
+		// Refresh personal menu cache for this user strictly based on right_page_main_menus
+		try {
+			$con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?")->execute([$usersession]);
+			$con->prepare("DELETE FROM personal_page_menu_tab WHERE userID = ?")->execute([$usersession]);
+		} catch (Throwable $e) {}
 
-		// Pull all assigned role pages
-		$personalrole = $con->prepare("SELECT * FROM right_page_main_menus WHERE roleID IN ($rolePlaceholders)");
-		$personalrole->execute($possibleRoles);
-		
-		while( $readpages = $personalrole->fetch(PDO::FETCH_ASSOC) ){
-			$pageID = $readpages['pageID'];
-			$page_url = $readpages['page_url'];
-			$tabID = $readpages['tabID'];
-			$menu_name = $readpages['menu_name'];
-			$roleID = $readpages['roleID'];
-			$keep_active = $readpages['keep_active'] ?? 'inactive';
-			$page_status = $readpages['page_status'] ?? '1';
-			$pageType = $readpages['pageType'] ?? 'link';
-			$getmain = $con->query("SELECT * FROM page_main_menus WHERE pageID = '$pageID' ")->fetch(PDO::FETCH_ASSOC);
-			$folderids = !empty($getmain['folder']) ? $getmain['folder'] : "";
-			$checktab = $con->query("SELECT * FROM personal_page_menu_tab WHERE tabID = '$tabID' AND userID = '$usersession' ")->rowCount();
-			if($checktab<1){
-				$gettabls = $con->query("SELECT * FROM page_menu_tab WHERE ID = '$tabID' AND tab_status = '1' ")->fetch(PDO::FETCH_ASSOC);
-				if ($gettabls) {
-					$tab_name = $gettabls['tab_name'];
-					$open_active = $gettabls['open_active'];
-					$tab_status = $gettabls['tab_status'];
-					$con->query("INSERT INTO personal_page_menu_tab(tabID,tab_name,open_active,userID,tab_status) VALUES('$tabID','$tab_name','$open_active','$usersession','$tab_status')");
+		if (!empty($possibleRoles)) {
+			$rolePlaceholders = implode(',', array_fill(0, count($possibleRoles), '?'));
+			$personalrole = $con->prepare("SELECT * FROM right_page_main_menus WHERE roleID IN ($rolePlaceholders) AND page_status = '1'");
+			$personalrole->execute($possibleRoles);
+
+			while ($readpages = $personalrole->fetch(PDO::FETCH_ASSOC)) {
+				$pageID = $readpages['pageID'];
+				$page_url = $readpages['page_url'];
+				$tabID = $readpages['tabID'];
+				$menu_name = $readpages['menu_name'];
+				$roleID = $readpages['roleID'];
+				$keep_active = $readpages['keep_active'] ?? 'inactive';
+				$page_status = $readpages['page_status'] ?? '1';
+				$pageType = $readpages['pageType'] ?? 'link';
+				$getmain = $con->query("SELECT * FROM page_main_menus WHERE pageID = '$pageID' ")->fetch(PDO::FETCH_ASSOC);
+				$folderids = !empty($getmain['folder']) ? $getmain['folder'] : "";
+
+				$checktab = $con->query("SELECT * FROM personal_page_menu_tab WHERE tabID = '$tabID' AND userID = '$usersession' ")->rowCount();
+				if ($checktab < 1) {
+					$gettabls = $con->query("SELECT * FROM page_menu_tab WHERE ID = '$tabID' AND tab_status = '1' ")->fetch(PDO::FETCH_ASSOC);
+					if ($gettabls) {
+						$tab_name = $gettabls['tab_name'];
+						$open_active = $gettabls['open_active'];
+						$tab_status = $gettabls['tab_status'];
+						$con->query("INSERT INTO personal_page_menu_tab(tabID,tab_name,open_active,userID,tab_status) VALUES('$tabID','$tab_name','$open_active','$usersession','$tab_status')");
+					}
+				}
+
+				$checkperson = $con->query("SELECT * FROM pesonal_right_page_main_menus WHERE pageID = '$pageID' AND userID = '$usersession' ")->rowCount();
+				if ($checkperson < 1) {
+					$con->query("INSERT INTO pesonal_right_page_main_menus(pageID,menu_name,roleID,page_status,pageType,tabID,page_url,keep_active,userID,folderID) VALUES('$pageID','$menu_name','$roleID', '$page_status','$pageType','$tabID', '$page_url','$keep_active', '$usersession','$folderids')");
 				}
 			}
-			$checkperson = $con->query("SELECT * FROM pesonal_right_page_main_menus WHERE pageID = '$pageID' AND userID = '$usersession' ")->rowCount();
-			if($checkperson>0)
-				continue;
-			$con->query( "INSERT INTO pesonal_right_page_main_menus(pageID,menu_name,roleID,page_status,pageType,tabID,page_url,keep_active,userID,folderID) VALUES( '$pageID','$menu_name','$roleID', '$page_status','$pageType','$tabID', '$page_url','$keep_active', '$usersession','$folderids' ) " );
 		}
 		//endwhile;
 		
