@@ -1,6 +1,6 @@
 <?php
-ini_set('display_errors',1);
-ini_set('display_startup_errors',1);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 session_start();
 require 'db.php';
@@ -12,8 +12,8 @@ require_once __DIR__ . '/../includes/permissions.php';
 
 $isEmbed = isset($_GET['embed']) && $_GET['embed'] === '1';
 
-$role = $_SESSION['role'] ?? '';
-$userId = (int) ($_SESSION['user_id'] ?? 0);
+$role = $_SESSION['role'] ?? $_SESSION['roleid'] ?? '';
+$userId = (int) ($_SESSION['user_id'] ?? $_SESSION['userid'] ?? 0);
 
 if (!$userId || !$role || normalize_role($role) === 'STUDENT') {
     redirect_to('ipessadmin/login.php');
@@ -32,20 +32,13 @@ if ($userId > 0 && isset($pdo)) {
         }
     } catch (Throwable $e) {}
 }
-if ($userDeptId === null) {
-    if (isset($_SESSION['department_id'])) {
-        $userDeptId = (int) $_SESSION['department_id'];
-    } elseif (isset($_SESSION['dept_id'])) {
-        $userDeptId = (int) $_SESSION['dept_id'];
-    }
-}
 
 function get_back_link($role) {
     $normRole = normalize_role($role);
     switch ($normRole) {
         case 'SUPER_ADMIN':
         case 'ICT_ADMIN':
-            return app_url('ipessadmin/application-management.php');
+            return app_url('ipessadmin/records.php');
         case 'ICTO':
             return app_url('ipessadmin/document-verification.php');
         case 'HOD':
@@ -56,12 +49,8 @@ function get_back_link($role) {
         case 'PG_ADMIN':
         case 'PG_SCHOOL_OFFICER':
             return app_url('ipessadmin/pg-applications.php');
-        case 'CENTER_LEADER':
-            return app_url('ipessadmin/general-dashboard.php');
-        case 'GENERAL':
-            return app_url('ipessadmin/application-management.php');
         default:
-            return app_url('ipessadmin/super-admin-dashboard.php');
+            return app_url('ipessadmin/records.php');
     }
 }
 $backLink = get_back_link($role);
@@ -71,7 +60,20 @@ if (!isset($_GET['app_no'])) {
     exit();
 }
 
-$appNumber = $_GET['app_no'];
+$rawAppNo = $_GET['app_no'];
+$decrypted = decrypt_app_number($rawAppNo);
+if ($decrypted !== '' && str_contains($decrypted, 'IPESS')) {
+    $appNumber = $decrypted;
+} else {
+    $appNumber = $rawAppNo;
+}
+
+function resolveDocUrl($filePath) {
+    if (empty($filePath)) return '';
+    if (preg_match('#^https?://#i', $filePath)) return $filePath;
+    $clean = ltrim($filePath, '/');
+    return app_url($clean);
+}
 
 try {
     $stmt = $pdo->prepare("
@@ -91,11 +93,10 @@ try {
         FROM applications a
         LEFT JOIN users u ON a.user_id = u.user_id
         LEFT JOIN personal_details p ON a.application_id = p.application_id
-        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id AND pc.faculty > 0
+        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
         LEFT JOIN nysc_details n ON a.application_id = n.application_id
         LEFT JOIN work_experience w ON a.application_id = w.application_id
         LEFT JOIN research_details r ON a.application_id = r.application_id
-        -- Foreign Key Joins Added Here
         LEFT JOIN faculties f ON pc.faculty = f.faculty_id
         LEFT JOIN departments d ON pc.department = d.dept_id
         LEFT JOIN degree_types dt ON pc.degree_type = dt.degree_id
@@ -106,19 +107,6 @@ try {
     $stmt->execute([$appNumber]);
     $app = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    $hasReferenceNumber = false;
-    try {
-        $hasReferenceNumber = (bool) $pdo->query("SHOW COLUMNS FROM applications LIKE 'reference_number'")->fetch(PDO::FETCH_ASSOC);
-    } catch (Throwable $e) {
-        $hasReferenceNumber = false;
-    }
-
-    if (!$app && $hasReferenceNumber) {
-        $stmt = $pdo->prepare(str_replace("a.application_number = ?", "a.reference_number = ?", $stmt->queryString));
-        $stmt->execute([$appNumber]);
-        $app = $stmt->fetch(PDO::FETCH_ASSOC);
-    }
-
     if (!$app && ctype_digit((string) $appNumber)) {
         $stmt = $pdo->prepare(str_replace("a.application_number = ?", "a.application_id = ?", $stmt->queryString));
         $stmt->execute([(int) $appNumber]);
@@ -126,20 +114,27 @@ try {
     }
 
     if (!$app) {
-        $_SESSION['error'] = "Application not submitted yet.";
+        $_SESSION['error'] = "Application not found or not submitted yet.";
         header("Location: " . $backLink);
         exit();
     }
 
-    if ($userDeptId !== null && (int)$app['department_id'] !== $userDeptId && (int)$app['department'] !== $userDeptId) {
-        $_SESSION['error'] = "Access Denied: Application does not belong to your department.";
-        header("Location: " . ($_SERVER['HTTP_REFERER'] ?? $backLink));
-        exit();
-    }
-
     $appId = $app['application_id'];
-    
-    // 2. Fetch Related Data
+
+    // Passport Photo
+    $stmt_pass = $pdo->prepare("
+        SELECT file_path 
+        FROM documents 
+        WHERE application_id = ? 
+          AND document_type IN ('passport_profile','passport') 
+        ORDER BY CASE WHEN document_type = 'passport_profile' THEN 0 ELSE 1 END
+        LIMIT 1
+    ");
+    $stmt_pass->execute([$appId]);
+    $passport = $stmt_pass->fetch(PDO::FETCH_ASSOC);
+    $passportUrl = (!empty($passport['file_path'])) ? resolveDocUrl($passport['file_path']) : app_url('asset/img/default-avatar.png');
+
+    // Academic / O-Level Data
     $stmt = $pdo->prepare("SELECT * FROM olevel_exams WHERE application_id = ? ORDER BY sitting_number ASC");
     $stmt->execute([$appId]);
     $olevel_exams = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -152,928 +147,604 @@ try {
     $stmt->execute([$appId]);
     $referees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $deptList = [];
-    try {
-        $deptList = $pdo->query("SELECT dept_id, dept_name FROM departments ORDER BY dept_name ASC")->fetchAll(PDO::FETCH_ASSOC);
-    } catch (Throwable $e) {
-    }
-
-    // 3. Fetch Documents
+    // Attached Documents
     $stmt = $pdo->prepare("
         SELECT d.*, COALESCE(dv.verification_status, 'Pending') as verification_status, dv.admin_remark 
         FROM documents d 
         LEFT JOIN document_verification dv ON d.doc_id = dv.upload_id 
         WHERE d.application_id = ? 
-        ORDER BY d.uploaded_at DESC
+          AND d.document_type NOT IN ('passport_profile', 'passport')
+        ORDER BY d.doc_id ASC
     ");
     $stmt->execute([$appId]);
     $uploaded_documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Helper function for document icons
-    function getFileIcon($filename) {
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        switch ($ext) {
-            case 'pdf': return 'bi-file-earmark-pdf text-danger';
-            case 'jpg': 
-            case 'jpeg':
-            case 'png': return 'bi-file-earmark-image text-primary';
-            case 'doc':
-            case 'docx': return 'bi-file-earmark-word text-primary';
-            default: return 'bi-file-earmark-text text-secondary';
-        }
-    }
-
-    function getDocumentPath($filePath) {
-        $basePath = ''; 
-        if (!file_exists($_SERVER['DOCUMENT_ROOT'] . $filePath)) {
-            return $basePath . ltrim($filePath, '/');
-        }
-        return $filePath;
-    }
+    $deptList = [];
+    try {
+        $deptList = $pdo->query("SELECT dept_id, dept_name FROM departments ORDER BY dept_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {}
 
 } catch (Throwable $e) {
     die("Error fetching application details: " . $e->getMessage());
 }
-?>
 
+$candidateFullName = trim(($app['title'] ?? '') . ' ' . ($app['first_name'] ?? '') . ' ' . ($app['other_name'] ?? '') . ' ' . ($app['surname'] ?? ''));
+if (empty($candidateFullName)) {
+    $candidateFullName = $app['full_name'] ?? 'Applicant';
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Applicant Review | <?php echo htmlspecialchars($appNumber); ?></title>
+    <title>Application Dossier - <?= htmlspecialchars($app['application_number'] ?: 'Slip') ?> - <?= htmlspecialchars($candidateFullName) ?></title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 
     <style>
         :root {
-            --bg-body: #f1f5f9; 
-            --surface-card: #ffffff;
-            --text-primary: #1e293b; 
-            --text-secondary: #64748b; 
-            --border-color: #e2e8f0; 
-            --brand-primary: #4f46e5; 
-            --brand-success: #10b981; 
-            --brand-danger: #ef4444; 
+            --brand-navy: #0f172a;
+            --brand-accent: #0284c7;
+            --brand-gold: #b45309;
+            --surface-bg: #f8fafc;
+            --border-light: #cbd5e1;
         }
 
         body {
-            background-color: var(--bg-body);
-            font-family: 'Inter', sans-serif;
-            color: var(--text-primary);
-            padding-bottom: 80px;
-            -webkit-font-smoothing: antialiased;
-        }
-        <?php if ($isEmbed): ?>
-        body {
-            padding-bottom: 0;
-            background-color: #ffffff;
-        }
-        .embed-only { display: block !important; }
-        .embed-hide { display: none !important; }
-        <?php endif; ?>
-
-        /* --- Layout & Cards --- */
-        .container-xl { max-width: 1200px; }
-        
-        .card-custom {
-            background: var(--surface-card);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
-            margin-bottom: 24px;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            background-color: var(--surface-bg);
+            font-family: 'Inter', -apple-system, sans-serif;
+            color: #1e293b;
+            font-size: 13.5px;
+            line-height: 1.5;
         }
 
-        .section-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        /* Top Action Bar */
+        .dossier-topbar {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-light);
+            padding: 12px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
 
-        .section-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin: 0;
-            text-transform: uppercase;
-            letter-spacing: 0.025em;
+        /* Paper Dossier Canvas */
+        .dossier-container {
+            max-width: 960px;
+            margin: 25px auto 50px auto;
         }
 
-        .card-body-custom { padding: 24px; }
-        /* --- Navigation Styling --- */
-.back-link {
-    transition: all 0.2s ease;
-    font-size: 0.9rem;
-}
-
-.back-link:hover {
-    color: var(--brand-primary) !important;
-    transform: translateX(-4px);
-}
-
-/* Enhancing the Profile Header for better alignment with the back button */
-.profile-header {
-    background: white;
-    border-top: 1px solid var(--border-color); /* Added top border */
-    border-bottom: 1px solid var(--border-color);
-    padding: 25px 0;
-    margin-bottom: 30px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-}
-/* Optimized Header & Avatar */
-.profile-header {
-    background: white;
-    border-bottom: 1px solid var(--border-color);
-    padding: 20px 0; /* Reduced padding for mobile */
-    margin-bottom: 24px;
-} 
-
-.avatar-container {
-    flex-shrink: 0;
-}
-
-.avatar-circle, .avatar-img {
-    width: 80px;
-    height: 80px;
-    border-radius: 12px;
-    object-fit: cover;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 1.8rem;
-    border: 3px solid #fff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.avatar-circle {
-    background: linear-gradient(135deg, #4f46e5 0%, #818cf8 100%);
-    color: white;
-}
-
-/* Mobile specific fixes */
-@media (max-width: 767.98px) {
-    .profile-header { text-align: center; padding: 25px 0; }
-    
-    .avatar-circle, .avatar-img {
-        width: 100px; /* Slightly larger on mobile for focus */
-        height: 100px;
-        margin: 0 auto 15px auto; /* Center avatar */
-    }
-
-    .status-container {
-        margin-top: 20px;
-        padding-top: 15px;
-        border-top: 1px dashed var(--border-color);
-        width: 100%;
-        text-align: center !important;
-    }
-    
-    .status-container .label-text {
-        text-align: center !important;
-    }
-}
-        /* --- Typography Helpers --- */
-        .label-text {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-secondary);
-            font-weight: 600;
-            margin-bottom: 4px;
-            display: block;
-        }
-        
-        .value-text {
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--text-primary);
-            word-wrap: break-word;
-        }
-
-        /* --- Header Profile Section --- */
-        .profile-header {
-            background: white;
-            border-bottom: 1px solid var(--border-color);
-            padding: 30px 0;
+        .dossier-paper {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
             margin-bottom: 30px;
         }
-        
-        
-    /* Desktop adjustment for Avatar */
-   
-        .avatar-circle {
-            width: 70px;
-            height: 70px;
-            font-size: 1.5rem;
-    
-    }
-    .submit-btn {
-        transition: all 0.3s ease;
-        position: relative;
-        min-width: 140px; /* Prevents button from shrinking when text changes */
-    }
 
-    .submit-btn .spinner-border {
-        margin-left: 8px;
-        vertical-align: middle;
-    }
-
-    /* Visual cue that the button is "working" */
-    .submit-btn.disabled {
-        cursor: not-allowed;
-    }
-
-    /* Ensure text doesn't break layout on very small screens */
-    .text-truncate {
-        display: inline-block;
-        vertical-align: bottom;
-    }
-    .card-modern {
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            margin-bottom: 20px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        /* Slip Header */
+        .slip-header-logo {
+            max-height: 75px;
+            width: auto;
         }
 
-
-        /* --- Action Bar --- */
-        .action-bar {
-            background: #fff;
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #e2e8f0;
-            border-left: 5px solid var(--brand-primary);
-        }
-        /* Sticky Action Bar Enhancement */
-.sticky-top .action-bar {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px); /* Frosted effect */
-    border: 1px solid rgba(226, 232, 240, 0.8);
-}
-
-/* Ensure the button hovers nicely */
-.action-bar .btn-light:hover {
-    background-color: #fff;
-    border-color: var(--brand-primary) !important;
-    color: var(--brand-primary) !important;
-}
-.action-bar .btn-light:hover i {
-    color: var(--brand-primary) !important;
-}
-
-        /* --- Tables --- */
-        .table-modern { margin: 0; }
-        .table-modern thead th {
-            background-color: #f8fafc;
-            color: var(--text-secondary);
-            font-size: 0.75rem;
+        .slip-uni-title {
+            font-family: 'Cinzel', serif;
+            font-size: 17px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: 0.5px;
+            margin: 0;
             text-transform: uppercase;
-            font-weight: 600;
-            border-bottom: 1px solid var(--border-color);
-            padding: 12px 16px;
         }
-        .table-modern tbody td {
-            padding: 16px;
-            vertical-align: middle;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-primary);
-            font-size: 0.9rem;
-        }
-        .table-modern tbody tr:last-child td { border-bottom: none; }
 
-        /* --- Documents Grid --- */
-        .doc-item {
-            display: flex;
-            align-items: center;
-            padding: 16px;
-            border: 1px solid var(--border-color);
+        .slip-center-title {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #0369a1;
+            margin: 3px 0 0 0;
+        }
+
+        .slip-doc-name {
+            font-size: 15px;
+            font-weight: 800;
+            background: #f1f5f9;
+            color: #0f172a;
+            display: inline-block;
+            padding: 5px 20px;
+            border-radius: 20px;
+            border: 1px solid #cbd5e1;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .applicant-passport-frame {
+            width: 130px;
+            height: 150px;
+            border: 2px solid #0f172a;
+            border-radius: 6px;
+            padding: 3px;
+            background: #ffffff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            object-fit: cover;
+        }
+
+        /* Table & Section Headers */
+        .dossier-section-title {
+            font-size: 12px;
+            font-weight: 700;
+            background: #0f172a;
+            color: #ffffff;
+            padding: 6px 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 20px;
+            margin-bottom: 0;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .table-dossier {
+            width: 100%;
+            margin-bottom: 0;
+            border: 1px solid #cbd5e1;
+            font-size: 12.5px;
+        }
+
+        .table-dossier th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            padding: 6px 10px;
+            border: 1px solid #cbd5e1;
+            width: 25%;
+        }
+
+        .table-dossier td {
+            padding: 6px 10px;
+            border: 1px solid #cbd5e1;
+            color: #0f172a;
+        }
+
+        /* Attached Document Page Presentation */
+        .attached-doc-card {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
             border-radius: 8px;
-            background: #fff;
-            transition: all 0.2s;
-            text-decoration: none;
-            color: inherit;
+            padding: 24px;
+            margin-top: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
         }
-        .doc-item:hover {
-            border-color: var(--brand-primary);
-            background: #fdfdff;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+
+        .attached-doc-banner {
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
         }
-        .doc-icon { font-size: 1.75rem; margin-right: 15px; }
-        .doc-info h6 { margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
-        .doc-info small { color: var(--text-secondary); font-size: 0.75rem; }
+
+        .attached-doc-img {
+            max-width: 100%;
+            max-height: 850px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .attached-doc-embed {
+            width: 100%;
+            height: 750px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        /* ================= PRINT STYLING (ONE CONTINUOUS MULTI-PAGE STAPLE-READY DOSSIER) ================= */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-size: 11.5pt !important;
+                padding: 0 !important;
+            }
+            .dossier-container {
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .dossier-paper {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .attached-doc-card {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .page-break {
+                page-break-before: always !important;
+                break-before: page !important;
+            }
+            .attached-doc-img {
+                max-width: 100% !important;
+                max-height: 950px !important;
+                page-break-inside: avoid !important;
+            }
+            a {
+                text-decoration: none !important;
+                color: inherit !important;
+            }
+        }
     </style>
 </head>
 <body>
-<div class="container-xl mt-3">
-    <?php if (isset($_SESSION['success_message'])): ?>
-        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-            <i class="bi bi-check-circle-fill me-2"></i>
-            <?php echo $_SESSION['success_message']; unset($_SESSION['success_message']); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <?php endif; ?>
 
-    <?php if (isset($_SESSION['error'])): ?>
-        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            <?php echo $_SESSION['error']; unset($_SESSION['error']); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <?php endif; ?>
-</div>
-<body>
-<div class="container-xl mt-3">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <?php if (!$isEmbed): ?>
-            <a href="<?php echo htmlspecialchars($backLink); ?>" class="btn btn-white border-0 ps-0 text-secondary fw-medium d-inline-flex align-items-center back-link">
-                <i class="bi bi-arrow-left me-2"></i>
-                Back to Dashboard
+    <!-- Top Action Bar (Screen Only) -->
+    <div class="dossier-topbar no-print d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-3">
+            <a href="<?= htmlspecialchars($backLink) ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Records
             </a>
-        <?php endif; ?>
-    </div>
-
-    <?php if (isset($_SESSION['success_message'])): ?>
-        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
-            <i class="bi bi-check-circle-fill me-2"></i>
-            <?php echo $_SESSION['success_message']; unset($_SESSION['success_message']); ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <div>
+                <strong class="text-dark fs-6"><?= htmlspecialchars($candidateFullName) ?></strong>
+                <span class="text-muted ms-2">(<code><?= htmlspecialchars($app['application_number'] ?: 'N/A') ?></code>)</span>
+            </div>
+            <span class="badge bg-primary px-3 py-2">
+                Status: <?= htmlspecialchars($app['status'] ?: 'Submitted') ?>
+            </span>
         </div>
-    <?php endif; ?>
+        <div class="d-flex align-items-center gap-2">
+            <a href="#attached-docs-section" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-paperclip me-1"></i> Jump to Attachments (<?= count($uploaded_documents) ?>)
+            </a>
+            <button onclick="window.print()" class="btn btn-success btn-sm fw-bold px-3 py-2 shadow-sm">
+                <i class="bi bi-printer-fill me-1"></i> Print Complete Dossier (Slip + Attachments)
+            </button>
+        </div>
     </div>
-<div class="profile-header">
-    <div class="container-xl">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="d-flex flex-column flex-md-row align-items-center text-center text-md-start">
-                    
-                    <div class="avatar-container mb-3 mb-md-0 me-md-4">
-                        <?php 
-                        $passportPath = null;
-                        foreach ($uploaded_documents as $doc) {
-                            if (strtolower($doc['document_type']) === 'passport' || strtolower($doc['document_type']) === 'passport_photograph') {
-                                // $passportPath = $doc['file_path'];
-                                $passportPath = getPublicFilePath($doc['file_path']);
-                                break;
-                            }
-                        }
 
-                        if ($passportPath): ?>
-                            <img src="<?php echo htmlspecialchars($passportPath); ?>" alt="Passport" class="avatar-img shadow-sm">
-                        <?php else: ?>
-                            <div class="avatar-circle shadow-sm">
-                                <?php echo substr($app['first_name'], 0, 1) . substr($app['surname'], 0, 1); ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
+    <div class="container dossier-container">
 
-                    <div class="flex-grow-1">
-                        <h2 class="h3 fw-bold mb-1 text-dark text-uppercase">
-                            <?php echo htmlspecialchars($app['surname'] . ' ' . $app['first_name']); ?>
-                        </h2>
-                        
-                        <div class="d-flex flex-column flex-sm-row align-items-center justify-content-center justify-content-md-start text-muted">
-                            <div class="d-flex align-items-center mb-1 mb-sm-0">
-                                <i class="bi bi-person-badge me-2 text-primary"></i>
-                                <span class="small fw-medium"><?php echo htmlspecialchars($appNumber); ?></span>
-                            </div>
-                            
-                            <span class="d-none d-sm-inline mx-3 text-secondary opacity-50">â€¢</span>
-                            
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-envelope me-2 text-primary"></i>
-                                <span class="small"><?php echo htmlspecialchars($app['user_email']); ?></span>
-                            </div>
-                        </div>
+        <!-- ================= PAGE 1 & 2: OFFICIAL APPLICATION SLIP ================= -->
+        <div class="dossier-paper" id="slip-section">
+            
+            <!-- Slip Header -->
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                <div class="d-flex align-items-center gap-3">
+                    <img src="<?= app_url('asset/homepage/ipess_logo.png') ?>" alt="Logo" class="slip-header-logo">
+                    <div>
+                        <h2 class="slip-uni-title">Joseph Sarwuan Tarka University, Makurdi</h2>
+                        <h4 class="slip-center-title">Center of Excellence in Sustainable Procurement, Environmental & Social Standards (CIPESS)</h4>
+                        <div class="text-muted small">Postgraduate Admissions Portal &bull; Official Student Application Dossier</div>
                     </div>
+                </div>
+                <div class="text-end">
+                    <img src="<?= htmlspecialchars($passportUrl) ?>" alt="Passport Photo" class="applicant-passport-frame">
                 </div>
             </div>
 
-            <div class="col-md-4 text-md-end status-container">
-                <span class="label-text">Application Status</span>
-                <?php 
-                    $statusColor = match(strtolower($app['status'])) {
-                        'submitted' => 'bg-success',
-                        'admitted' => 'bg-primary',
-                        'rejected' => 'bg-danger',
-                        default => 'bg-secondary'
-                    };
-                ?>
-                <span class="badge rounded-pill <?php echo $statusColor; ?> px-3 py-2 mt-1" style="font-weight: 600; font-size: 0.85rem;">
-                    <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem; vertical-align: middle;"></i>
-                    <?php echo ucfirst($app['status'] ?? 'Pending'); ?>
-                </span>
-                <div class="mt-2 text-muted small">
-                    Applied: <?php echo !empty($app['submitted_at']) ? date('M d, Y', strtotime($app['submitted_at'])) : 'N/A'; ?>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="container-xl">
-    
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="row mb-4 sticky-top" style="top: 20px; z-index: 1020;">
-    <div class="col-12">
-        <div class="action-bar d-flex flex-column flex-md-row justify-content-between align-items-center shadow-sm">
-            <div class="d-flex align-items-center">
-                <a href="<?php echo htmlspecialchars($backLink); ?>" class="btn btn-light border me-3 d-none d-md-flex align-items-center justify-content-center" style="width: 42px; height: 42px; border-radius: 10px;" title="Back to Dashboard">
-                    <i class="bi bi-arrow-left text-secondary"></i>
-                </a>
-                
+            <!-- Application Meta Bar -->
+            <div class="bg-light p-3 rounded border mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
-                    <h5 class="fw-bold mb-1">Administrative Decision</h5>
-                    <p class="mb-0 text-muted small">Review all documents before taking action.</p>
+                    <span class="text-muted small text-uppercase">Application Number:</span>
+                    <div class="fs-5 fw-bold text-primary font-monospace"><?= htmlspecialchars($app['application_number'] ?: 'APP/IPESS/2026/----') ?></div>
                 </div>
-            </div>
-            
-            <div class="d-flex gap-2 mt-3 mt-md-0">
-                <?php
-                $userRole = $_SESSION['role'] ?? '';
-                $isSuperAdminType = is_admin_role($userRole);
-                $isDeptAdminType = is_department_admin($userRole) || has_permission('department_review');
-                
-                if ($isSuperAdminType): ?>
-                    <button type="button" class="btn btn-outline-primary px-4" data-bs-toggle="modal" data-bs-target="#assignDeptModal">
-                        <i class="bi bi-diagram-3 me-2"></i>Assign to Department
-                    </button>
-                    <form method="POST" action="./includes/process_decision.php" class="decision-form">
-                        <input type="hidden" name="app_id" value="<?php echo $appId; ?>">
-                        <input type="hidden" name="decision" value="reject">
-                        <button type="submit" class="btn btn-outline-danger px-4 submit-btn">
-                            <span class="btn-text"><i class="bi bi-x-circle me-2"></i>Reject</span>
-                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                        </button>
-                    </form>
-
-                    <form method="POST" action="./includes/process_decision.php" class="decision-form">
-                        <input type="hidden" name="app_id" value="<?php echo $appId; ?>">
-                        <input type="hidden" name="decision" value="admit">
-                        <button type="submit" class="btn btn-primary px-4 submit-btn" style="background-color: var(--brand-primary); border: none;">
-                            <span class="btn-text"><i class="bi bi-check-circle me-2"></i>Admit Applicant</span>
-                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                        </button>
-                    </form>
-                <?php elseif ($isDeptAdminType): ?>
-                    <!-- Department Admin Action Forms -->
-                    <form method="POST" action="<?php echo app_url('ADMIN/dept-admin/api/applications.php'); ?>" class="decision-ajax-form">
-                        <input type="hidden" name="action" value="update">
-                        <input type="hidden" name="app_code" value="<?php echo htmlspecialchars($appNumber); ?>">
-                        <input type="hidden" name="status" value="approved">
-                        <button type="submit" class="btn btn-success px-4 submit-btn">
-                            <span class="btn-text"><i class="bi bi-check-circle me-2"></i>Department Approve</span>
-                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                        </button>
-                    </form>
-                    
-                    <form method="POST" action="<?php echo app_url('ADMIN/dept-admin/api/applications.php'); ?>" class="decision-ajax-form">
-                        <input type="hidden" name="action" value="update">
-                        <input type="hidden" name="app_code" value="<?php echo htmlspecialchars($appNumber); ?>">
-                        <input type="hidden" name="status" value="rejected">
-                        <button type="submit" class="btn btn-danger px-4 submit-btn">
-                            <span class="btn-text"><i class="bi bi-x-circle me-2"></i>Reject Application</span>
-                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                        </button>
-                    </form>
-
-                    <form method="POST" action="<?php echo app_url('ADMIN/dept-admin/api/applications.php'); ?>" class="decision-ajax-form">
-                        <input type="hidden" name="action" value="update">
-                        <input type="hidden" name="app_code" value="<?php echo htmlspecialchars($appNumber); ?>">
-                        <input type="hidden" name="status" value="needs_info">
-                        <button type="submit" class="btn btn-warning px-4 submit-btn">
-                            <span class="btn-text"><i class="bi bi-question-circle me-2"></i>Request Info</span>
-                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                        </button>
-                    </form>
-
-                    <form method="POST" action="<?php echo app_url('ADMIN/dept-admin/api/applications.php'); ?>" class="decision-ajax-form">
-                        <input type="hidden" name="action" value="update">
-                        <input type="hidden" name="app_code" value="<?php echo htmlspecialchars($appNumber); ?>">
-                        <input type="hidden" name="status" value="final">
-                        <button type="submit" class="btn btn-info text-white px-4 submit-btn">
-                            <span class="btn-text"><i class="bi bi-exclamation-triangle me-2"></i>Escalate</span>
-                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                        </button>
-                    </form>
-                <?php else: ?>
-                    <span class="text-muted small italic">Decisions are locked based on your assigned role and duties.</span>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-</div>
-        </div>
-    </div>
-
-    <div class="row g-4">
-        <div class="col-lg-8">
-            
-
-            <div class="card-custom">
-                <div class="section-header">
-                    <span class="section-title"><i class="bi bi-person-lines-fill me-2 text-muted"></i> Personal & Programme Details</span>
+                <div>
+                    <span class="text-muted small text-uppercase">Submission Date:</span>
+                    <div class="fw-semibold text-dark"><?= $app['submitted_at'] ? date('F d, Y \a\t h:i A', strtotime($app['submitted_at'])) : 'Draft / Pending' ?></div>
                 </div>
-                <div class="card-body-custom">
-                    <div class="row g-4">
-                        <div class="col-md-6">
-                            <span class="label-text">Applied Degree</span>
-                            <div class="value-text fs-5"><?php echo htmlspecialchars($app['degree_name'] ?? 'N/A'); ?></div>
-                            <div class="text-muted small mt-1">
-                                <?php echo htmlspecialchars($app['dept_name'] ?? 'Unknown Dept'); ?> - 
-                                <?php echo htmlspecialchars($app['course_title'] ?? 'Unknown Course'); ?>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <span class="label-text">Mode of Study</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['mode_name'] ?? 'N/A'); ?></div>
-                            
-                            <div class="mt-3">
-                                <span class="label-text">Faculty</span>
-                                <div class="value-text"><?php echo htmlspecialchars($app['faculty_name'] ?? 'N/A'); ?></div>
-                            </div>
-                        </div>
-                        <div class="col-12"><hr class="text-muted opacity-25"></div>
-                        <div class="col-md-4">
-                            <span class="label-text">Gender</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['sex'] ?? ''); ?></div>
-                        </div>
-                        <div class="col-md-4">
-                            <span class="label-text">Phone Number</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['phone'] ?? ''); ?></div>
-                        </div>
-                        <div class="col-md-4">
-                            <span class="label-text">Origin</span>
-                            <div class="value-text"><?php echo htmlspecialchars($app['state_origin'] ?? ''); ?></div>
-                        </div>
-                    </div>
+                <div>
+                    <span class="text-muted small text-uppercase">Admission Status:</span>
+                    <div><span class="badge bg-dark px-3 py-1"><?= htmlspecialchars($app['status'] ?: 'Submitted') ?></span></div>
                 </div>
             </div>
 
-            <div class="card-custom">
-                <div class="section-header">
-                    <span class="section-title"><i class="bi bi-mortarboard me-2 text-muted"></i> Academic History</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-modern align-middle mb-0 ">
-                        <thead>
+            <!-- Section 1: Programme Details -->
+            <div class="dossier-section-title">1. Programme Applied For</div>
+            <table class="table table-dossier table-bordered">
+                <tbody>
+                    <tr>
+                        <th>Degree Applied:</th>
+                        <td><strong class="text-primary"><?= htmlspecialchars($app['degree_name'] ?? 'Postgraduate') ?></strong></td>
+                        <th>Mode of Study:</th>
+                        <td><?= htmlspecialchars($app['mode_name'] ?? 'Full-Time') ?></td>
+                    </tr>
+                    <tr>
+                        <th>Faculty / School:</th>
+                        <td><?= htmlspecialchars($app['faculty_name'] ?? 'Postgraduate School') ?></td>
+                        <th>Department:</th>
+                        <td><?= htmlspecialchars($app['dept_name'] ?? 'N/A') ?></td>
+                    </tr>
+                    <tr>
+                        <th>Course / Specialization:</th>
+                        <td colspan="3"><strong class="text-dark"><?= htmlspecialchars($app['course_title'] ?? 'N/A') ?></strong></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Section 2: Personal Information -->
+            <div class="dossier-section-title">2. Personal & Contact Information</div>
+            <table class="table table-dossier table-bordered">
+                <tbody>
+                    <tr>
+                        <th>Full Name:</th>
+                        <td><strong><?= htmlspecialchars($candidateFullName) ?></strong></td>
+                        <th>Gender:</th>
+                        <td><?= htmlspecialchars($app['sex'] ?? 'N/A') ?></td>
+                    </tr>
+                    <tr>
+                        <th>Email Address:</th>
+                        <td><?= htmlspecialchars($app['user_email'] ?? $app['email'] ?? 'N/A') ?></td>
+                        <th>Phone Number:</th>
+                        <td><?= htmlspecialchars($app['phone'] ?? 'N/A') ?></td>
+                    </tr>
+                    <tr>
+                        <th>Date of Birth:</th>
+                        <td><?= !empty($app['dob']) ? date('M d, Y', strtotime($app['dob'])) : 'N/A' ?></td>
+                        <th>Marital Status:</th>
+                        <td><?= htmlspecialchars($app['marital_status'] ?? 'N/A') ?></td>
+                    </tr>
+                    <tr>
+                        <th>State of Origin:</th>
+                        <td><?= htmlspecialchars($app['state_origin'] ?? 'N/A') ?></td>
+                        <th>LGA:</th>
+                        <td><?= htmlspecialchars($app['lga'] ?? 'N/A') ?></td>
+                    </tr>
+                    <tr>
+                        <th>Residential Address:</th>
+                        <td colspan="3"><?= htmlspecialchars($app['contact_address'] ?? 'N/A') ?></td>
+                    </tr>
+                    <tr>
+                        <th>Next of Kin Name:</th>
+                        <td><?= htmlspecialchars($app['next_of_kin_name'] ?? 'N/A') ?></td>
+                        <th>Next of Kin Phone:</th>
+                        <td><?= htmlspecialchars($app['next_of_kin_phone'] ?? 'N/A') ?></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Section 3: Academic Qualifications -->
+            <div class="dossier-section-title">3. Higher Academic Qualifications</div>
+            <table class="table table-dossier table-bordered">
+                <thead>
+                    <tr class="table-light">
+                        <th style="width:35%">Institution</th>
+                        <th style="width:30%">Qualification / Discipline</th>
+                        <th style="width:15%">Class / Grade</th>
+                        <th style="width:20%">Year Awarded</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($education)): ?>
+                        <?php foreach ($education as $edu): ?>
                             <tr>
-                                <th>Institution</th>
-                                <th>Qualification</th>
-                                <th>Year</th>
-                                <th class="text-end">CGPA</th>
+                                <td><strong><?= htmlspecialchars($edu['institution']) ?></strong></td>
+                                <td><?= htmlspecialchars($edu['highest_qualification']) ?> (<?= htmlspecialchars($edu['discipline'] ?? '') ?>)</td>
+                                <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($edu['class_of_degree'] ?? $edu['cgpa'] ?? 'Passed') ?></span></td>
+                                <td><?= htmlspecialchars($edu['grad_year']) ?></td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (count($education) > 0): ?>
-                                <?php foreach ($education as $edu): ?>
-                                <tr>
-                                    <td class="fw-medium"><?php echo htmlspecialchars($edu['institution']); ?></td>
-                                    <td><span class="badge bg-light text-dark border"><?php echo htmlspecialchars($edu['highest_qualification']); ?></span></td>
-                                    <td class="text-muted"><?php echo htmlspecialchars($edu['grad_year']); ?></td>
-                                    <td class="text-end fw-bold"><?php echo htmlspecialchars($edu['cgpa']); ?></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr><td colspan="4" class="text-center py-4 text-muted">No education history recorded.</td></tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="card-custom">
-                <div class="section-header">
-                    <span class="section-title"><i class="bi bi-journal-text me-2 text-muted"></i> O-Level Results</span>
-                </div>
-                <div class="card-body-custom">
-                    <div class="row g-3">
-                        <?php foreach ($olevel_exams as $exam): 
-                             // Fetch results logic kept inline for simplicity
-                             try {
-                                $stmt_res = $pdo->prepare("SELECT * FROM olevel_results WHERE exam_id = ?");
-                                $stmt_res->execute([$exam['id']]);
-                                $exam_results = $stmt_res->fetchAll(PDO::FETCH_ASSOC);
-                            } catch (Throwable $e) { $exam_results = []; }
-                        ?>
-                        <div class="col-md-6">
-                            <div class="border rounded p-3 bg-light h-100">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <div>
-                                        <div class="fw-bold text-dark"><?php echo htmlspecialchars($exam['exam_type']); ?></div>
-                                        <div class="small text-muted"><?php echo $exam['exam_year']; ?> &bull; Sitting <?php echo $exam['sitting_number']; ?></div>
-                                    </div>
-                                    <span class="badge bg-dark"><?php echo htmlspecialchars($exam['exam_number']); ?></span>
-                                </div>
-                                <hr class="my-2">
-                                <table class="table table-sm table-borderless mb-0 w-100">
-                                    <?php foreach ($exam_results as $res): ?>
-                                    <tr>
-                                        <td class="ps-0 py-1 small"><?php echo htmlspecialchars($res['subject_name']); ?></td>
-                                        <td class="pe-0 py-1 text-end fw-bold small"><?php echo htmlspecialchars($res['grade']); ?></td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </table>
-                            </div>
-                        </div>
                         <?php endforeach; ?>
-                    </div>
-                </div>
-            </div>
+                    <?php else: ?>
+                        <tr><td colspan="4" class="text-center text-muted py-2">No higher education qualifications recorded.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
 
-             <div class="card-custom">
-                <div class="section-header">
-                    <span class="section-title"><i class="bi bi-lightbulb me-2 text-muted"></i> Research Proposal</span>
+            <!-- Section 4: O'Level Examination Breakdown -->
+            <div class="dossier-section-title">4. O'Level Examination Breakdown</div>
+            <?php if (!empty($olevel_exams)): ?>
+                <div class="row g-2 mt-1">
+                    <?php foreach ($olevel_exams as $exam): 
+                        try {
+                            $stmt_res = $pdo->prepare("SELECT * FROM olevel_results WHERE exam_id = ?");
+                            $stmt_res->execute([$exam['id']]);
+                            $exam_results = $stmt_res->fetchAll(PDO::FETCH_ASSOC);
+                        } catch (Throwable $e) { $exam_results = []; }
+                    ?>
+                        <div class="col-md-6">
+                            <table class="table table-dossier table-bordered mb-0">
+                                <thead>
+                                    <tr class="table-light">
+                                        <th colspan="2" class="text-dark fw-bold">
+                                            <?= htmlspecialchars($exam['exam_type']) ?> (<?= htmlspecialchars($exam['exam_year']) ?> - Sitting <?= $exam['sitting_number'] ?>)
+                                            <span class="badge bg-dark float-end"><?= htmlspecialchars($exam['exam_number']) ?></span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($exam_results as $res): ?>
+                                        <tr>
+                                            <td style="width:70%"><?= htmlspecialchars($res['subject_name']) ?></td>
+                                            <td style="width:30%" class="fw-bold text-center"><?= htmlspecialchars($res['grade']) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
-                <div class="card-body-custom">
-                    <span class="label-text">Proposed Topic</span>
-                    <p class="mb-0 mt-2" style="line-height: 1.6; color: var(--text-primary);">
-                        <?php echo htmlspecialchars($app['research_area'] ?: 'No research topic provided.'); ?>
-                    </p>
+            <?php else: ?>
+                <table class="table table-dossier table-bordered">
+                    <tr><td class="text-center text-muted py-2">No O'Level results captured.</td></tr>
+                </table>
+            <?php endif; ?>
+
+            <!-- Section 5: NYSC & Employment -->
+            <div class="dossier-section-title">5. NYSC Details & Employment History</div>
+            <table class="table table-dossier table-bordered">
+                <tbody>
+                    <tr>
+                        <th>NYSC Status:</th>
+                        <td><?= htmlspecialchars($app['nysc_status'] ?? 'N/A') ?></td>
+                        <th>Certificate No:</th>
+                        <td><code><?= htmlspecialchars($app['certificate_number'] ?? 'N/A') ?></code></td>
+                    </tr>
+                    <tr>
+                        <th>Current Employer:</th>
+                        <td><?= htmlspecialchars($app['employer'] ?? 'Not Specified') ?></td>
+                        <th>Position / Role:</th>
+                        <td><?= htmlspecialchars($app['job_title'] ?? 'N/A') ?></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Section 6: Referees -->
+            <div class="dossier-section-title">6. Referees Information</div>
+            <table class="table table-dossier table-bordered">
+                <thead>
+                    <tr class="table-light">
+                        <th style="width:35%">Referee Name</th>
+                        <th style="width:35%">Designation / Organization</th>
+                        <th style="width:30%">Contact Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($referees)): ?>
+                        <?php foreach ($referees as $ref): ?>
+                            <tr>
+                                <td><strong><?= htmlspecialchars($ref['full_name']) ?></strong></td>
+                                <td><?= htmlspecialchars($ref['organization'] ?? 'Academic/Professional') ?></td>
+                                <td>
+                                    <div><i class="bi bi-envelope me-1"></i> <?= htmlspecialchars($ref['email'] ?? '') ?></div>
+                                    <div><i class="bi bi-phone me-1"></i> <?= htmlspecialchars($ref['phone'] ?? '') ?></div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="3" class="text-center text-muted py-2">No referees listed.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+
+            <!-- Section 7: Candidate Declaration -->
+            <div class="dossier-section-title">7. Candidate Declaration</div>
+            <div class="p-3 border border-top-0 rounded-bottom mb-3" style="font-size:11.5px; line-height: 1.6; background: #fff;">
+                <p class="mb-2">
+                    I hereby declare that the particulars given above and attached in this application are correct and accurate to the best of my knowledge and belief. I understand that any false statement or omission of relevant information will automatically disqualify my application or lead to revocation of admission.
+                </p>
+                <div class="d-flex justify-content-between align-items-end mt-4 pt-3 border-top">
+                    <div>
+                        <span class="text-muted small">Date Generated / Submitted:</span>
+                        <div class="fw-bold"><?= date('F d, Y') ?></div>
+                    </div>
+                    <div class="text-center" style="width: 200px;">
+                        <div class="border-bottom border-dark pb-1" style="height: 30px;"></div>
+                        <span class="text-muted small">Candidate Signature</span>
+                    </div>
                 </div>
             </div>
 
         </div>
 
-        <div class="col-lg-4">
+
+        <!-- ================= SECTION 2: ATTACHED CREDENTIALS & DOCUMENTS BINDER ================= -->
+        <div id="attached-docs-section">
             
-            <div class="card-custom border-primary border-opacity-25" style="border-top-width: 4px;">
-                <div class="section-header bg-white">
-                    <span class="section-title text-primary"><i class="bi bi-folder2-open me-2"></i> Verification Documents</span>
-                </div>
-                <div class="card-body-custom p-3 bg-light">
-<?php if (!empty($uploaded_documents)): ?>
-    <div class="d-flex flex-column gap-2">
-
-        <?php foreach ($uploaded_documents as $doc): ?>
-            <?php
-                $docTitle   = ucwords(str_replace('_', ' ', $doc['document_type']));
-                $filename   = basename($doc['file_path']);
-                $fileIcon   = getFileIcon($filename);
-                $uploadDate = date('M d', strtotime($doc['uploaded_at']));
-
-                // FIX: resolve file from one level up
-                $filePath = htmlspecialchars(getPublicFilePath($doc['file_path']));
-                $status     = $doc['verification_status'] ?? 'Pending';
-                $statusClass = 'bg-warning text-dark';
-                if ($status === 'Verified') {
-                    $statusClass = 'bg-success text-white';
-                } elseif ($status === 'Re-upload Required' || $status === 'Rejected') {
-                    $statusClass = 'bg-danger text-white';
-                    $status = 'Rejected';
-                }
-            ?>
-
-              <button
-                  type="button"
-                  class="doc-item text-decoration-none border-0 bg-transparent text-start w-100"
-                  data-doc-url="<?php echo $filePath; ?>"
-                  data-doc-name="<?php echo htmlspecialchars($docTitle); ?>"
-              >
-                  <i class="<?php echo $fileIcon; ?> doc-icon"></i>
-
-                <div class="doc-info w-100">
-                    <div class="d-flex justify-content-between">
-                        <h6 class="mb-0"><?php echo htmlspecialchars($docTitle); ?></h6>
-                        <span class="badge <?php echo $statusClass; ?> ms-auto" style="font-size: 10px; padding: 4px 8px;"><?php echo htmlspecialchars($status); ?></span>
-                    </div>
-
-                    <div class="d-flex justify-content-between mt-1">
-                        <small class="text-truncate" style="max-width:150px;">
-                            <?php echo htmlspecialchars($filename); ?>
-                        </small>
-                        <small class="text-primary">View File</small>
-                    </div>
-                </div>
-              </button>
-
-        <?php endforeach; ?>
-
-    </div>
-<?php else: ?>
-    <div class="text-center py-4 text-muted">
-        <i class="bi bi-folder-x fs-1 mb-2 d-block"></i>
-        No documents uploaded.
-    </div>
-<?php endif; ?>
-</div>
-
+            <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+                <h4 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-paperclip me-2 text-primary"></i> Attached Credentials & Certificates (<?= count($uploaded_documents) ?>)
+                </h4>
+                <span class="text-muted small">These documents will be automatically printed right after the application slip on subsequent pages.</span>
             </div>
-            <?php if ($isEmbed): ?>
-                <div class="card-custom border-0 shadow-sm embed-only" id="docInlinePreview" style="display:none;">
-                    <div class="section-header">
-                        <span class="section-title">Document Preview</span>
+
+            <?php if (!empty($uploaded_documents)): ?>
+                <?php 
+                $docIndex = 0;
+                foreach ($uploaded_documents as $doc): 
+                    $docIndex++;
+                    $docTypeRaw = $doc['document_type'];
+                    $docTitle = ucwords(str_replace(['_', '-'], ' ', $docTypeRaw));
+                    $docUrl = resolveDocUrl($doc['file_path']);
+                    $ext = strtolower(pathinfo($doc['file_path'], PATHINFO_EXTENSION));
+                    $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+                    $isPdf = ($ext === 'pdf');
+                    $verificationStatus = $doc['verification_status'] ?? 'Pending';
+                    $statusBadge = ($verificationStatus === 'Verified') ? 'bg-success' : (($verificationStatus === 'Rejected') ? 'bg-danger' : 'bg-warning text-dark');
+                ?>
+
+                    <!-- Each document page starts with page-break for clean single stapled binder printout -->
+                    <div class="attached-doc-card page-break mb-4">
+                        
+                        <!-- Header Banner for Attached Document -->
+                        <div class="attached-doc-banner d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <span class="badge bg-dark text-uppercase mb-1">Attachment #<?= $docIndex ?></span>
+                                <h4 class="fw-bold text-dark mb-0"><?= htmlspecialchars($docTitle) ?></h4>
+                                <div class="text-muted small">
+                                    File: <code><?= htmlspecialchars(basename($doc['file_path'])) ?></code> &bull; 
+                                    Uploaded: <?= date('M d, Y H:i', strtotime($doc['uploaded_at'])) ?>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge <?= $statusBadge ?> px-3 py-2">
+                                    <i class="bi bi-shield-check me-1"></i> <?= htmlspecialchars($verificationStatus) ?>
+                                </span>
+                                <a href="<?= htmlspecialchars($docUrl) ?>" target="_blank" class="btn btn-outline-secondary btn-sm no-print">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i> Open Original
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Render Document Content -->
+                        <div class="text-center py-2">
+                            <?php if ($isImage): ?>
+                                <img src="<?= htmlspecialchars($docUrl) ?>" alt="<?= htmlspecialchars($docTitle) ?>" class="attached-doc-img">
+                            <?php elseif ($isPdf): ?>
+                                <div class="no-print mb-2">
+                                    <embed src="<?= htmlspecialchars($docUrl) ?>" type="application/pdf" class="attached-doc-embed">
+                                </div>
+                                <div class="p-4 bg-light border rounded text-center">
+                                    <i class="bi bi-file-earmark-pdf-fill text-danger fs-1 d-block mb-2"></i>
+                                    <h6 class="fw-bold"><?= htmlspecialchars($docTitle) ?> (PDF Document)</h6>
+                                    <p class="text-muted small mb-3">For best quality, you can open or print the original PDF file directly.</p>
+                                    <a href="<?= htmlspecialchars($docUrl) ?>" target="_blank" class="btn btn-primary btn-sm px-4">
+                                        <i class="bi bi-download me-1"></i> View / Download Full PDF
+                                    </a>
+                                </div>
+                            <?php else: ?>
+                                <div class="p-4 bg-light border rounded text-center">
+                                    <i class="bi bi-file-earmark-text text-secondary fs-1 d-block mb-2"></i>
+                                    <h6 class="fw-bold"><?= htmlspecialchars($docTitle) ?></h6>
+                                    <p class="text-muted small mb-3">File format: .<?= htmlspecialchars($ext) ?></p>
+                                    <a href="<?= htmlspecialchars($docUrl) ?>" target="_blank" class="btn btn-primary btn-sm px-4">
+                                        <i class="bi bi-download me-1"></i> Download Attachment
+                                    </a>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
                     </div>
-                    <div class="card-body-custom p-0" style="min-height:60vh;">
-                        <img id="docInlineImage" src="" alt="Document preview" style="display:none; width:100%; height:auto;">
-                        <iframe id="docInlineFrame" src="about:blank" style="display:none; width:100%; height:60vh; border:0;"></iframe>
-                    </div>
+
+                <?php endforeach; ?>
+            <?php else: ?>
+                <div class="alert alert-light border p-4 text-center text-muted">
+                    <i class="bi bi-folder-x fs-1 d-block mb-2"></i>
+                    No additional supporting documents uploaded for this applicant.
                 </div>
             <?php endif; ?>
 
-            <div class="card-custom">
-                <div class="section-header">
-                    <span class="section-title">Additional Context</span>
-                </div>
-                <div class="card-body-custom">
-                    
-                    <div class="mb-4">
-                        <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">NYSC Status</h6>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted small">Status</span>
-                            <span class="fw-medium text-end"><?php echo htmlspecialchars($app['nysc_status'] ?? ''); ?></span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span class="text-muted small">Cert No.</span>
-                            <span class="fw-medium text-end font-monospace small bg-light px-2 rounded"><?php echo htmlspecialchars($app['certificate_number'] ?? 'N/A'); ?></span>
-                        </div>
-                    </div>
+        </div>
 
-                    <div class="mb-4">
-                        <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">Experience</h6>
-                        <span class="label-text">Current Employer</span>
-                        <div class="value-text mb-2"><?php echo htmlspecialchars($app['employer'] ?: 'Not Specified'); ?></div>
-                        
-                        <span class="label-text">Role</span>
-                        <div class="value-text"><?php echo htmlspecialchars($app['job_title'] ?: '-'); ?></div>
-                    </div>
-
-                    <div>
-                        <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">Referees</h6>
-                        <?php foreach ($referees as $ref): ?>
-                            <div class="mb-3">
-                                <div class="fw-bold small"><?php echo htmlspecialchars($ref['full_name']); ?></div>
-                                <div class="text-muted small fst-italic"><?php echo htmlspecialchars($ref['organization']); ?></div>
-                                <!-- <a href="tel:<?php echo htmlspecialchars($ref['phone']); ?>" class="small text-decoration-none me-2"><i class="bi bi-telephone"></i> Call</a>
-                                <a href="mailto:<?php echo htmlspecialchars($ref['email']); ?>" class="small text-decoration-none"><i class="bi bi-envelope"></i> Email</a> -->
-                               <div class="text-muted small fst-italic"><?php echo htmlspecialchars($ref['phone']); ?></div>
-                               <div class="text-muted small fst-italic"><?php echo htmlspecialchars($ref['email']); ?></div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-
-     </div>
-</div>
-<script>
-document.querySelectorAll('.decision-form').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        // Find the button inside the current form
-        const btn = this.querySelector('.submit-btn');
-        const btnText = btn.querySelector('.btn-text');
-        const spinner = btn.querySelector('.spinner-border');
-
-        // 1. Disable all buttons in the action bar to prevent double clicks
-        document.querySelectorAll('.submit-btn').forEach(allBtn => {
-            allBtn.classList.add('disabled');
-            allBtn.style.pointerEvents = 'none';
-            allBtn.style.opacity = '0.7';
-        });
-
-        // 2. Change the clicked button state
-        btnText.innerHTML = "Processing..."; // Optional: Change text
-        spinner.classList.remove('d-none'); // Show the loading spinner
-        
-        // Form continues to process_decision.php automatically
-    });
-});
-
-document.querySelectorAll('.decision-ajax-form').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const btn = this.querySelector('.submit-btn');
-        const btnText = btn.querySelector('.btn-text');
-        const spinner = btn.querySelector('.spinner-border');
-
-        document.querySelectorAll('.submit-btn').forEach(allBtn => {
-            allBtn.classList.add('disabled');
-            allBtn.style.pointerEvents = 'none';
-            allBtn.style.opacity = '0.7';
-        });
-
-        btnText.innerHTML = "Processing...";
-        spinner.classList.remove('d-none');
-
-        const formData = new FormData(this);
-        fetch(this.getAttribute('action'), {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert(data.message || 'Action failed.');
-                location.reload();
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert('An error occurred.');
-            location.reload();
-        });
-    });
-});
-</script>
-
-<div class="modal fade" id="assignDeptModal" tabindex="-1" aria-labelledby="assignDeptModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <form class="modal-content" method="POST" action="./includes/assign_department.php">
-            <div class="modal-header">
-                <h5 class="modal-title" id="assignDeptModalLabel">Assign Department</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" name="application_id" value="<?php echo (int) $appId; ?>">
-                <input type="hidden" name="app_no" value="<?php echo htmlspecialchars($appNumber); ?>">
-                <div class="mb-3">
-                    <label class="form-label">Select Department</label>
-                    <select class="form-select" name="department_id" required>
-                        <option value="">Select Department</option>
-                        <?php foreach ($deptList as $dept): ?>
-                            <option value="<?php echo (int) $dept['dept_id']; ?>" <?php echo ((int) $dept['dept_id'] === (int) ($app['department_id'] ?? 0)) ? 'selected' : ''; ?>>
-                                <?php echo htmlspecialchars($dept['dept_name']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Note (optional)</label>
-                    <textarea class="form-control" name="note" rows="3" placeholder="Add a note for the department."></textarea>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary">Assign Department</button>
-            </div>
-        </form>
     </div>
-</div>
-<?php if (!$isEmbed): ?>
-<div class="modal fade" id="docPreviewModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="docPreviewTitle">Document Preview</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body p-0" style="min-height:70vh;">
-        <img id="docPreviewImage" src="" alt="Document preview" style="display:none; width:100%; height:auto;">
-        <iframe id="docPreviewFrame" src="about:blank" style="display:none; width:100%; height:70vh; border:0;"></iframe>
-      </div>
+
+    <!-- Floating Print Button for Fast Access -->
+    <div class="position-fixed bottom-0 end-0 p-4 no-print" style="z-index: 1050;">
+        <button onclick="window.print()" class="btn btn-success btn-lg shadow-lg fw-bold rounded-pill px-4 py-3">
+            <i class="bi bi-printer-fill me-2 fs-5"></i> Print Dossier (Slip + Attachments)
+        </button>
     </div>
-  </div>
-</div>
-<?php endif; ?>
 
-<?php if (!$isEmbed): ?>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<?php endif; ?>
-<script>
-const isEmbed = <?php echo $isEmbed ? 'true' : 'false'; ?>;
-document.querySelectorAll('[data-doc-url]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const url = btn.dataset.docUrl || '';
-        const name = btn.dataset.docName || 'Document Preview';
-        const img = isEmbed ? document.getElementById('docInlineImage') : document.getElementById('docPreviewImage');
-        const frame = isEmbed ? document.getElementById('docInlineFrame') : document.getElementById('docPreviewFrame');
-
-        if (!isEmbed) {
-            const title = document.getElementById('docPreviewTitle');
-            title.textContent = name;
-        }
-
-        if (img) { img.style.display = 'none'; img.src = ''; }
-        if (frame) { frame.style.display = 'none'; frame.src = 'about:blank'; }
-
-        const lower = url.toLowerCase();
-        if (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.gif') || lower.endsWith('.webp')) {
-            if (img) { img.src = url; img.style.display = 'block'; }
-        } else {
-            if (frame) { frame.src = url; frame.style.display = 'block'; }
-        }
-
-        if (isEmbed) {
-            const panel = document.getElementById('docInlinePreview');
-            if (panel) {
-                panel.style.display = 'block';
-                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        } else if (typeof bootstrap !== 'undefined') {
-            const modal = new bootstrap.Modal(document.getElementById('docPreviewModal'));
-            modal.show();
-        }
-    });
-});
-</script>
 </body>
 </html>
-
