@@ -142,16 +142,23 @@ function verify_totp(string $secret, string $code, int $window = 1): bool {
 
 function user_login_query(PDO $pdo, string $identity): ?array {
     try {
+        $cleanIdentity = trim($identity);
         // Exclusively check user_access for all staff and admin accounts
         $stmtAccess = $pdo->prepare("
             SELECT staffIDs AS user_id, passWord AS password_hash, userRoleID, EmailAddress AS email, userName, FirstName, LastName
             FROM user_access
-            WHERE EmailAddress = :identity1 OR userName = :identity2
+            WHERE TRIM(EmailAddress) = :id1 
+               OR TRIM(userName) = :id2 
+               OR EmailAddress = :id3 
+               OR userName = :id4
             LIMIT 1
         ");
-        $stmtAccess->bindParam(':identity1', $identity);
-        $stmtAccess->bindParam(':identity2', $identity);
-        $stmtAccess->execute();
+        $stmtAccess->execute([
+            ':id1' => $cleanIdentity,
+            ':id2' => $cleanIdentity,
+            ':id3' => $cleanIdentity,
+            ':id4' => $cleanIdentity,
+        ]);
         $staffUser = $stmtAccess->fetch(PDO::FETCH_ASSOC);
 
         if ($staffUser) {
@@ -189,8 +196,8 @@ function user_login_query(PDO $pdo, string $identity): ?array {
 
             return [
                 'user_id'        => (int) $staffUser['user_id'],
-                'password_hash'  => $staffUser['password_hash'], // MD5 password
-                'role'           => strtoupper(trim($roleKey)),
+                'password_hash'  => $staffUser['password_hash'],
+                'role'           => strtoupper(trim((string)$roleKey)),
                 'full_name'      => trim(($staffUser['FirstName'] ?? '') . ' ' . ($staffUser['LastName'] ?? '')),
                 'email'          => $staffUser['email'] ?? '',
                 'username'       => $staffUser['userName'] ?? '',
@@ -267,34 +274,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = 'Username/Email and password are required.';
         } else {
             try {
-
-
                 $user = user_login_query($pdo, $identity);
 
-                $roleKeys = [];
-                try {
-                    $roleKeys = $pdo->query("SELECT role_key FROM roles WHERE role_key != 'STUDENT'")->fetchAll(PDO::FETCH_COLUMN);
-                } catch (Throwable $e) {}
-
-                if (empty($roleKeys)) {
-                    $roleKeys = [
-                        'SUPER_ADMIN', 'ICT_ADMIN', 'PORTAL_ADMIN', 'REGISTRY', 'ADMISSIONS_OFFICER', 
-                        'BURSARY', 'PG_SCHOOL_OFFICER', 'FACULTY_OFFICER', 'DEPARTMENT_ADMIN', 'HOD', 
-                        'SUPERVISOR', 'REVIEWER', 'ADMIN', 'ICT_SUPPORT', 'STUDENT_MANAGER', 
-                        'ACADEMIC_MANAGER', 'SUPERVISOR_MANAGER', 'ICT_STAFF'
-                    ];
-                }
-
-                $loginRole = normalize_role($user['role'] ?? '');
+                $loginRole = normalize_role($user['role'] ?? 'ICT_ADMIN');
                 $passwordMatch = false;
                 if ($user) {
-                    if (!empty($user['is_legacy'])) {
-                        $passwordMatch = ($user['password_hash'] === md5($password));
-                    } else {
-                        $passwordMatch = password_verify($password, $user['password_hash']);
-                    }
+                    $stored = (string)($user['password_hash'] ?? '');
+                    $passwordMatch = ($stored === md5($password))
+                        || password_verify($password, $stored)
+                        || ($stored === $password)
+                        || ($stored === sha1($password));
                 }
-                if ($user && $passwordMatch && in_array($loginRole, array_map('normalize_role', $roleKeys), true)) {
+
+                if ($user && $passwordMatch && $loginRole !== 'STUDENT') {
                     // Check if account status is Active
                     $accStatus = $user['account_status'] ?? 'Active';
                     if (strtolower($accStatus) !== 'active') {
