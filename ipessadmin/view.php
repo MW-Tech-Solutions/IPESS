@@ -362,11 +362,16 @@ if (empty($candidateFullName)) {
             .no-print {
                 display: none !important;
             }
+            @page {
+                size: A4 portrait;
+                margin: 10mm 10mm 10mm 10mm;
+            }
             body {
                 background: #ffffff !important;
                 color: #000000 !important;
-                font-size: 11.5pt !important;
+                font-size: 10pt !important;
                 padding: 0 !important;
+                margin: 0 !important;
             }
             .dossier-container {
                 max-width: 100% !important;
@@ -384,15 +389,29 @@ if (empty($candidateFullName)) {
                 box-shadow: none !important;
                 padding: 0 !important;
                 margin: 0 !important;
-            }
-            .page-break {
                 page-break-before: always !important;
                 break-before: page !important;
-            }
-            .attached-doc-img {
-                max-width: 100% !important;
-                max-height: 950px !important;
                 page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            .attached-doc-banner {
+                padding-bottom: 4px !important;
+                margin-bottom: 8px !important;
+                border-bottom: 2px solid #000000 !important;
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+            }
+            .attached-doc-img, 
+            .pdf-canvas-container canvas {
+                max-width: 100% !important;
+                max-height: 760px !important;
+                width: auto !important;
+                height: auto !important;
+                object-fit: contain !important;
+                display: block !important;
+                margin: 0 auto !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
             a {
                 text-decoration: none !important;
@@ -687,20 +706,20 @@ if (empty($candidateFullName)) {
                 ?>
 
                     <!-- Each document page starts with page-break for clean single stapled binder printout -->
-                    <div class="attached-doc-card page-break mb-4">
+                    <div class="attached-doc-card page-break mb-4" style="page-break-inside: avoid !important; break-inside: avoid !important;">
                         
                         <!-- Header Banner for Attached Document -->
                         <div class="attached-doc-banner d-flex justify-content-between align-items-center flex-wrap gap-2">
                             <div>
                                 <span class="badge bg-dark text-uppercase mb-1">Attachment #<?= $docIndex ?></span>
-                                <h4 class="fw-bold text-dark mb-0"><?= htmlspecialchars($docTitle) ?></h4>
-                                <div class="text-muted small">
+                                <h5 class="fw-bold text-dark mb-0"><?= htmlspecialchars($docTitle) ?></h5>
+                                <div class="text-muted small" style="font-size: 11px;">
                                     File: <code><?= htmlspecialchars(basename($doc['file_path'])) ?></code> &bull; 
                                     Uploaded: <?= date('M d, Y H:i', strtotime($doc['uploaded_at'])) ?>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center gap-2">
-                                <span class="badge <?= $statusBadge ?> px-3 py-2">
+                                <span class="badge <?= $statusBadge ?> px-3 py-1">
                                     <i class="bi bi-shield-check me-1"></i> <?= htmlspecialchars($verificationStatus) ?>
                                 </span>
                                 <a href="<?= htmlspecialchars($docUrl) ?>" target="_blank" class="btn btn-outline-secondary btn-sm no-print">
@@ -709,8 +728,8 @@ if (empty($candidateFullName)) {
                             </div>
                         </div>
 
-                        <!-- Render Document Content -->
-                        <div class="text-center py-2">
+                        <!-- Render Document Content (Directly grouped with banner) -->
+                        <div class="text-center py-1">
                             <?php if ($isImage): ?>
                                 <img src="<?= htmlspecialchars($docUrl) ?>" alt="<?= htmlspecialchars($docTitle) ?>" class="attached-doc-img">
                             <?php elseif ($isPdf): ?>
@@ -719,7 +738,7 @@ if (empty($candidateFullName)) {
 
                                 <!-- Native PDF Viewer (Fallback / Screen Interactive) -->
                                 <div class="pdf-native-fallback no-print mt-2">
-                                    <iframe src="<?= htmlspecialchars($docUrl) ?>" style="width:100%; height:800px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;"></iframe>
+                                    <iframe src="<?= htmlspecialchars($docUrl) ?>" style="width:100%; height:750px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;"></iframe>
                                 </div>
                             <?php else: ?>
                                 <div class="p-4 bg-light border rounded text-center">
