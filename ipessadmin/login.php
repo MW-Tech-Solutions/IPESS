@@ -141,42 +141,10 @@ function verify_totp(string $secret, string $code, int $window = 1): bool {
 
 
 function user_login_query(PDO $pdo, string $identity): ?array {
-    $flags = get_user_column_flags($pdo);
-    $passwordColumn = $flags['password_hash'] ? 'password_hash' : 'password';
-    $totpSelect = $flags['totp_secret'] ? ', u.totp_secret, u.totp_enabled' : '';
-
-    $user = null;
-    if ($flags['role_id']) {
-        $stmt = $pdo->prepare("
-            SELECT u.user_id, u.{$passwordColumn} AS password_hash, r.role_key AS role, u.full_name, u.account_status{$totpSelect}
-            FROM users u
-            LEFT JOIN roles r ON u.role_id = r.role_id
-            WHERE u.email = :identity
-            LIMIT 1
-        ");
-        $stmt->bindParam(':identity', $identity);
-        $stmt->execute();
-        $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
-    } else if ($flags['role']) {
-        $stmt = $pdo->prepare("SELECT user_id, {$passwordColumn} AS password_hash, role, full_name, account_status{$totpSelect} FROM users WHERE email = :identity LIMIT 1");
-        $stmt->bindParam(':identity', $identity);
-        $stmt->execute();
-        $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
-    }
-
-    if ($user) {
-        // If role is null (invalid/missing role_id FK), fall through to legacy table
-        if (empty($user['role'])) {
-            $user = null;
-        } else {
-            return $user;
-        }
-    }
-
-    // Fallback to legacy user_access table (allows login with email OR username)
     try {
+        // Exclusively check user_access for all staff and admin accounts
         $stmtAccess = $pdo->prepare("
-            SELECT staffIDs AS user_id, passWord AS password_hash, userRoleID, EmailAddress AS email, FirstName, LastName
+            SELECT staffIDs AS user_id, passWord AS password_hash, userRoleID, EmailAddress AS email, userName, FirstName, LastName
             FROM user_access
             WHERE EmailAddress = :identity1 OR userName = :identity2
             LIMIT 1
@@ -184,64 +152,57 @@ function user_login_query(PDO $pdo, string $identity): ?array {
         $stmtAccess->bindParam(':identity1', $identity);
         $stmtAccess->bindParam(':identity2', $identity);
         $stmtAccess->execute();
-        $legacyUser = $stmtAccess->fetch(PDO::FETCH_ASSOC);
-        if ($legacyUser) {
-            $roleMapKeys = [
-                1  => 'DEVELOPER',
-                2  => 'SUPERVISOR',
-                3  => 'REVIEWER',
-                4  => 'HOD',
-                5  => 'FACULTY_OFFICER',
-                6  => 'ICTO',
-                7  => 'ICT_ADMIN',
-                8  => 'REGISTRY',
-                9  => 'REVIEWER',
-                10 => 'ACADEMIC_MANAGER',
-                11 => 'ACADEMIC_MANAGER',
-                12 => 'SUPER_ADMIN',
-                13 => 'ICTO',
-            ];
-            $legacyRoleId = (int)($legacyUser['userRoleID'] ?? 0);
-            $legacyRoleKey = $roleMapKeys[$legacyRoleId] ?? null;
+        $staffUser = $stmtAccess->fetch(PDO::FETCH_ASSOC);
 
-            // If not in legacy map, look up from the modern users+roles table by email
-            if ($legacyRoleKey === null) {
-                try {
-                    $stmtModernRole = $pdo->prepare("
-                        SELECT r.role_key FROM users u
-                        LEFT JOIN roles r ON u.role_id = r.role_id
-                        WHERE u.email = ? AND r.role_key IS NOT NULL LIMIT 1
-                    ");
-                    $stmtModernRole->execute([$legacyUser['email'] ?? '']);
-                    $legacyRoleKey = $stmtModernRole->fetchColumn() ?: 'SUPER_ADMIN';
-                } catch (Throwable $e) {
-                    $legacyRoleKey = 'SUPER_ADMIN';
-                }
+        if ($staffUser) {
+            $userRoleId = (int)($staffUser['userRoleID'] ?? 0);
+            $roleKey = null;
+
+            // 1. Check if userRoleId matches role_id in roles table (e.g. 14=ICT_ADMIN, 15=ICT_SUPPORT, 1=SUPER_ADMIN)
+            try {
+                $stmtR = $pdo->prepare("SELECT role_key FROM roles WHERE role_id = ? LIMIT 1");
+                $stmtR->execute([$userRoleId]);
+                $roleKey = $stmtR->fetchColumn();
+            } catch (Throwable $e) {}
+
+            // 2. Fallback to legacy acd_tbluser mapping
+            if (!$roleKey) {
+                $legacyMap = [
+                    1  => 'DEVELOPER',
+                    2  => 'SUPERVISOR',
+                    3  => 'REVIEWER',
+                    4  => 'HOD',
+                    5  => 'FACULTY_OFFICER',
+                    6  => 'ICTO',
+                    7  => 'ICT_ADMIN',
+                    8  => 'REGISTRY',
+                    9  => 'REVIEWER',
+                    10 => 'ACADEMIC_MANAGER',
+                    11 => 'ACADEMIC_MANAGER',
+                    12 => 'SUPER_ADMIN',
+                    13 => 'ICTO',
+                    14 => 'ICT_ADMIN',
+                    15 => 'ICT_SUPPORT'
+                ];
+                $roleKey = $legacyMap[$userRoleId] ?? 'ICT_ADMIN';
             }
 
-            // Self-heal: fix the role_id in the modern users table so next login goes through modern path
-            try {
-                $stmtRoleId = $pdo->prepare("SELECT role_id FROM roles WHERE role_key = ? LIMIT 1");
-                $stmtRoleId->execute([$legacyRoleKey]);
-                $correctRoleId = $stmtRoleId->fetchColumn();
-                if ($correctRoleId) {
-                    $stmtFix = $pdo->prepare("UPDATE users SET role_id = ? WHERE email = ?");
-                    $stmtFix->execute([$correctRoleId, $legacyUser['email'] ?? '']);
-                }
-            } catch (Throwable $fixErr) {}
-
             return [
-                'user_id'        => (int) $legacyUser['user_id'],
-                'password_hash'  => $legacyUser['password_hash'], // MD5 hash
-                'role'           => $legacyRoleKey,
-                'full_name'      => trim(($legacyUser['FirstName'] ?? '') . ' ' . ($legacyUser['LastName'] ?? '')),
+                'user_id'        => (int) $staffUser['user_id'],
+                'password_hash'  => $staffUser['password_hash'], // MD5 password
+                'role'           => strtoupper(trim($roleKey)),
+                'full_name'      => trim(($staffUser['FirstName'] ?? '') . ' ' . ($staffUser['LastName'] ?? '')),
+                'email'          => $staffUser['email'] ?? '',
+                'username'       => $staffUser['userName'] ?? '',
                 'account_status' => 'Active',
                 'totp_secret'    => '',
                 'totp_enabled'   => 0,
                 'is_legacy'      => true
             ];
         }
-    } catch (Throwable $e) {}
+    } catch (Throwable $e) {
+        error_log("Login error querying user_access: " . $e->getMessage());
+    }
 
     return null;
 }
