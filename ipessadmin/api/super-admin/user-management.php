@@ -247,6 +247,18 @@ if ($action === 'update') {
         }
     }
 
+    // Also synchronize with legacy user_access table
+    try {
+        $stmtUA = $pdo->prepare("UPDATE user_access SET userRoleID = ?, activeStatus = ? WHERE EmailAddress = ?");
+        $stmtUA->execute([$roleId, ($accountStatus === 'Active' ? '1' : '0'), $email]);
+    } catch (Throwable $e) {}
+
+    // Clear stale cached sidebar menus for this user so the new role's permissions apply immediately
+    try {
+        $pdo->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?")->execute([$userId]);
+        $pdo->prepare("DELETE FROM personal_page_menu_tab WHERE userID = ?")->execute([$userId]);
+    } catch (Throwable $e) {}
+
     $dutyViewRecords = !empty($_POST['duty_view_records']) ? 1 : 0;
     $dutyApproveApps = !empty($_POST['duty_approve_apps']) ? 1 : 0;
     $dutyVerifyDocs = !empty($_POST['duty_verify_docs']) ? 1 : 0;

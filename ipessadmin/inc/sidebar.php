@@ -20,6 +20,9 @@
 			//$dashboard = explode(".",$usertype['pageName']);
 			$dashboardname = !empty($usertype['pageName']) ? $usertype['pageName'] : ''; //$dashboard[0];
 		
+		// Clear stale personal menu entries if user's role has changed
+		$con->query("DELETE FROM pesonal_right_page_main_menus WHERE userID = '$usersession' AND roleID != '$rolesession'");
+
 		//create dynamic tabs and menus for individual users
 		$personalrole = $con->query("SELECT * FROM right_page_main_menus WHERE roleID = '$rolesession' ");
 		
