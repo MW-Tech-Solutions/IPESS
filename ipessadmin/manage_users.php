@@ -20,6 +20,48 @@ $today = date("Y-m-d H:i:s");
 $msg = "";
 
 /* =========================
+   HANDLE PASSWORD RESET (user_access ONLY)
+========================= */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
+    $staffIdToReset = (int)($_POST['target_staff_id'] ?? 0);
+    if ($staffIdToReset > 0) {
+        try {
+            $stmtFind = $con->prepare("SELECT staffIDs, title, FirstName, LastName, userName, EmailAddress FROM user_access WHERE staffIDs = ? LIMIT 1");
+            $stmtFind->execute([$staffIdToReset]);
+            $staffRow = $stmtFind->fetch(PDO::FETCH_ASSOC);
+
+            if ($staffRow) {
+                $newPlain = '1234567';
+                $newMd5 = md5($newPlain);
+
+                // Update password in user_access
+                $stmtUpdate = $con->prepare("UPDATE user_access SET passWord = ? WHERE staffIDs = ?");
+                $stmtUpdate->execute([$newMd5, $staffIdToReset]);
+
+                $staffFullName = trim("{$staffRow['title']} {$staffRow['FirstName']} {$staffRow['LastName']}");
+                $staffUsername = $staffRow['userName'];
+
+                $msg = '<div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            Password for <strong>' . htmlspecialchars($staffFullName) . '</strong> (<code>' . htmlspecialchars($staffUsername) . '</code>) has been successfully reset to: <strong><code>1234567</code></strong> in <code>user_access</code>.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>';
+            } else {
+                $msg = '<div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Staff record not found in <code>user_access</code>.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>';
+            }
+        } catch (Throwable $e) {
+            $msg = '<div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Error resetting password: ' . htmlspecialchars($e->getMessage()) . '
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>';
+        }
+    }
+}
+
+/* =========================
    SEND MESSAGE
 ========================= */
 if (isset($_POST['sendmsg'])) {
@@ -50,7 +92,7 @@ if (isset($_POST['sendmsg'])) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Contact Admin</title>
+  <title>Staff & Admin Management - IPESS</title>
   <?php include("inc/htmlheaderotherfolders.php"); ?>
 </head>
 
@@ -61,40 +103,53 @@ if (isset($_POST['sendmsg'])) {
 
 <main id="main" class="main">
 
-<div class="pagetitle">
-  <h1>User Details</h1>
+<div class="pagetitle d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1>Staff & Admin Management</h1>
+    <nav>
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="dashboard.php">Home</a></li>
+        <li class="breadcrumb-item active">Staff Users (<code>user_access</code>)</li>
+      </ol>
+    </nav>
+  </div>
+  <div>
+    <a href="admin_createusers.php" class="btn btn-primary btn-sm">
+      <i class="bi bi-person-plus-fill me-1"></i> Add New Staff
+    </a>
+  </div>
 </div>
 
 <section class="section">
 <div class="row">
 <div class="col-md-12">
 
-<div class="card">
-<div class="card-body">
+<div class="card shadow-sm border-0">
+<div class="card-body p-4">
 
 <?= $msg ?>
 
 <div class="table-responsive text-nowrap">
-<table class="table datatable table-striped">
+<table class="table datatable table-striped table-hover align-middle">
 <thead>
 <tr>
   <th>S/No</th>
   <th>Name</th>
-  <th>Position</th>
+  <th>Role / Position</th>
   <th>Phone</th>
   <th>Email</th>
-  <th>UserName</th>
+  <th>Username</th>
   <th>Active Status</th>
   <th>Approve Status</th>
-  <th>Manage</th>
+  <th class="text-center">Actions</th>
 </tr>
 </thead>
 <tbody>
 
 <?php
 $sno = 0;
-$stmt = $con->prepare("SELECT * FROM user_access WHERE approveUser = 'approved'");
-$stmt->execute();
+// Load all staff from user_access
+$stmt = $con->query("SELECT * FROM user_access ORDER BY staffIDs DESC");
 
 while ($readusers = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $sno++;
@@ -106,33 +161,29 @@ while ($readusers = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $readusers['LastName']
     );
 
-    $roleName = 'N/A';
+    $roleName = 'Unassigned';
     try {
-        $roleStmt = $con->prepare("SELECT access FROM acd_tbluser WHERE ID = ?");
+        $roleStmt = $con->prepare("SELECT role_name FROM roles WHERE role_id = ? LIMIT 1");
         $roleStmt->execute([$readusers['userRoleID']]);
-        $role = $roleStmt->fetch(PDO::FETCH_ASSOC);
-        if ($role) {
-            $roleName = $role['access'];
+        $rName = $roleStmt->fetchColumn();
+        if ($rName) {
+            $roleName = $rName;
+        } else {
+            $roleStmt2 = $con->prepare("SELECT access FROM acd_tbluser WHERE ID = ? LIMIT 1");
+            $roleStmt2->execute([$readusers['userRoleID']]);
+            $rName2 = $roleStmt2->fetchColumn();
+            if ($rName2) $roleName = $rName2;
         }
-    } catch (Throwable $e) {
-        try {
-            $roleStmt = $con->prepare("SELECT role_name FROM roles WHERE role_id = ? LIMIT 1");
-            $roleStmt->execute([$readusers['userRoleID']]);
-            $role = $roleStmt->fetch(PDO::FETCH_ASSOC);
-            if ($role) {
-                $roleName = $role['role_name'];
-            }
-        } catch (Throwable $ex) {}
-    }
+    } catch (Throwable $e) {}
 ?>
 
 <tr>
   <td><?= $sno ?></td>
-  <td><?= htmlspecialchars($fullusername) ?></td>
-  <td><?= htmlspecialchars($roleName) ?></td>
-  <td><?= htmlspecialchars($readusers['phoneno']) ?></td>
-  <td><?= htmlspecialchars($readusers['EmailAddress']) ?></td>
-  <td><?= htmlspecialchars($readusers['userName']) ?></td>
+  <td><strong><?= htmlspecialchars($fullusername) ?></strong></td>
+  <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($roleName) ?></span></td>
+  <td><?= htmlspecialchars($readusers['phoneno'] ?? '') ?></td>
+  <td><?= htmlspecialchars($readusers['EmailAddress'] ?? '') ?></td>
+  <td><code><?= htmlspecialchars($readusers['userName'] ?? '') ?></code></td>
 
   <td>
     <?php if ($readusers['activeStatus'] == "1") { ?>
@@ -142,15 +193,31 @@ while ($readusers = $stmt->fetch(PDO::FETCH_ASSOC)) {
     <?php } ?>
   </td>
 
-  <td><?= htmlspecialchars($readusers['approveUser']) ?></td>
+  <td>
+    <?php if (strtolower($readusers['approveUser'] ?? '') === 'approved') { ?>
+        <span class="badge bg-primary">Approved</span>
+    <?php } else { ?>
+        <span class="badge bg-warning text-dark"><?= htmlspecialchars($readusers['approveUser'] ?? 'Pending') ?></span>
+    <?php } ?>
+  </td>
 
   <td>
-    <a href="manage_user_status.php?id=<?= $readusers['staffIDs'] ?>" class="btn btn-sm btn-primary">
-      Manage
-    </a>
-    <a href="change_user_role.php?id=<?= $readusers['staffIDs'] ?>" class="btn btn-sm btn-outline-warning ms-1">
-      <i class="bi bi-shield-lock me-1"></i>Change Role
-    </a>
+    <div class="d-flex align-items-center gap-1 justify-content-center">
+      <a href="manage_user_status.php?id=<?= $readusers['staffIDs'] ?>" class="btn btn-sm btn-primary" title="Manage Status">
+        <i class="bi bi-sliders me-1"></i>Status
+      </a>
+      <a href="change_user_role.php?id=<?= $readusers['staffIDs'] ?>" class="btn btn-sm btn-outline-warning" title="Change Role">
+        <i class="bi bi-shield-lock me-1"></i>Role
+      </a>
+      
+      <!-- Password Reset Button -->
+      <form method="POST" action="manage_users.php" class="d-inline" onsubmit="return confirm('Are you sure you want to reset password for <?= htmlspecialchars(addslashes($fullusername)) ?> (<?= htmlspecialchars(addslashes($readusers['userName'])) ?>) to 1234567?');">
+        <input type="hidden" name="target_staff_id" value="<?= htmlspecialchars($readusers['staffIDs']) ?>">
+        <button type="submit" name="reset_password" class="btn btn-sm btn-outline-danger" title="Reset password to 1234567">
+          <i class="bi bi-key-fill me-1"></i>Reset Pwd
+        </button>
+      </form>
+    </div>
   </td>
 </tr>
 
