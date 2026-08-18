@@ -210,13 +210,9 @@ while ($readusers = $stmt->fetch(PDO::FETCH_ASSOC)) {
         <i class="bi bi-shield-lock me-1"></i>Role
       </a>
       
-      <!-- Password Reset Button -->
-      <form method="POST" action="manage_users.php" class="d-inline" onsubmit="return confirm('Are you sure you want to reset password for <?= htmlspecialchars(addslashes($fullusername)) ?> (<?= htmlspecialchars(addslashes($readusers['userName'])) ?>) to 1234567?');">
-        <input type="hidden" name="target_staff_id" value="<?= htmlspecialchars($readusers['staffIDs']) ?>">
-        <button type="submit" name="reset_password" class="btn btn-sm btn-outline-danger" title="Reset password to 1234567">
-          <i class="bi bi-key-fill me-1"></i>Reset Pwd
-        </button>
-      </form>
+      <a href="reset_user_password.php?id=<?= $readusers['staffIDs'] ?>" class="btn btn-sm btn-outline-danger" title="Reset password to 1234567" onclick="return confirm('Are you sure you want to reset password for <?= htmlspecialchars(addslashes($fullusername)) ?> (<?= htmlspecialchars(addslashes($readusers['userName'])) ?>) to 1234567?');">
+        <i class="bi bi-key-fill me-1"></i>Reset Pwd
+      </a>
     </div>
   </td>
 </tr>
