@@ -1,23 +1,12 @@
 RewriteEngine On
 
-# 1. Redirect /admin or /ADMIN (with or without trailing slash) to /IPESS/ipessadmin/ (case-insensitive)
-RewriteCond %{REQUEST_URI} ^/IPESS/admin/?$ [NC]
-RewriteRule ^admin/?$ /IPESS/ipessadmin/ [L,R=301]
+# 1. Redirect legacy /admin or /ADMIN to ipessadmin/
+RewriteCond %{REQUEST_URI} ^(?:/IPESS)?/(?:ADMIN|admin)/?$ [NC]
+RewriteRule ^(?:ADMIN|admin)/?$ ipessadmin/ [L,R=301]
 
-RewriteCond %{REQUEST_URI} ^/IPESS/admin/(.+)$ [NC]
-RewriteRule ^admin/(.+)$ /IPESS/ipessadmin/$1 [L,R=301]
+RewriteCond %{REQUEST_URI} ^(?:/IPESS)?/(?:ADMIN|admin)/(.*)$ [NC]
+RewriteRule ^(?:ADMIN|admin)/(.*)$ ipessadmin/$1 [L,R=301]
 
-RewriteCond %{REQUEST_URI} ^/IPESS/ADMIN/?$ [NC]
-RewriteRule ^ADMIN/?$ /IPESS/ipessadmin/ [L,R=301]
-
-RewriteCond %{REQUEST_URI} ^/IPESS/ADMIN/(.+)$ [NC]
-RewriteRule ^ADMIN/(.+)$ /IPESS/ipessadmin/$1 [L,R=301]
-
-# 2. Prevent Apache mod_dir trailing-slash redirect bug on Windows/XAMPP for other directories
-# Force a web-relative slash redirect for any directory requests lacking a trailing slash.
-RewriteCond %{REQUEST_FILENAME} -d
-RewriteCond %{REQUEST_URI} !(.*)/$
-RewriteRule ^(.*)$ /IPESS/$1/ [L,R=301]
-
-
-
+# 2. Prevent directory listing issues and ensure standard index handling
+Options -Indexes
+DirectoryIndex index.php index.html

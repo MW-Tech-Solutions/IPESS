@@ -158,16 +158,37 @@ try {
 
     $studentUserId = (int) ($_POST['student_user_id'] ?? 0);
     $applicationId = (int) ($_POST['application_id'] ?? 0);
-    if ($studentUserId <= 0 || $applicationId <= 0) {
-        echo json_encode(['success' => false, 'message' => 'Student and application references are required.']);
+
+    // Auto-resolve missing references if referee_id is provided
+    if ($applicationId <= 0 && !empty($_POST['referee_id'])) {
+        $refId = (int)$_POST['referee_id'];
+        $stmtRef = $pdo->prepare("SELECT a.application_id, a.user_id FROM referees r JOIN applications a ON r.application_id = a.application_id WHERE r.referee_id = ? LIMIT 1");
+        $stmtRef->execute([$refId]);
+        $refRow = $stmtRef->fetch(PDO::FETCH_ASSOC);
+        if ($refRow) {
+            $applicationId = (int)$refRow['application_id'];
+            $studentUserId = (int)$refRow['user_id'];
+        }
+    }
+
+    if ($applicationId <= 0 && $studentUserId > 0) {
+        $stmtApp = $pdo->prepare("SELECT application_id FROM applications WHERE user_id = ? ORDER BY application_id DESC LIMIT 1");
+        $stmtApp->execute([$studentUserId]);
+        $applicationId = (int)$stmtApp->fetchColumn();
+    }
+
+    if ($studentUserId <= 0 && $applicationId > 0) {
+        $stmtUser = $pdo->prepare("SELECT user_id FROM applications WHERE application_id = ? LIMIT 1");
+        $stmtUser->execute([$applicationId]);
+        $studentUserId = (int)$stmtUser->fetchColumn();
+    }
+
+    if ($applicationId <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Application reference is required.']);
         exit;
     }
 
-    $profile = fetch_student_profile($pdo, $studentUserId);
-    if ((int) ($profile['student']['application_id'] ?? 0) !== $applicationId) {
-        echo json_encode(['success' => false, 'message' => 'Application does not match latest student record.']);
-        exit;
-    }
+    $profile = ($studentUserId > 0) ? fetch_student_profile($pdo, $studentUserId) : null;
 
     if ($action === 'undo_application') {
         $pdo->beginTransaction();

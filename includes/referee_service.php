@@ -5,7 +5,7 @@ require_once __DIR__ . '/../config/urls.php';
 
 function create_referee_request(PDO $pdo, int $referee_id, int $application_id, ?int $actor_id = null): array {
     $token = bin2hex(random_bytes(20));
-    $expires = (new DateTime('+7 days'))->format('Y-m-d H:i:s');
+    $expires = null; // Referee verification links do not expire
 
     $stmt = $pdo->prepare("INSERT INTO referee_requests (referee_id, application_id, token, status, requested_by, requested_at, expires_at)
         VALUES (?, ?, ?, 'Requested', ?, NOW(), ?)");

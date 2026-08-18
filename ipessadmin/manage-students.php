@@ -908,7 +908,9 @@ async function loadStudentProfile(studentUserId) {
     }
 
     // Also populate the Contact Referee tab with the same list
-    renderContactRefereeList(data.referees || []);
+    const studentAppId = s.application_id || data.student?.application_id || 0;
+    const studentUserId = s.user_id || data.student?.user_id || 0;
+    renderContactRefereeList(data.referees || [], studentAppId, studentUserId);
 
     // Set Slips URLs
     const viewAppFormBtn = document.getElementById('btnViewAppForm');
@@ -1162,7 +1164,7 @@ if (resetPwdBtn) {
 // ============================================================
 let _currentReferees = [];
 
-function renderContactRefereeList(refs) {
+function renderContactRefereeList(refs, appId, userId) {
     _currentReferees = refs || [];
     const container = document.getElementById('contactRefereeList');
     if (!container) return;
@@ -1187,7 +1189,8 @@ function renderContactRefereeList(refs) {
     container.querySelectorAll('.contact-one-referee-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const refId = btn.dataset.refereeId;
-            const appId = document.querySelector('#addRefereeForm [name="application_id"]').value;
+            const targetAppId = appId || document.querySelector('#biodataForm [name="application_id"]')?.value || document.querySelector('#addRefereeForm [name="application_id"]')?.value || '';
+            const targetUserId = userId || document.querySelector('#biodataForm [name="student_user_id"]')?.value || document.querySelector('#addRefereeForm [name="student_user_id"]')?.value || '';
             const status = document.getElementById('contactRefereeStatus');
             btn.disabled = true;
             btn.textContent = 'Sending...';
@@ -1195,7 +1198,8 @@ function renderContactRefereeList(refs) {
                 const fd = new FormData();
                 fd.append('action', 'contact_referee');
                 fd.append('referee_id', refId);
-                fd.append('application_id', appId);
+                fd.append('application_id', targetAppId);
+                fd.append('student_user_id', targetUserId);
                 const resp = await fetch('api/super-admin/manage-students.php', { method: 'POST', body: fd, credentials: 'same-origin' });
                 const d = await resp.json();
                 if (status) status.innerHTML = `<div class="alert alert-${d.success ? 'success' : 'danger'} py-2">${d.message}</div>`;
@@ -1213,7 +1217,8 @@ const btnContactAll = document.getElementById('btnContactAllReferees');
 if (btnContactAll) {
     btnContactAll.addEventListener('click', async () => {
         if (_currentReferees.length === 0) { alert('No referees to contact.'); return; }
-        const appId = document.querySelector('#addRefereeForm [name="application_id"]').value;
+        const targetAppId = document.querySelector('#biodataForm [name="application_id"]')?.value || document.querySelector('#addRefereeForm [name="application_id"]')?.value || '';
+        const targetUserId = document.querySelector('#biodataForm [name="student_user_id"]')?.value || document.querySelector('#addRefereeForm [name="student_user_id"]')?.value || '';
         const status = document.getElementById('contactRefereeStatus');
         if (!confirm(`Send verification emails to all ${_currentReferees.length} referee(s)?`)) return;
         btnContactAll.disabled = true;
@@ -1221,7 +1226,8 @@ if (btnContactAll) {
         try {
             const fd = new FormData();
             fd.append('action', 'contact_all_referees');
-            fd.append('application_id', appId);
+            fd.append('application_id', targetAppId);
+            fd.append('student_user_id', targetUserId);
             const resp = await fetch('api/super-admin/manage-students.php', { method: 'POST', body: fd, credentials: 'same-origin' });
             const d = await resp.json();
             if (status) status.innerHTML = `<div class="alert alert-${d.success ? 'success' : 'danger'} py-2">${d.message}</div>`;

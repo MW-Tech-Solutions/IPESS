@@ -50,7 +50,7 @@ try {
             LEFT JOIN faculties f ON pc.faculty = f.faculty_id
             LEFT JOIN documents d ON a.application_id = d.application_id AND d.document_type = 'passport'
             LEFT JOIN referee_uploads ru ON r.referee_id = ru.referee_id
-            WHERE req.token = ? AND (req.expires_at IS NULL OR req.expires_at >= NOW())
+            WHERE req.token = ?
             LIMIT 1
         ");
         $stmt->execute([$token]);
