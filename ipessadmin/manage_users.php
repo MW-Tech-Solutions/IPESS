@@ -148,6 +148,9 @@ while ($readusers = $stmt->fetch(PDO::FETCH_ASSOC)) {
     <a href="manage_user_status.php?id=<?= $readusers['staffIDs'] ?>" class="btn btn-sm btn-primary">
       Manage
     </a>
+    <a href="change_user_role.php?id=<?= $readusers['staffIDs'] ?>" class="btn btn-sm btn-outline-warning ms-1">
+      <i class="bi bi-shield-lock me-1"></i>Change Role
+    </a>
   </td>
 </tr>
 
