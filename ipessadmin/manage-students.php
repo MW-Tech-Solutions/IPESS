@@ -909,8 +909,8 @@ async function loadStudentProfile(studentUserId) {
 
     // Also populate the Contact Referee tab with the same list
     const studentAppId = s.application_id || data.student?.application_id || 0;
-    const studentUserId = s.user_id || data.student?.user_id || 0;
-    renderContactRefereeList(data.referees || [], studentAppId, studentUserId);
+    const targetUserId = s.user_id || data.student?.user_id || studentUserId || 0;
+    renderContactRefereeList(data.referees || [], studentAppId, targetUserId);
 
     // Set Slips URLs
     const viewAppFormBtn = document.getElementById('btnViewAppForm');
