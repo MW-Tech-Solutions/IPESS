@@ -61,9 +61,9 @@ if ($pdo) {
     $recentNotifications = $pdo->query($notifySql)->fetchAll(PDO::FETCH_ASSOC);
 }
 
-require_once __DIR__ . '/../admin/includes/header.php';
-require_once __DIR__ . '/../admin/includes/sidebar.php';
-require_once __DIR__ . '/../admin/includes/topbar.php';
+require_once 'includes/dev_header.php';
+require_once 'includes/sidebar.php';
+require_once 'includes/dev_topbar.php';
 ?>
 
 <section class="page-hero">
@@ -72,8 +72,8 @@ require_once __DIR__ . '/../admin/includes/topbar.php';
         <p class="panel-muted">Monitor applications, verify documents, and track referee status from one place.</p>
     </div>
     <div class="hero-actions">
-        <a class="btn btn-outline-primary" href="../super-admin/reports.php">Reports</a>
-        <a class="btn btn-primary" href="../admin/referees.php">Referees Queue</a>
+        <a class="btn btn-outline-primary" href="reports.php">Reports</a>
+        <a class="btn btn-primary" href="applications.php">Review Applications</a>
     </div>
 </section>
 
@@ -198,4 +198,4 @@ require_once __DIR__ . '/../admin/includes/topbar.php';
     </div>
 </section>
 
-<?php require_once __DIR__ . '/../admin/includes/footer.php'; ?>
+<?php require_once 'includes/dev_footer.php'; ?>
