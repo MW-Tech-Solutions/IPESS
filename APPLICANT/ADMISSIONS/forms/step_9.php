@@ -155,6 +155,29 @@ if (is_numeric($mode_name)) {
                 <ul class="list-group list-group-flush small">
                     <?php 
                     $docs = $all_data['step_8'] ?? [];
+                    if (empty($docs) && isset($_SESSION['application_id'], $pdo)) {
+                        try {
+                            $stmtDocs = $pdo->prepare("SELECT document_type, file_path FROM documents WHERE application_id = ?");
+                            $stmtDocs->execute([$_SESSION['application_id']]);
+                            $dbDocs = $stmtDocs->fetchAll(PDO::FETCH_ASSOC);
+                            $doc_map = [
+                                'passport'         => 'passport_file', 
+                                'passport_profile' => 'passport_profile_file',
+                                'olevel_1'         => 'olevel_file',
+                                'olevel_2'         => 'olevel_file_2',
+                                'degree'           => 'degree_file',
+                                'transcript'       => 'transcript_file',
+                                'nysc'             => 'nysc_file',
+                                'proposal'         => 'proposal_file'
+                            ];
+                            foreach ($dbDocs as $dd) {
+                                $k = $doc_map[$dd['document_type']] ?? ($dd['document_type'] . '_file');
+                                $docs[$k] = $dd['file_path'];
+                                if ($dd['document_type'] === 'olevel_1') $docs['olevel_file'] = $dd['file_path'];
+                                if ($dd['document_type'] === 'olevel_2') $docs['olevel_file_2'] = $dd['file_path'];
+                            }
+                        } catch (Throwable $e) {}
+                    }
                     
                     $labels = [
                         'passport_file' => 'Passport Photo',
@@ -163,7 +186,7 @@ if (is_numeric($mode_name)) {
                         'nysc_file' => 'NYSC Certificate'
                     ];
 
-                    if (!empty($all_data['step_3']['ssce2_school'])) {
+                    if (!empty($all_data['step_3']['ssce2_school']) || !empty($docs['olevel_file_2']) || !empty($docs['olevel_2_file'])) {
                         $labels['olevel_file_2'] = 'O-Level Result (Sitting 2)';
                     }
                     if (($degree_name ?? '') === 'PhD') {
@@ -171,7 +194,17 @@ if (is_numeric($mode_name)) {
                     }
 
                     foreach($labels as $key => $label){
-                        $isUploaded = isset($docs[$key]) && !empty($docs[$key]);
+                        $isUploaded = !empty($docs[$key]);
+                        if (!$isUploaded && $key === 'olevel_file') {
+                            $isUploaded = !empty($docs['olevel_1_file']);
+                        }
+                        if (!$isUploaded && $key === 'olevel_file_2') {
+                            $isUploaded = !empty($docs['olevel_2_file']);
+                        }
+                        if (!$isUploaded && $key === 'passport_file') {
+                            $isUploaded = !empty($docs['passport_profile_file']) || !empty($_SESSION['passport_path']);
+                        }
+                        
                         $status = $isUploaded 
                             ? '<span class="text-success"><i class="bi bi-check-circle"></i> Uploaded</span>' 
                             : '<span class="text-danger">Missing</span>';

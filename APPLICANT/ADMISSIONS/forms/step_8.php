@@ -2,9 +2,19 @@
 $data = $_SESSION['form_data']['step_8'] ?? []; 
 
 function getFileStatus($fieldName, $sessionData) {
-    if (!empty($sessionData[$fieldName])) {
-        $path = htmlspecialchars($sessionData[$fieldName]);
-        $fullUrl = htmlspecialchars(app_url($sessionData[$fieldName]));
+    $val = $sessionData[$fieldName] ?? '';
+    if (empty($val) && $fieldName === 'olevel_file') {
+        $val = $sessionData['olevel_1_file'] ?? '';
+    }
+    if (empty($val) && $fieldName === 'olevel_file_2') {
+        $val = $sessionData['olevel_2_file'] ?? '';
+    }
+    if (empty($val) && $fieldName === 'passport_file') {
+        $val = $sessionData['passport_profile_file'] ?? ($_SESSION['passport_path'] ?? '');
+    }
+    if (!empty($val)) {
+        $path = htmlspecialchars($val);
+        $fullUrl = htmlspecialchars(app_url($val));
         $filename = basename($path);
         return "
         <div class='mt-2 p-2 bg-success-subtle border border-success-subtle rounded d-flex align-items-center justify-content-between'>
@@ -49,13 +59,18 @@ if (isset($_SESSION['application_id'], $pdo)) {
 
 function field_attrs(string $fieldName, bool $requiredWhenNoRejections = false): string {
     global $hasRejections, $rejectedFields, $data;
+    $hasExisting = !empty($data[$fieldName]);
+    if (!$hasExisting && $fieldName === 'olevel_file') $hasExisting = !empty($data['olevel_1_file']);
+    if (!$hasExisting && $fieldName === 'olevel_file_2') $hasExisting = !empty($data['olevel_2_file']);
+    if (!$hasExisting && $fieldName === 'passport_file') $hasExisting = !empty($data['passport_profile_file']) || !empty($_SESSION['passport_path']);
+
     if ($hasRejections && !in_array($fieldName, $rejectedFields, true)) {
         return 'disabled';
     }
-    if ($hasRejections && in_array($fieldName, $rejectedFields, true) && empty($data[$fieldName])) {
+    if ($hasRejections && in_array($fieldName, $rejectedFields, true) && !$hasExisting) {
         return 'required';
     }
-    if (!$hasRejections && $requiredWhenNoRejections && empty($data[$fieldName])) {
+    if (!$hasRejections && $requiredWhenNoRejections && !$hasExisting) {
         return 'required';
     }
     return '';

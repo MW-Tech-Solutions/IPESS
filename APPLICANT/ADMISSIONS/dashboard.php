@@ -251,9 +251,35 @@ if (isset($_SESSION['application_id'])) {
     $stmt->execute([$app_id]);
     $docs = $stmt->fetchAll(PDO::FETCH_ASSOC);
     if ($docs) {
-        $_SESSION['form_data']['step_8'] = [];
+        if (!isset($_SESSION['form_data']['step_8'])) {
+            $_SESSION['form_data']['step_8'] = [];
+        }
+        $doc_map = [
+            'passport'         => 'passport_file', 
+            'passport_profile' => 'passport_profile_file',
+            'olevel_1'         => 'olevel_file',
+            'olevel_2'         => 'olevel_file_2',
+            'degree'           => 'degree_file',
+            'transcript'       => 'transcript_file',
+            'nysc'             => 'nysc_file',
+            'proposal'         => 'proposal_file'
+        ];
         foreach ($docs as $doc) {
-            $_SESSION['form_data']['step_8'][$doc['document_type'] . '_file'] = $doc['file_path'];
+            $dbType = $doc['document_type'];
+            $formKey = $doc_map[$dbType] ?? ($dbType . '_file');
+            $_SESSION['form_data']['step_8'][$formKey] = $doc['file_path'];
+            if ($dbType === 'olevel_1') {
+                $_SESSION['form_data']['step_8']['olevel_file'] = $doc['file_path'];
+                $_SESSION['form_data']['step_8']['olevel_1_file'] = $doc['file_path'];
+            }
+            if ($dbType === 'olevel_2') {
+                $_SESSION['form_data']['step_8']['olevel_file_2'] = $doc['file_path'];
+                $_SESSION['form_data']['step_8']['olevel_2_file'] = $doc['file_path'];
+            }
+            if ($dbType === 'passport' || $dbType === 'passport_profile') {
+                $_SESSION['form_data']['step_8']['passport_file'] = $doc['file_path'];
+                $_SESSION['passport_path'] = $doc['file_path'];
+            }
         }
     }
 }

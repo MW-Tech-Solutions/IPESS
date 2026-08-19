@@ -350,12 +350,14 @@ try {
             $allowed_mime_types = [
                 'image/jpeg' => 'jpg',
                 'image/jpg'  => 'jpg',
+                'image/pjpeg' => 'jpg',
                 'image/png'  => 'png',
-                'application/pdf' => 'pdf'
+                'image/x-png' => 'png',
+                'application/pdf' => 'pdf',
+                'application/x-pdf' => 'pdf'
             ];
-            $max_file_size = 2 * 1024 * 1024; 
+            $max_file_size = 5 * 1024 * 1024; // Support up to 5MB
             $upload_base_dir = __DIR__ . '/../../uploads/';
-
 
             $upload_map = [
                 'passport_file'   => 'passports',
@@ -392,14 +394,22 @@ try {
                     $file = $_FILES[$field_name];
                     
                     if ($file['size'] > $max_file_size) {
-                        throw new Exception("File for $field_name exceeds 2MB limit.");
+                        throw new Exception("File for " . ucwords(str_replace('_', ' ', $field_name)) . " exceeds 5MB limit.");
                     }
 
                     $finfo = new finfo(FILEINFO_MIME_TYPE);
                     $mime_type = $finfo->file($file['tmp_name']);
 
+                    // Fallback to extension check if mime detection gives octet-stream
+                    $origExt = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
                     if (!array_key_exists($mime_type, $allowed_mime_types)) {
-                        throw new Exception("Invalid file format for $field_name. Allowed: JPG, PNG, PDF.");
+                        if (in_array($origExt, ['jpg', 'jpeg', 'png', 'pdf'], true)) {
+                            $extension = ($origExt === 'jpeg') ? 'jpg' : $origExt;
+                        } else {
+                            throw new Exception("Invalid file format for " . ucwords(str_replace('_', ' ', $field_name)) . ". Allowed: JPG, PNG, PDF.");
+                        }
+                    } else {
+                        $extension = $allowed_mime_types[$mime_type];
                     }
 
                     $target_dir = $upload_base_dir . $folder . '/';
@@ -407,7 +417,6 @@ try {
                         mkdir($target_dir, 0755, true);
                     }
 
-                    $extension = $allowed_mime_types[$mime_type];
                     $filename = sprintf('%s_%s.%s', time(), bin2hex(random_bytes(8)), $extension);
                     $target_path = $target_dir . $filename;
                     $db_relative_path = 'uploads/' . $folder . '/' . $filename;
@@ -418,8 +427,20 @@ try {
                         $stmt->execute([$application_id, $docType, $db_relative_path]);
 
                         $_SESSION['form_data']['step_8'][$field_name] = $db_relative_path;
+                        if ($docType === 'olevel_1') {
+                            $_SESSION['form_data']['step_8']['olevel_file'] = $db_relative_path;
+                            $_SESSION['form_data']['step_8']['olevel_1_file'] = $db_relative_path;
+                        }
+                        if ($docType === 'olevel_2') {
+                            $_SESSION['form_data']['step_8']['olevel_file_2'] = $db_relative_path;
+                            $_SESSION['form_data']['step_8']['olevel_2_file'] = $db_relative_path;
+                        }
+                        if ($docType === 'passport' || $docType === 'passport_profile') {
+                            $_SESSION['form_data']['step_8']['passport_file'] = $db_relative_path;
+                            $_SESSION['passport_path'] = $db_relative_path;
+                        }
                     } else {
-                        throw new Exception("Failed to save file for $field_name.");
+                        throw new Exception("Failed to save file for " . ucwords(str_replace('_', ' ', $field_name)) . ".");
                     }
                 }
             }
