@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../../../app/bootstrap.php';
+require_once __DIR__ . '/../../../app/bootstrap.php';
 header('Content-Type: application/json');
 
 // Access guard: SUPER_ADMIN, DEVELOPER, or page-assigned roles/users
@@ -16,7 +16,7 @@ if ($normRole === 'SUPER_ADMIN' || $normRole === 'DEVELOPER') {
     $roleId = $_SESSION['role'] ?? $_SESSION['roleid'] ?? '';
     $userRoles = array_unique(array_filter([$roleId, $normRole, current_user_role()]));
     try {
-        require_once __DIR__ . '/../../../../app/config/database.php';
+        require_once __DIR__ . '/../../../app/config/database.php';
         $pdo = db();
         
         // Resolve exact DB userRoleID mapping if applicable (similar to sidebar.php)
