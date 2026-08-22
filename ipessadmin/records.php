@@ -111,6 +111,9 @@ require_once 'includes/dev_topbar.php';
         <a href="export-students.php<?php echo $_SERVER['QUERY_STRING'] ? '?' . htmlspecialchars($_SERVER['QUERY_STRING']) : ''; ?>" class="btn btn-success">
             <i class="fas fa-file-excel me-1"></i>Export
         </a>
+        <a href="api/download-applicant.php?action=bulk_zip<?php echo $_SERVER['QUERY_STRING'] ? '&' . htmlspecialchars($_SERVER['QUERY_STRING']) : ''; ?>" class="btn btn-warning text-white">
+            <i class="fas fa-file-archive me-1"></i>Download PDFs (ZIP)
+        </a>
     </div>
 </section>
 

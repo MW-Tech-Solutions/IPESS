@@ -350,6 +350,84 @@ function buildApplicantPdf(PDO $pdo, int $appId): string {
 // ROUTING
 // ===========================================================================
 
+// --- Bulk download based on filters ---
+if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
+    $q            = trim((string)($_GET['q'] ?? ''));
+    $filterStatus = trim($_GET['status'] ?? '');
+    $filterFaculty = (int)($_GET['faculty'] ?? 0);
+    $filterDept   = (int)($_GET['department'] ?? 0);
+    $filterYear   = (int)($_GET['year'] ?? 0);
+
+    $allowedStatus = ['Draft', 'Submitted', 'Admitted', 'Rejected'];
+    if (!in_array($filterStatus, $allowedStatus, true)) $filterStatus = '';
+
+    $where  = ["NOT EXISTS (SELECT 1 FROM applications nx WHERE nx.user_id = a.user_id AND nx.application_id > a.application_id)"];
+    $params = [];
+
+    if ($q !== '') {
+        $like = '%' . $q . '%';
+        $where[]  = "(u.email LIKE ? OR COALESCE(pd.first_name,'') LIKE ? OR COALESCE(pd.surname,'') LIKE ? OR COALESCE(a.application_number,'') LIKE ? OR COALESCE(pd.phone,'') LIKE ?)";
+        $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
+    }
+    if ($filterStatus)  { $where[] = 'a.status = ?';          $params[] = $filterStatus; }
+    if ($filterFaculty) { $where[] = 'pc.faculty = ?';         $params[] = $filterFaculty; }
+    if ($filterDept)    { $where[] = 'pc.department = ?';      $params[] = $filterDept; }
+    if ($filterYear)    { $where[] = 'YEAR(a.submitted_at) = ?'; $params[] = $filterYear; }
+
+    $joinSql = "
+        FROM applications a
+        INNER JOIN users u ON u.user_id = a.user_id
+        LEFT JOIN personal_details pd ON pd.application_id = a.application_id
+        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
+        LEFT JOIN faculties f ON f.faculty_id = COALESCE(pc.faculty, 0)
+        LEFT JOIN departments d ON d.dept_id = COALESCE(pc.department, a.department_id)
+        LEFT JOIN courses c ON c.course_id = pc.course
+        LEFT JOIN degree_types dt ON dt.degree_id = pc.degree_type
+        WHERE " . implode(' AND ', $where);
+
+    $selStmt = $pdo->prepare("
+        SELECT a.application_id
+        $joinSql
+        GROUP BY a.application_id
+        ORDER BY a.updated_at DESC, a.application_id DESC
+    ");
+    $selStmt->execute($params);
+    $ids = $selStmt->fetchAll(PDO::FETCH_COLUMN);
+
+    if (empty($ids)) {
+        http_response_code(404);
+        die('No applicants found matching the filters.');
+    }
+
+    // ZIP format: one PDF per candidate
+    set_time_limit(300); // Allow up to 5 minutes for generation
+    $zipPath = sys_get_temp_dir() . '/ipess_bulk_' . uniqid() . '.zip';
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        http_response_code(500);
+        die('Could not create ZIP file.');
+    }
+
+    foreach ($ids as $appId) {
+        $app = fetchApplicant($pdo, (int)$appId);
+        if (!$app) continue;
+        $pdfBytes = buildApplicantPdf($pdo, (int)$appId);
+        if (!$pdfBytes) continue;
+        $filename = 'application-' . preg_replace('/[^A-Za-z0-9\-]/', '-', $app['application_number'] ?? (string)$appId) . '.pdf';
+        $zip->addFromString($filename, $pdfBytes);
+    }
+    $zip->close();
+
+    $zipSize = filesize($zipPath);
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="applicants-filtered-' . date('Y-m-d') . '.zip"');
+    header('Content-Length: ' . $zipSize);
+    header('Cache-Control: private, no-cache');
+    readfile($zipPath);
+    @unlink($zipPath);
+    exit;
+}
+
 // --- Single download ---
 if (isset($_GET['app_id']) || isset($_GET['app_no'])) {
     $appId = 0;
