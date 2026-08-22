@@ -6,9 +6,61 @@
 require_once __DIR__ . '/../app/bootstrap.php';
 enforce_session_timeout(900, 'login.php');
 
-if (normalize_role(current_user_role()) !== 'SUPER_ADMIN') {
+$normRole = normalize_role(current_user_role());
+$hasAccess = false;
+if ($normRole === 'SUPER_ADMIN' || $normRole === 'DEVELOPER') {
+    $hasAccess = true;
+} else {
+    $currentFile = basename(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
+    $userId = $_SESSION['user_id'] ?? $_SESSION['userid'] ?? '';
+    $roleId = $_SESSION['role'] ?? $_SESSION['roleid'] ?? '';
+    $userRoles = array_unique(array_filter([$roleId, $normRole, current_user_role()]));
+    try {
+        require_once __DIR__ . '/../app/config/database.php';
+        $pdo = db();
+        
+        // Resolve exact DB userRoleID mapping if applicable (similar to sidebar.php)
+        if ($userId) {
+            $stmtStaffRole = $pdo->prepare("SELECT userRoleID FROM user_access WHERE userName = ? OR staffIDs = ? OR EmailAddress = ? LIMIT 1");
+            $stmtStaffRole->execute([$userId, $userId, $userId]);
+            $uRoleId = (int)$stmtStaffRole->fetchColumn();
+            if ($uRoleId > 0) {
+                $userRoles[] = (string)$uRoleId;
+                
+                // Resolve modern role_key
+                $stmtModern = $pdo->prepare("SELECT role_key, role_name FROM roles WHERE role_id = ? LIMIT 1");
+                $stmtModern->execute([$uRoleId]);
+                $modRow = $stmtModern->fetch(PDO::FETCH_ASSOC);
+                if ($modRow) {
+                    if (!empty($modRow['role_key'])) $userRoles[] = $modRow['role_key'];
+                    if (!empty($modRow['role_name'])) $userRoles[] = $modRow['role_name'];
+                }
+            }
+        }
+        
+        $userRoles = array_values(array_unique(array_filter($userRoles)));
+        
+        if (!empty($userRoles)) {
+            $placeholders = implode(',', array_fill(0, count($userRoles), '?'));
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM right_page_main_menus WHERE (page_url LIKE ? OR page_url LIKE ?) AND roleID IN ($placeholders) AND page_status = '1'");
+            $stmt->execute(array_merge(['%' . $currentFile, $currentFile], $userRoles));
+            if ((int)$stmt->fetchColumn() > 0) {
+                $hasAccess = true;
+            }
+        }
+        if (!$hasAccess && $userId) {
+            $stmt2 = $pdo->prepare("SELECT COUNT(*) FROM pesonal_right_page_main_menus WHERE (page_url LIKE ? OR page_url LIKE ?) AND userID = ? AND page_status = '1'");
+            $stmt2->execute(['%' . $currentFile, $currentFile, $userId]);
+            if ((int)$stmt2->fetchColumn() > 0) {
+                $hasAccess = true;
+            }
+        }
+    } catch (Throwable $e) {}
+}
+
+if (!$hasAccess) {
     http_response_code(403);
-    exit('403 Forbidden — Only Super Admins can access this page.');
+    exit('403 Forbidden — Only Super Admins or authorized roles can access this page.');
 }
 
 $pageTitle = 'Module Settings';

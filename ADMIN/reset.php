@@ -2,13 +2,65 @@
 session_start();
 require_once __DIR__ . '/../app/bootstrap.php';
 
-// 1. Strict Role Authorization check (SUPER_ADMIN and PORTAL_ADMIN only)
+// 1. Strict Role Authorization check (SUPER_ADMIN and PORTAL_ADMIN by default, or if explicitly assigned)
 $userRole = normalize_role($_SESSION['role'] ?? '');
-if ($userRole !== 'SUPER_ADMIN' && $userRole !== 'PORTAL_ADMIN') {
+$hasAccess = false;
+
+if ($userRole === 'SUPER_ADMIN' || $userRole === 'PORTAL_ADMIN' || $userRole === 'DEVELOPER') {
+    $hasAccess = true;
+} else {
+    $currentFile = basename(parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
+    $userId = $_SESSION['user_id'] ?? $_SESSION['userid'] ?? '';
+    $roleId = $_SESSION['role'] ?? $_SESSION['roleid'] ?? '';
+    $userRoles = array_unique(array_filter([$roleId, $userRole, current_user_role()]));
+    try {
+        require_once __DIR__ . '/../app/config/database.php';
+        $pdo = db();
+        
+        // Resolve exact DB userRoleID mapping if applicable (similar to sidebar.php)
+        if ($userId) {
+            $stmtStaffRole = $pdo->prepare("SELECT userRoleID FROM user_access WHERE userName = ? OR staffIDs = ? OR EmailAddress = ? LIMIT 1");
+            $stmtStaffRole->execute([$userId, $userId, $userId]);
+            $uRoleId = (int)$stmtStaffRole->fetchColumn();
+            if ($uRoleId > 0) {
+                $userRoles[] = (string)$uRoleId;
+                
+                // Resolve modern role_key
+                $stmtModern = $pdo->prepare("SELECT role_key, role_name FROM roles WHERE role_id = ? LIMIT 1");
+                $stmtModern->execute([$uRoleId]);
+                $modRow = $stmtModern->fetch(PDO::FETCH_ASSOC);
+                if ($modRow) {
+                    if (!empty($modRow['role_key'])) $userRoles[] = $modRow['role_key'];
+                    if (!empty($modRow['role_name'])) $userRoles[] = $modRow['role_name'];
+                }
+            }
+        }
+        
+        $userRoles = array_values(array_unique(array_filter($userRoles)));
+        
+        if (!empty($userRoles)) {
+            $placeholders = implode(',', array_fill(0, count($userRoles), '?'));
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM right_page_main_menus WHERE (page_url LIKE ? OR page_url LIKE ?) AND roleID IN ($placeholders) AND page_status = '1'");
+            $stmt->execute(array_merge(['%' . $currentFile, $currentFile], $userRoles));
+            if ((int)$stmt->fetchColumn() > 0) {
+                $hasAccess = true;
+            }
+        }
+        if (!$hasAccess && $userId) {
+            $stmt2 = $pdo->prepare("SELECT COUNT(*) FROM pesonal_right_page_main_menus WHERE (page_url LIKE ? OR page_url LIKE ?) AND userID = ? AND page_status = '1'");
+            $stmt2->execute(['%' . $currentFile, $currentFile, $userId]);
+            if ((int)$stmt2->fetchColumn() > 0) {
+                $hasAccess = true;
+            }
+        }
+    } catch (Throwable $e) {}
+}
+
+if (!$hasAccess) {
     http_response_code(403);
     die("<div style='font-family:sans-serif;padding:50px;text-align:center;'>
             <h1 style='color:#dc3545;'>Access Denied</h1>
-            <p>Only Super Administrators and Portal Admins are allowed to access this maintenance tool.</p>
+            <p>Only Super Administrators, Portal Admins, or authorized roles are allowed to access this maintenance tool.</p>
             <a href='dashboard.php' style='color:#0d6efd;text-decoration:none;'>Return to Dashboard</a>
          </div>");
 }

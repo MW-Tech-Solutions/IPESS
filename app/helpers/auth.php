@@ -149,7 +149,7 @@ if (!function_exists('require_role')) {
             return;
         }
 
-        // 4. Fallback: Check if the user has this page in their dynamic menus
+        // 4. Fallback: Check if the user has this page in their dynamic menus or role assignments
         $uriPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
         $currentFile = basename($uriPath ?? '');
         if ($currentFile) {
@@ -157,10 +157,56 @@ if (!function_exists('require_role')) {
                 require_once JOSTUM_ROOT . '/app/config/database.php';
                 $pdo = db();
                 $userId = $_SESSION['user_id'] ?? $_SESSION['userid'] ?? '';
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM pesonal_right_page_main_menus WHERE page_url LIKE ? AND (userID = ? OR userRoleID = ?)");
-                $stmt->execute(['%' . $currentFile, $userId, $_SESSION['roleid'] ?? '']);
-                if ((int)$stmt->fetchColumn() > 0) {
-                    return; // Dynamic sidebar access allowed!
+                $roleId = $_SESSION['role'] ?? $_SESSION['roleid'] ?? '';
+                
+                // Collect all possible role keys/names for this user
+                $userRoles = array_unique(array_filter([
+                    $roleId,
+                    $_SESSION['role'] ?? '',
+                    $_SESSION['roleid'] ?? '',
+                    $_SESSION['user_role'] ?? '',
+                    $_SESSION['role_id'] ?? '',
+                    current_user_role(),
+                    normalize_role(current_user_role())
+                ]));
+
+                // Resolve exact DB userRoleID mapping if applicable (similar to sidebar.php)
+                if ($userId) {
+                    $stmtStaffRole = $pdo->prepare("SELECT userRoleID FROM user_access WHERE userName = ? OR staffIDs = ? OR EmailAddress = ? LIMIT 1");
+                    $stmtStaffRole->execute([$userId, $userId, $userId]);
+                    $uRoleId = (int)$stmtStaffRole->fetchColumn();
+                    if ($uRoleId > 0) {
+                        $userRoles[] = (string)$uRoleId;
+                        
+                        // Resolve modern role_key
+                        $stmtModern = $pdo->prepare("SELECT role_key, role_name FROM roles WHERE role_id = ? LIMIT 1");
+                        $stmtModern->execute([$uRoleId]);
+                        $modRow = $stmtModern->fetch(PDO::FETCH_ASSOC);
+                        if ($modRow) {
+                            if (!empty($modRow['role_key'])) $userRoles[] = $modRow['role_key'];
+                            if (!empty($modRow['role_name'])) $userRoles[] = $modRow['role_name'];
+                        }
+                    }
+                }
+                
+                $userRoles = array_values(array_unique(array_filter($userRoles)));
+                
+                if (!empty($userRoles)) {
+                    $placeholders = implode(',', array_fill(0, count($userRoles), '?'));
+                    // Check master page assignments for role
+                    $stmt = $pdo->prepare("SELECT COUNT(*) FROM right_page_main_menus WHERE (page_url LIKE ? OR page_url LIKE ?) AND roleID IN ($placeholders) AND page_status = '1'");
+                    $params = array_merge(['%' . $currentFile, $currentFile], $userRoles);
+                    $stmt->execute($params);
+                    if ((int)$stmt->fetchColumn() > 0) {
+                        return; // Access allowed via role assignment!
+                    }
+                }
+
+                // Check personal page assignments for specific user
+                $stmt2 = $pdo->prepare("SELECT COUNT(*) FROM pesonal_right_page_main_menus WHERE (page_url LIKE ? OR page_url LIKE ?) AND userID = ? AND page_status = '1'");
+                $stmt2->execute(['%' . $currentFile, $currentFile, $userId]);
+                if ((int)$stmt2->fetchColumn() > 0) {
+                    return; // Access allowed via personal user mapping!
                 }
             } catch (Throwable $e) {}
         }
