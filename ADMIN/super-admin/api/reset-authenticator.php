@@ -111,7 +111,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'reset') {
 
         // Log to audit_logs if the table exists
         try {
-            $actorId    = (int) ($_SESSION['user_id'] ?? 0);
+            $actorId = $_SESSION['user_id'] ?? $_SESSION['userid'] ?? null;
+            $actorId = !empty($actorId) ? (int)$actorId : null;
             $actorEmail = $_SESSION['email'] ?? 'unknown';
             $logStmt = $pdo->prepare("
                 INSERT INTO audit_logs (actor_user_id, action, details, ip_address, created_at)

@@ -88,10 +88,13 @@ if ($action === 'toggle') {
         
         $status_text = $is_active === 1 ? 'Activated' : 'Deactivated';
         
+        $actorId = $_SESSION['user_id'] ?? $_SESSION['userid'] ?? null;
+        $actorId = !empty($actorId) ? (int)$actorId : null;
+
         // Log to audit_logs
         $stmtLog = $pdo->prepare("INSERT INTO audit_logs (actor_user_id, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)");
         $stmtLog->execute([
-            $_SESSION['user_id'] ?? 0,
+            $actorId,
             'Toggle Module',
             "Super Admin toggled module '{$module_key}' to status '{$status_text}'",
             $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
