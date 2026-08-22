@@ -361,6 +361,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
     $allowedStatus = ['Draft', 'Submitted', 'Admitted', 'Rejected'];
     if (!in_array($filterStatus, $allowedStatus, true)) $filterStatus = '';
 
+    // Pagination/limits to prevent memory exhaustion on the server
+    $page  = max(1, (int)($_GET['page'] ?? 1));
+    $limit = (int)($_GET['limit'] ?? 50);
+    if ($limit <= 0 || $limit > 50) {
+        $limit = 50; // Cap at 50 to avoid 500 out-of-memory errors
+    }
+    $offset = ($page - 1) * $limit;
+
     $where  = ["NOT EXISTS (SELECT 1 FROM applications nx WHERE nx.user_id = a.user_id AND nx.application_id > a.application_id)"];
     $params = [];
 
@@ -390,6 +398,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
         $joinSql
         GROUP BY a.application_id
         ORDER BY a.updated_at DESC, a.application_id DESC
+        LIMIT {$limit} OFFSET {$offset}
     ");
     $selStmt->execute($params);
     $ids = $selStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -415,6 +424,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
         if (!$pdfBytes) continue;
         $filename = 'application-' . preg_replace('/[^A-Za-z0-9\-]/', '-', $app['application_number'] ?? (string)$appId) . '.pdf';
         $zip->addFromString($filename, $pdfBytes);
+
+        // Explicitly clear memory within the loop to avoid memory growth crashes
+        unset($pdfBytes, $app);
+        gc_collect_cycles();
     }
     $zip->close();
 
