@@ -64,23 +64,7 @@ if (!$hasAccess) {
 }
 
 $pageTitle = 'Module Settings';
-
-$cssUrl = app_url('ADMIN/super-admin/super-admin.css');
-$bsCss  = app_url('asset/vendor/bootstrap/css/bootstrap.min.css');
-$bsJs   = app_url('asset/vendor/bootstrap/js/bootstrap.bundle.min.js');
-$faUrl  = app_url('asset/vendor/fontawesome/css/all.min.css');
-
-$bsCssFallback  = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css';
-$bsJsFallback   = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js';
-$faUrlFallback  = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
-
-$localBsCss  = defined('JOSTUM_ROOT') && file_exists(JOSTUM_ROOT . '/asset/vendor/bootstrap/css/bootstrap.min.css');
-$localBsJs   = defined('JOSTUM_ROOT') && file_exists(JOSTUM_ROOT . '/asset/vendor/bootstrap/js/bootstrap.bundle.min.js');
-$localFa     = defined('JOSTUM_ROOT') && file_exists(JOSTUM_ROOT . '/asset/vendor/fontawesome/css/all.min.css');
-
-$bsCssHref  = $localBsCss ? $bsCss  : $bsCssFallback;
-$bsJsSrc    = $localBsJs  ? $bsJs   : $bsJsFallback;
-$faHref     = $localFa    ? $faUrl  : $faUrlFallback;
+$pageSubtitle = 'Manage system-wide accessibility of major modules (e.g. Admissions, Academics).';
 
 $pdo = db();
 
@@ -96,20 +80,11 @@ try {
 }
 
 $modules = $pdo->query("SELECT * FROM system_modules ORDER BY module_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+require_once 'includes/dev_header.php';
+require_once 'includes/sidebar.php';
+require_once 'includes/dev_topbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?> | JOSTUM PG Admin</title>
-<link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
-<!-- Bootstrap CSS -->
-<link href="<?php echo $bsCssHref; ?>" rel="stylesheet">
-<!-- Font Awesome -->
-<link rel="stylesheet" href="<?php echo $faHref; ?>">
-<!-- Super-admin CSS -->
-<link rel="stylesheet" href="<?php echo $cssUrl; ?>">
 <style>
 /* Sleek custom iOS switch look */
 .form-switch .form-check-input {
@@ -142,15 +117,6 @@ $modules = $pdo->query("SELECT * FROM system_modules ORDER BY module_name ASC")-
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
 }
 </style>
-</head>
-<body>
-<div class="admin-shell" id="admin-shell">
-
-<?php require_once 'includes/sidebar.php'; ?>
-
-<div class="main-content">
-<?php require_once 'includes/dev_topbar.php'; ?>
-<main class="page-content">
 
 <section class="page-hero">
     <div>
@@ -255,12 +221,7 @@ $modules = $pdo->query("SELECT * FROM system_modules ORDER BY module_name ASC")-
     </div>
 </div>
 
-</main>
-</div>
-</div>
-
-<!-- Bootstrap Bundle JS -->
-<script src="<?php echo $bsJsSrc; ?>"></script>
+<?php require_once 'includes/dev_footer.php'; ?>
 
 <script>
 async function toggleModule(moduleKey, switchEl) {
@@ -302,5 +263,3 @@ async function toggleModule(moduleKey, switchEl) {
     }
 }
 </script>
-</body>
-</html>

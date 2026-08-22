@@ -15,46 +15,12 @@ if (!has_permission('reset_authenticator')) {
 }
 
 $pageTitle = 'Reset Authenticator';
+$pageSubtitle = 'Search for a staff or student account and reset their two-factor authentication (TOTP) secret.';
 
-
-$cssUrl = app_url('ADMIN/super-admin/super-admin.css');
-$bsCss  = app_url('asset/vendor/bootstrap/css/bootstrap.min.css');
-$bsJs   = app_url('asset/vendor/bootstrap/js/bootstrap.bundle.min.js');
-$faUrl  = app_url('asset/vendor/fontawesome/css/all.min.css');
-// Fallback to CDN if local vendor files are missing
-$bsCssFallback  = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css';
-$bsJsFallback   = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js';
-$faUrlFallback  = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css';
-
-$localBsCss  = defined('JOSTUM_ROOT') && file_exists(JOSTUM_ROOT . '/asset/vendor/bootstrap/css/bootstrap.min.css');
-$localBsJs   = defined('JOSTUM_ROOT') && file_exists(JOSTUM_ROOT . '/asset/vendor/bootstrap/js/bootstrap.bundle.min.js');
-$localFa     = defined('JOSTUM_ROOT') && file_exists(JOSTUM_ROOT . '/asset/vendor/fontawesome/css/all.min.css');
-
-$bsCssHref  = $localBsCss ? $bsCss  : $bsCssFallback;
-$bsJsSrc    = $localBsJs  ? $bsJs   : $bsJsFallback;
-$faHref     = $localFa    ? $faUrl  : $faUrlFallback;
+require_once 'includes/dev_header.php';
+require_once 'includes/sidebar.php';
+require_once 'includes/dev_topbar.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title><?php echo htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8'); ?> | JOSTUM PG Admin</title>
-<link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
-<!-- Bootstrap CSS -->
-<link href="<?php echo $bsCssHref; ?>" rel="stylesheet">
-<!-- Font Awesome -->
-<link rel="stylesheet" href="<?php echo $faHref; ?>">
-<!-- Super-admin CSS -->
-<link rel="stylesheet" href="<?php echo $cssUrl; ?>">
-</head>
-<body>
-<div class="admin-shell" id="admin-shell">
-
-<?php require_once 'includes/sidebar.php'; ?>
-
-<div class="main-content">
-<?php require_once 'includes/dev_topbar.php'; ?>
 <main class="page-content">
 
 <section class="page-hero">
@@ -149,12 +115,7 @@ $faHref     = $localFa    ? $faUrl  : $faUrlFallback;
     </div>
 </div>
 
-</main>
-</div><!-- /.main-content -->
-</div><!-- /.admin-shell -->
-
-<!-- ── Bootstrap JS must load BEFORE any bootstrap.Modal / Toast calls ── -->
-<script src="<?php echo $bsJsSrc; ?>"></script>
+<?php require_once 'includes/dev_footer.php'; ?>
 
 <script>
 // Bootstrap is now guaranteed loaded above before this runs
@@ -279,5 +240,3 @@ function esc(str) {
     );
 }
 </script>
-</body>
-</html>
