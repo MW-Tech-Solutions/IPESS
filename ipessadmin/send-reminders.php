@@ -501,6 +501,8 @@ function stopDeliveryAgent() {
     logBox.scrollTop = logBox.scrollHeight;
 }
 
+let consecutiveErrors = 0;
+
 function runBatchDelivery() {
     if (!isAgentRunning) return;
 
@@ -517,6 +519,8 @@ function runBatchDelivery() {
 
         const logBox = document.getElementById('logBox');
         if (data.success) {
+            consecutiveErrors = 0; // Reset errors
+
             // Print cron text output to logs
             const lines = data.output.split('\n');
             lines.forEach(line => {
@@ -541,17 +545,31 @@ function runBatchDelivery() {
                 setTimeout(runBatchDelivery, 2000);
             }
         } else {
-            logBox.innerHTML += `<span class="text-danger fw-bold">[AGENT ERROR] ${data.message}</span><br>`;
-            logBox.scrollTop = logBox.scrollHeight;
-            stopDeliveryAgent();
+            consecutiveErrors++;
+            if (consecutiveErrors < 5) {
+                logBox.innerHTML += `<span class="text-warning fw-bold">[AGENT WARNING] ${data.message}. Retrying (Attempt ${consecutiveErrors}/5) in 5s...</span><br>`;
+                logBox.scrollTop = logBox.scrollHeight;
+                setTimeout(runBatchDelivery, 5000);
+            } else {
+                logBox.innerHTML += `<span class="text-danger fw-bold">[AGENT ERROR] ${data.message}. Stopping agent.</span><br>`;
+                logBox.scrollTop = logBox.scrollHeight;
+                stopDeliveryAgent();
+            }
         }
     })
     .catch(() => {
         if (!isAgentRunning) return;
+        consecutiveErrors++;
         const logBox = document.getElementById('logBox');
-        logBox.innerHTML += `<span class="text-danger fw-bold">[AGENT ERROR] Connection failed.</span><br>`;
-        logBox.scrollTop = logBox.scrollHeight;
-        stopDeliveryAgent();
+        if (consecutiveErrors < 5) {
+            logBox.innerHTML += `<span class="text-warning fw-bold">[AGENT WARNING] Connection failed. Retrying (Attempt ${consecutiveErrors}/5) in 5s...</span><br>`;
+            logBox.scrollTop = logBox.scrollHeight;
+            setTimeout(runBatchDelivery, 5000);
+        } else {
+            logBox.innerHTML += `<span class="text-danger fw-bold">[AGENT ERROR] Connection failed. Stopping agent.</span><br>`;
+            logBox.scrollTop = logBox.scrollHeight;
+            stopDeliveryAgent();
+        }
     });
 }
 </script>

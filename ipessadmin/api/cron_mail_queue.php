@@ -9,6 +9,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../app/bootstrap.php';
 require_once __DIR__ . '/../../app/config/database.php';
 
+set_time_limit(120);
+
 header('Content-Type: text/plain');
 
 try {
@@ -28,7 +30,7 @@ try {
 }
 
 // 2. Select a batch of pending emails and lock them using transaction (FOR UPDATE)
-$batchSize = 15;
+$batchSize = 8;
 $ids = [];
 
 try {
