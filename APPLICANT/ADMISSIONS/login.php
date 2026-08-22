@@ -7,6 +7,7 @@ require 'db.php';
 
 // Load module check helper
 $admissions_closed = false;
+$restrict_unsubmitted = false;
 try {
     if (!function_exists('is_module_active')) {
         function is_module_active_local(string $module_key, $pdo): bool {
@@ -14,17 +15,23 @@ try {
                 $stmt = $pdo->prepare("SELECT is_active FROM system_modules WHERE module_key = ?");
                 $stmt->execute([$module_key]);
                 $val = $stmt->fetchColumn();
-                return $val === false || (int)$val === 1;
+                if ($val === false) {
+                    return ($module_key !== 'restrict_unsubmitted_login');
+                }
+                return (int)$val === 1;
             } catch (Throwable $e) {
-                return true;
+                return false;
             }
         }
         $admissions_closed = !is_module_active_local('admissions', $pdo);
+        $restrict_unsubmitted = is_module_active_local('restrict_unsubmitted_login', $pdo);
     } else {
         $admissions_closed = !is_module_active('admissions');
+        $restrict_unsubmitted = is_module_active('restrict_unsubmitted_login');
     }
 } catch (Throwable $e) {
     $admissions_closed = false;
+    $restrict_unsubmitted = false;
 }
 
 $error = '';
@@ -113,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $isAdmitted = false;
+                $appStatus = 'Draft';
                 try {
                     $hasCurrentStatus = (bool) $pdo->query("SHOW COLUMNS FROM applications LIKE 'current_status'")->fetch(PDO::FETCH_ASSOC);
                     $statusCols = $hasCurrentStatus ? "status, current_status" : "status";
@@ -120,6 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->execute([$user['user_id']]);
                     $app = $stmt->fetch(PDO::FETCH_ASSOC);
                     if ($app) {
+                        $appStatus = $app['status'] ?? 'Draft';
                         $status = strtolower((string) ($app['status'] ?? ''));
                         $current = strtolower((string) ($app['current_status'] ?? ''));
                         $isAdmitted = ($status === 'admitted' || $current === 'admission_approved');
@@ -137,6 +146,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Destroy session for non-admitted users so they can't access the dashboard
                     session_destroy();
                     $error = "<strong>Admissions Exercise is Closed.</strong><br>Access to the admissions portal is currently disabled. Please check back later or contact the admissions office.";
+                } elseif ($restrict_unsubmitted && $appStatus === 'Draft') {
+                    // Block draft applications if restrict_unsubmitted_login module is active
+                    session_destroy();
+                    $error = "<strong>Application Closed.</strong><br>The submission window for new or draft applications has closed. Only submitted applications can log in to track status.";
                 } else {
                     redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
                 }
