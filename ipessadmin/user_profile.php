@@ -2,78 +2,227 @@
 session_start();
 include("inc/main.config.php");
 include("inc/selectorVendor.php");
-	if($_SESSION['roleid']!="" && $_SESSION['roleid']!=""){
-		$rolesession = $_SESSION['roleid'];
-		$usersession = $_SESSION['userid'];
-		}
-		
-		$getstatus = $con->query("SELECT * FROM user_access WHERE userName = '$usersession' ")->fetch(PDO::FETCH_ASSOC);
-		 $currentpwd = $getstatus['passWord'];
 
-		if($usersession==""){
-		header("location:index.php");
-		}
-		
-		$msg = "";
-		if(isset($_POST['savechanges'])){
-		$about = $_POST['about'];	
-		$address = $_POST['address'];
-		$phone = $_POST['phone'];
-		$email = $_POST['email'];
-		$twitter = $_POST['twitter'];
-		$facebook = $_POST['facebook'];
-		$instagram = $_POST['instagram'];
-		$linkedin = $_POST['linkedin'];
-		$updateme = $con->query("UPDATE user_access SET phoneno='$phone', EmailAddress='$email', contactaddress='$address', aboutmyself='$about', twitter='$twitter', facebook='$facebook', myinstatgram='$instagram', myLink='$linkedin' WHERE userName = '$usersession' ");	
-			if($updateme){
-				
-				$msg = '<div class="alert alert-success" role="alert">
-						File is not an image.
-						</div>';
-			}
-		}
-			if(isset($_POST['changepaasword'])){
-				$currentpsswd = md5($_POST['password']);
-				$newpassword = $_POST['newpassword'];
-				$renewpassword = $_POST['renewpassword'];
-				if($currentpsswd !=$currentpwd){
-					
-					$msg = '<div class="alert alert-danger" role="alert">
-						Current Password does not matched.
-						</div>';	
-				}else{
-					if($newpassword !=$renewpassword){
-						
-					$msg = '<div class="alert alert-danger" role="alert">
-						Repeated Password does not matched, please try again.
-						</div>';	
-						
-						
-					}else{
-						
-					$correctpwd = md5($newpassword);
-							
-							if($correctpwd !=$currentpwd){
-								$con->query("UPDATE user_access SET passWord = '$correctpwd' WHERE userName = '$usersession' ");	
-					$msg = '<div class="alert alert-success" role="alert">
-						Password Changed Successfully.
-						</div>';
-								
-							}else{
-						$msg = '<div class="alert alert-danger" role="alert">
-						New Password must not matched withe previous, please try again.
-						</div>';
-				
-							}
-					}
-					
-					
-					
-				
-			}
-			}
-			
-			
+if (!function_exists('table_exists')) {
+    function table_exists(PDO $pdo, string $table): bool {
+        try {
+            $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+            $pdo->query("SELECT 1 FROM `{$sanitized}` LIMIT 0");
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+}
+
+if (!isset($_SESSION['roleid'], $_SESSION['userid']) || $_SESSION['roleid'] == "" || $_SESSION['userid'] == "") {
+    header("location:index.php");
+    exit;
+}
+
+$rolesession = $_SESSION['roleid'];
+$usersession = $_SESSION['userid'];
+
+// Fetch legacy profile
+$getstatus = $con->prepare("SELECT * FROM user_access WHERE userName = ? LIMIT 1");
+$getstatus->execute([$usersession]);
+$getprofile = $getstatus->fetch(PDO::FETCH_ASSOC);
+
+if (!$getprofile) {
+    header("location:index.php");
+    exit;
+}
+
+$currentpwd_md5 = $getprofile['passWord'];
+$current_email = $getprofile['EmailAddress'];
+
+// Fetch modern profile
+$stmtModern = $con->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
+$stmtModern->execute([$current_email]);
+$modernUser = $stmtModern->fetch(PDO::FETCH_ASSOC);
+$currentpwd_bcrypt = $modernUser ? $modernUser['password_hash'] : '';
+
+$msg = "";
+$target_dir = "../adminpictures/";
+if (!is_dir($target_dir)) {
+    @mkdir($target_dir, 0775, true);
+}
+
+// 1. SAVE CHANGES
+if (isset($_POST['savechanges'])) {
+    $fullname_input = trim($_POST['fullname'] ?? '');
+    $about = $_POST['about'] ?? '';
+    $address = $_POST['address'] ?? '';
+    $phone = $_POST['phone'] ?? '';
+    $email = trim($_POST['email'] ?? '');
+    $twitter = $_POST['twitter'] ?? '';
+    $facebook = $_POST['facebook'] ?? '';
+    $instagram = $_POST['instagram'] ?? '';
+    $linkedin = $_POST['linkedin'] ?? '';
+
+    $uploadOk = 1;
+    $photolink = $getprofile['pixUrl']; // Default to current
+
+    // Parse full name
+    $explode = explode(" ", $fullname_input);
+    $firstname = !empty($explode[0]) ? $explode[0] : '';
+    $middlename = !empty($explode[1]) ? $explode[1] : '';
+    $lastname = !empty($explode[2]) ? $explode[2] : '';
+
+    // Uniqueness checks for email
+    if ($email !== $current_email) {
+        $checkEmailU = $con->prepare("SELECT COUNT(*) FROM users WHERE email = ?");
+        $checkEmailU->execute([$email]);
+        $existsU = (int)$checkEmailU->fetchColumn();
+
+        $checkEmailUA = $con->prepare("SELECT COUNT(*) FROM user_access WHERE EmailAddress = ?");
+        $checkEmailUA->execute([$email]);
+        $existsUA = (int)$checkEmailUA->fetchColumn();
+
+        if ($existsU > 0 || $existsUA > 0) {
+            $msg = '<div class="alert alert-danger" role="alert">Error: The email address is already in use by another account.</div>';
+            $uploadOk = 0;
+        }
+    }
+
+    // Process profile image upload if provided
+    if ($uploadOk && !empty($_FILES["fileToUpload"]["name"])) {
+        $imageFileType = strtolower(pathinfo($_FILES["fileToUpload"]["name"], PATHINFO_EXTENSION));
+        $target_file = $target_dir . $usersession . '.' . $imageFileType;
+        $check = getimagesize($_FILES["fileToUpload"]["tmp_name"]);
+        
+        if ($check !== false) {
+            // Check file size (5MB limit)
+            if ($_FILES["fileToUpload"]["size"] > 5000000) {
+                $msg = '<div class="alert alert-warning" role="alert">Sorry, your file is too large (max 5MB).</div>';
+                $uploadOk = 0;
+            }
+            // Allow certain file formats
+            if ($uploadOk && $imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg" && $imageFileType != "gif") {
+                $msg = '<div class="alert alert-warning" role="alert">Sorry, only JPG, JPEG, PNG & GIF files are allowed.</div>';
+                $uploadOk = 0;
+            }
+            
+            if ($uploadOk) {
+                if (file_exists($target_file)) {
+                    @unlink($target_file);
+                }
+                if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+                    $photolink = $target_file;
+                } else {
+                    $msg = '<div class="alert alert-danger" role="alert">Sorry, there was an error uploading your file.</div>';
+                    $uploadOk = 0;
+                }
+            }
+        } else {
+            $msg = '<div class="alert alert-warning" role="alert">File is not an image.</div>';
+            $uploadOk = 0;
+        }
+    }
+
+    if ($uploadOk) {
+        try {
+            $con->beginTransaction();
+
+            // Update user_access table
+            $stmtUpUA = $con->prepare("
+                UPDATE user_access 
+                SET FirstName = ?, MiddleName = ?, LastName = ?, phoneno = ?, EmailAddress = ?, 
+                    contactaddress = ?, aboutmyself = ?, twitter = ?, facebook = ?, 
+                    myinstatgram = ?, myLink = ?, pixUrl = ?
+                WHERE userName = ?
+            ");
+            $stmtUpUA->execute([
+                $firstname, $middlename, $lastname, $phone, $email,
+                $address, $about, $twitter, $facebook,
+                $instagram, $linkedin, $photolink, $usersession
+            ]);
+
+            // Update users table
+            $stmtUpU = $con->prepare("
+                UPDATE users 
+                SET full_name = ?, email = ?, avatar_url = ? 
+                WHERE email = ?
+            ");
+            $stmtUpU->execute([$fullname_input, $email, $photolink, $current_email]);
+
+            $con->commit();
+
+            // Refresh loaded data
+            $getstatus->execute([$usersession]);
+            $getprofile = $getstatus->fetch(PDO::FETCH_ASSOC);
+            $current_email = $getprofile['EmailAddress'];
+
+            $stmtModern->execute([$current_email]);
+            $modernUser = $stmtModern->fetch(PDO::FETCH_ASSOC);
+
+            $msg = '<div class="alert alert-success" role="alert">Profile updated successfully!</div>';
+        } catch (Throwable $e) {
+            if ($con->inTransaction()) {
+                $con->rollBack();
+            }
+            $msg = '<div class="alert alert-danger" role="alert">Database update error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+        }
+    }
+}
+
+// 2. CHANGE PASSWORD
+if (isset($_POST['changepaasword'])) {
+    $password = $_POST['password'] ?? '';
+    $newpassword = $_POST['newpassword'] ?? '';
+    $renewpassword = $_POST['renewpassword'] ?? '';
+
+    // Verify current password: it could be MD5 or BCRYPT
+    $pwdMatch = (md5($password) === $currentpwd_md5);
+    if (!$pwdMatch && $currentpwd_bcrypt) {
+        $pwdMatch = password_verify($password, $currentpwd_bcrypt);
+    }
+
+    if (!$pwdMatch) {
+        $msg = '<div class="alert alert-danger" role="alert">Current password does not match.</div>';
+    } else {
+        if ($newpassword !== $renewpassword) {
+            $msg = '<div class="alert alert-danger" role="alert">Repeated password does not match, please try again.</div>';
+        } else {
+            $newpwd_md5 = md5($newpassword);
+            $newpwd_bcrypt = password_hash($newpassword, PASSWORD_BCRYPT);
+
+            if ($newpwd_md5 !== $currentpwd_md5) {
+                try {
+                    $con->beginTransaction();
+
+                    // Update user_access table
+                    $stmtPassUA = $con->prepare("UPDATE user_access SET passWord = ? WHERE userName = ?");
+                    $stmtPassUA->execute([$newpwd_md5, $usersession]);
+
+                    // Update users table
+                    $stmtPassU = $con->prepare("UPDATE users SET password_hash = ? WHERE email = ?");
+                    $stmtPassU->execute([$newpwd_bcrypt, $current_email]);
+
+                    $con->commit();
+
+                    // Refresh
+                    $getstatus->execute([$usersession]);
+                    $getprofile = $getstatus->fetch(PDO::FETCH_ASSOC);
+                    $currentpwd_md5 = $getprofile['passWord'];
+
+                    $stmtModern->execute([$current_email]);
+                    $modernUser = $stmtModern->fetch(PDO::FETCH_ASSOC);
+                    $currentpwd_bcrypt = $modernUser ? $modernUser['password_hash'] : '';
+
+                    $msg = '<div class="alert alert-success" role="alert">Password Changed Successfully.</div>';
+                } catch (Throwable $e) {
+                    if ($con->inTransaction()) {
+                        $con->rollBack();
+                    }
+                    $msg = '<div class="alert alert-danger" role="alert">Password update failed: ' . htmlspecialchars($e->getMessage()) . '</div>';
+                }
+            } else {
+                $msg = '<div class="alert alert-danger" role="alert">New Password must not match the previous password, please try again.</div>';
+            }
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -233,22 +382,18 @@ include("inc/selectorVendor.php");
                 <div class="tab-pane fade profile-edit pt-3" id="profile-edit">
 
                   <!-- Profile Edit Form -->
-                  <form method = "POST" >
-                   <!-- <div class="row mb-3">
+                  <form method = "POST" enctype="multipart/form-data">
+                    <div class="row mb-3">
                       <label for="profileImage" class="col-md-4 col-lg-3 col-form-label">Profile Image</label>
                       <div class="col-md-8 col-lg-9">
-                        <img src="assets/img/profile-img.jpg" alt="Profile">
-                        <div class="pt-2">
-                          <a href="#" class="btn btn-primary btn-sm" title="Upload new profile image"><i class="bi bi-upload"></i></a>
-                          <a href="#" class="btn btn-danger btn-sm" title="Remove my profile image"><i class="bi bi-trash"></i></a>
-                        </div>
+                        <input type="file" class="form-control" name="fileToUpload" accept="image/*">
+                        <div class="form-text text-muted mt-1 small">Saves as username-based passport photo. Leave empty to keep current.</div>
                       </div>
-                    </div>-->
-							<?php //echo $msg ?>
+                    </div>
                     <div class="row mb-3">
                       <label for="fullName" class="col-md-4 col-lg-3 col-form-label">Full Name</label>
                       <div class="col-md-8 col-lg-9">
-                        <input  type="text" class="form-control" id="fullName" value="<?php echo $fullname ?>" readonly>
+                        <input name="fullname" type="text" class="form-control" id="fullName" value="<?php echo $fullname ?>" required>
                       </div>
                     </div>
 
