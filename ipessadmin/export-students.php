@@ -6,7 +6,7 @@
  * GET ?type=summary  → exports programme-level summary table instead
  */
 session_start();
-require_once __DIR__ . '/../../app/helpers/auth.php';
+require_once __DIR__ . '/../app/helpers/auth.php';
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
