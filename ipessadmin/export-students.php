@@ -103,7 +103,7 @@ if ($typeParam === 'summary') {
             a.application_number                    AS Application_Number,
             p.surname                               AS Surname,
             p.first_name                            AS First_Name,
-            p.other_names                           AS Other_Names,
+            p.other_name                            AS Other_Names,
             p.gender                                AS Gender,
             p.date_of_birth                         AS Date_of_Birth,
             p.phone                                 AS Phone,
