@@ -112,7 +112,29 @@ $allowedStatuses = ['Admitted', 'Rejected', 'Submitted'];
 $statusParam   = $_GET['status'] ?? 'all';
 $q             = trim((string)($_GET['q'] ?? ''));
 $filterYear    = (int)($_GET['year'] ?? 0);
+$filterProgram = (int)($_GET['program'] ?? 0);
 $format        = strtolower(trim($_GET['format'] ?? ''));
+
+$availableCourses = [];
+$availableYears = [];
+
+if ($pdo) {
+    try {
+        if ($loggedInDepartmentId) {
+            $courseSql = "SELECT course_id, course_title FROM courses WHERE dept_id = ? ORDER BY course_title ASC";
+            $stmtC = $pdo->prepare($courseSql);
+            $stmtC->execute([$loggedInDepartmentId]);
+            $availableCourses = $stmtC->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            $courseSql = "SELECT course_id, course_title FROM courses ORDER BY course_title ASC";
+            $availableCourses = $pdo->query($courseSql)->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (Throwable $e) {}
+
+    try {
+        $availableYears = $pdo->query("SELECT DISTINCT YEAR(submitted_at) AS yr FROM applications WHERE submitted_at IS NOT NULL ORDER BY yr DESC")->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {}
+}
 
 // Build where clause
 $deptFilterSql = "";
@@ -134,6 +156,10 @@ if ($statusParam === 'Submitted') {
 if ($q !== '') {
     $like = '%' . $q . '%';
     $where .= " AND (u.email LIKE " . $pdo->quote($like) . " OR COALESCE(p.first_name,'') LIKE " . $pdo->quote($like) . " OR COALESCE(p.surname,'') LIKE " . $pdo->quote($like) . " OR COALESCE(a.application_number,'') LIKE " . $pdo->quote($like) . " OR COALESCE(p.phone,'') LIKE " . $pdo->quote($like) . ")";
+}
+
+if ($filterProgram) {
+    $where .= " AND pc.course = " . (int)$filterProgram;
 }
 
 if ($filterYear) {
@@ -346,6 +372,47 @@ require_once 'includes/dev_topbar.php';
         </div>
     </div>
     <div class="panel-body">
+        <form method="get" class="row g-2 mb-3 align-items-end">
+            <!-- Retain current format if any -->
+            <input type="hidden" name="format" value="<?php echo htmlspecialchars($format); ?>">
+            
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold text-muted">Search</label>
+                <input type="text" class="form-control" name="q" value="<?php echo htmlspecialchars($q, ENT_QUOTES, 'UTF-8'); ?>"
+                    placeholder="Search candidate...">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold text-muted">Program</label>
+                <select class="form-select" name="program">
+                    <option value="">All Programs</option>
+                    <?php foreach ($availableCourses as $course): ?>
+                        <option value="<?php echo $course['course_id']; ?>" <?php echo $filterProgram == $course['course_id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($course['course_title']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold text-muted">Status</label>
+                <select class="form-select" name="status">
+                    <option value="all">All Statuses</option>
+                    <?php foreach ($allowedStatuses as $s): ?>
+                        <option value="<?php echo $s; ?>" <?php echo $statusParam === $s ? 'selected' : ''; ?>><?php echo $s; ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold text-muted">Year</label>
+                <select class="form-select" name="year">
+                    <option value="">All Years</option>
+                    <?php foreach ($availableYears as $yr): ?>
+                        <option value="<?php echo $yr; ?>" <?php echo $filterYear == $yr ? 'selected' : ''; ?>><?php echo $yr; ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button class="btn btn-primary" type="submit"><i class="fas fa-filter me-1"></i>Filter</button>
+            </div>
+        </form>
+
         <div class="table-responsive">
             <table class="table align-middle mb-0">
                 <thead>
