@@ -1,10 +1,4 @@
 <?php
-/**
- * export-students.php
- * Exports student/applicant data as CSV.
- * GET ?status=all|Admitted|Rejected|Submitted|Pending
- * GET ?type=summary  → exports programme-level summary table instead
- */
 session_start();
 require_once __DIR__ . '/../app/helpers/auth.php';
 
@@ -26,6 +20,11 @@ if (!$isHod && !has_permission('export_csv', $role, $userId) && !has_permission(
 }
 
 require_once 'db.php';
+
+if (!$pdo) {
+    http_response_code(500);
+    die('Database unavailable.');
+}
 
 // Resolve HOD department mapping
 $loggedInUserAccessName = $_SESSION['userid'] ?? '';
@@ -51,104 +50,315 @@ try {
     }
 } catch (Throwable $e) {}
 
+$deptName = 'All Departments';
+if ($loggedInDepartmentId) {
+    try {
+        $stmtDName = $pdo->prepare("SELECT dept_name FROM departments WHERE dept_id = ? LIMIT 1");
+        $stmtDName->execute([$loggedInDepartmentId]);
+        $dName = $stmtDName->fetchColumn();
+        if ($dName) {
+            $deptName = $dName;
+        }
+    } catch (Throwable $e) {}
+}
+
 $allowedStatuses = ['Admitted', 'Rejected', 'Submitted'];
 $statusParam   = $_GET['status'] ?? 'all';
-$typeParam     = $_GET['type']   ?? 'students';
+$q             = trim((string)($_GET['q'] ?? ''));
+$filterYear    = (int)($_GET['year'] ?? 0);
+$format        = strtolower(trim($_GET['format'] ?? ''));
 
+// Build where clause
 $deptFilterSql = "";
 if ($isHod && $loggedInDepartmentId) {
     $deptFilterSql = " AND (pc.department = " . (int)$loggedInDepartmentId . " OR a.department_id = " . (int)$loggedInDepartmentId . ")";
 }
 
-/* ── Programme Summary Export ─────────────────────────────── */
-if ($typeParam === 'summary') {
-    $sql = "
-        SELECT
-            pc.course                                                          AS Programme,
-            pc.department                                                      AS Department,
-            COUNT(a.application_id)                                            AS Total_Applications,
-            SUM(CASE WHEN a.status = 'Admitted'  THEN 1 ELSE 0 END)          AS Admitted,
-            SUM(CASE WHEN a.status = 'Rejected'  THEN 1 ELSE 0 END)          AS Rejected,
-            SUM(CASE WHEN a.status = 'Submitted' THEN 1 ELSE 0 END)          AS Pending,
-            ROUND(
-                SUM(CASE WHEN a.status = 'Admitted' THEN 1 ELSE 0 END)
-                / NULLIF(COUNT(a.application_id), 0) * 100, 1
-            )                                                                  AS Approval_Rate_Pct
-        FROM programme_choices pc
-        JOIN applications a ON pc.application_id = a.application_id AND pc.faculty > 0
-        WHERE 1=1 $deptFilterSql
-        GROUP BY pc.course, pc.department
-        ORDER BY Total_Applications DESC
-    ";
-    $rows    = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-    $headers = ['Programme', 'Department', 'Total Applications', 'Admitted', 'Rejected', 'Pending', 'Approval Rate (%)'];
-    $filename = 'programme_summary_' . date('Y-m-d') . '.csv';
+$where = $deptFilterSql;
+$label = 'all';
 
-/* ── Per-Status / All Students Export ─────────────────────── */
-} else {
-    $where = $deptFilterSql;
-    $label = 'all';
+if ($statusParam === 'Submitted') {
+    $where .= " AND a.status = 'Submitted'";
+    $label = 'pending';
+} elseif (in_array($statusParam, $allowedStatuses, true)) {
+    $where .= " AND a.status = " . $pdo->quote($statusParam);
+    $label = strtolower($statusParam);
+}
 
-    if ($statusParam === 'Submitted') {
-        // "Pending" in the UI = Submitted in DB
-        $where .= " AND a.status = 'Submitted'";
-        $label = 'pending';
-    } elseif (in_array($statusParam, $allowedStatuses, true)) {
-        $where .= " AND a.status = " . $pdo->quote($statusParam);
-        $label = strtolower($statusParam);
-    }
+if ($q !== '') {
+    $like = '%' . $q . '%';
+    $where .= " AND (u.email LIKE " . $pdo->quote($like) . " OR COALESCE(p.first_name,'') LIKE " . $pdo->quote($like) . " OR COALESCE(p.surname,'') LIKE " . $pdo->quote($like) . " OR COALESCE(a.application_number,'') LIKE " . $pdo->quote($like) . " OR COALESCE(p.phone,'') LIKE " . $pdo->quote($like) . ")";
+}
 
-    $sql = "
-        SELECT
-            a.application_number                    AS Application_Number,
-            p.surname                               AS Surname,
-            p.first_name                            AS First_Name,
-            p.other_name                            AS Other_Names,
-            p.sex                                   AS Gender,
-            p.dob                                   AS Date_of_Birth,
-            p.phone                                 AS Phone,
-            u.email                                 AS Email,
-            pc.course                               AS Programme,
-            pc.department                           AS Department,
-            pc.faculty                              AS Faculty,
-            pc.degree_type                          AS Degree_Type,
-            a.status                                AS Status,
-            a.current_status                        AS Workflow_Status,
-            a.submitted_at                          AS Submitted_At
-        FROM applications a
-        LEFT JOIN users            u  ON a.user_id        = u.user_id
-        LEFT JOIN personal_details p  ON a.application_id = p.application_id
-        LEFT JOIN programme_choices pc ON a.application_id = pc.application_id AND pc.faculty > 0
-        WHERE a.submitted_at IS NOT NULL
-        $where
-        ORDER BY a.submitted_at DESC
-    ";
-    $rows    = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+if ($filterYear) {
+    $where .= " AND YEAR(a.submitted_at) = " . (int)$filterYear;
+}
+
+// Main query
+$sql = "
+    SELECT
+        a.application_number                    AS Application_Number,
+        p.surname                               AS Surname,
+        p.first_name                            AS First_Name,
+        p.other_name                            AS Other_Names,
+        p.sex                                   AS Gender,
+        p.dob                                   AS Date_of_Birth,
+        p.phone                                 AS Phone,
+        u.email                                 AS Email,
+        c.course_title                          AS Programme,
+        d.dept_name                             AS Department,
+        f.faculty_name                          AS Faculty,
+        dt.degree_name                          AS Degree_Type,
+        a.status                                AS Status,
+        a.submitted_at                          AS Submitted_At
+    FROM applications a
+    LEFT JOIN users            u  ON a.user_id        = u.user_id
+    LEFT JOIN personal_details p  ON a.application_id = p.application_id
+    LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
+    LEFT JOIN faculties        f  ON f.faculty_id     = pc.faculty
+    LEFT JOIN departments      d  ON d.dept_id        = COALESCE(pc.department, a.department_id)
+    LEFT JOIN courses          c  ON c.course_id      = pc.course
+    LEFT JOIN degree_types     dt ON dt.degree_id     = pc.degree_type
+    WHERE a.submitted_at IS NOT NULL
+    $where
+    ORDER BY a.submitted_at DESC
+";
+
+$rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+
+/* ────────────────────────────────────────────────────────────
+   MODE 1: STREAM CSV / EXCEL
+   ──────────────────────────────────────────────────────────── */
+if ($format === 'csv') {
+    $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.csv';
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+
+    $out = fopen('php://output', 'w');
+    // UTF-8 BOM so Excel opens it correctly
+    fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
     $headers = [
         'Application Number', 'Surname', 'First Name', 'Other Names',
         'Gender', 'Date of Birth', 'Phone', 'Email',
         'Programme', 'Department', 'Faculty', 'Degree Type',
-        'Status', 'Workflow Status', 'Submitted At'
+        'Status', 'Submitted At'
     ];
-    $filename = 'students_' . $label . '_' . date('Y-m-d') . '.csv';
+    fputcsv($out, $headers);
+    foreach ($rows as $row) {
+        fputcsv($out, array_values($row));
+    }
+    fclose($out);
+    exit();
 }
 
-/* ── Stream CSV ────────────────────────────────────────────── */
-header('Content-Type: text/csv; charset=UTF-8');
-header('Content-Disposition: attachment; filename="' . $filename . '"');
-header('Cache-Control: no-cache, no-store, must-revalidate');
-header('Pragma: no-cache');
-header('Expires: 0');
-
-$out = fopen('php://output', 'w');
-
-// UTF-8 BOM so Excel opens it correctly
-fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
-
-fputcsv($out, $headers);
-foreach ($rows as $row) {
-    fputcsv($out, array_values($row));
+/* ────────────────────────────────────────────────────────────
+   MODE 2: STANDALONE PDF PRINT LAYOUT
+   ──────────────────────────────────────────────────────────── */
+if ($format === 'pdf') {
+    $documentTitle = 'JOSTUM PG School - Student Export (' . $deptName . ')';
+    $generatedAt = date('M d, Y H:i');
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
+        <title><?php echo htmlspecialchars($documentTitle); ?></title>
+        <style>
+            body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #f5f7fb; margin: 0; padding: 24px; color: #1e293b; }
+            .sheet { background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08); }
+            .header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; }
+            .logo-title-group { display: flex; align-items: center; gap: 12px; }
+            .logo-img { height: 50px; width: 50px; border-radius: 50%; object-fit: cover; }
+            .title { font-size: 18px; font-weight: 700; margin: 0; color: #0f172a; }
+            .meta { color: #64748b; font-size: 12px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+            th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
+            th { background: #f8fafc; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; color: #475569; }
+            .status-badge { font-weight: 600; font-size: 10px; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+            .status-Admitted { background: #d1fae5; color: #065f46; }
+            .status-Rejected { background: #fee2e2; color: #991b1b; }
+            .status-Submitted { background: #fef3c7; color: #92400e; }
+            .status-Draft { background: #f1f5f9; color: #475569; }
+            .toolbar { margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+            .action-btn { background: #10b981; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; text-decoration: none; }
+            .action-btn.back-btn { background: #64748b; }
+            @media print { body { background: #fff; padding: 0; } .toolbar { display: none; } .sheet { box-shadow: none; border-radius: 0; padding: 0; } }
+        </style>
+    </head>
+    <body>
+        <div class="toolbar">
+            <a href="export-students.php?<?php echo http_build_query($_GET); ?>" class="action-btn back-btn">
+                ← Back to View
+            </a>
+            <button onclick="window.print()" class="action-btn">
+                Print / Save as PDF
+            </button>
+        </div>
+        <div class="sheet">
+            <div class="header">
+                <div class="logo-title-group">
+                    <img src="../ADMIN/images/logo.jpeg" class="logo-img" alt="Logo">
+                    <div>
+                        <h1 class="title">JOSTUM PG School - Applicants Record Sheet</h1>
+                        <div class="meta">Department: <strong><?php echo htmlspecialchars($deptName); ?></strong></div>
+                    </div>
+                </div>
+                <div class="meta" style="text-align: right;">
+                    <div>Generated: <?php echo $generatedAt; ?></div>
+                    <div>Total Applicants: <strong><?php echo count($rows); ?></strong></div>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>App No</th>
+                        <th>Candidate Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Programme</th>
+                        <th>Degree</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($rows)): ?>
+                        <?php foreach ($rows as $i => $row): ?>
+                            <?php
+                            $candidateName = trim(($row['Surname'] ?? '') . ' ' . ($row['First_Name'] ?? '') . ' ' . ($row['Other_Names'] ?? ''));
+                            if ($candidateName === '') $candidateName = 'N/A';
+                            ?>
+                            <tr>
+                                <td><?php echo $i + 1; ?></td>
+                                <td><code><?php echo htmlspecialchars((string)($row['Application_Number'] ?: 'N/A')); ?></code></td>
+                                <td><strong><?php echo htmlspecialchars($candidateName); ?></strong></td>
+                                <td><?php echo htmlspecialchars($row['Email'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($row['Phone'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($row['Programme'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($row['Degree_Type'] ?? ''); ?></td>
+                                <td>
+                                    <span class="status-badge status-<?php echo htmlspecialchars($row['Status']); ?>">
+                                        <?php echo htmlspecialchars($row['Status']); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo $row['Submitted_At'] ? date('M d, Y', strtotime($row['Submitted_At'])) : '—'; ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="9" style="text-align: center; color: #64748b;">No records found.</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit();
 }
 
-fclose($out);
-exit();
+/* ────────────────────────────────────────────────────────────
+   MODE 3: DASHBOARD INTERACTIVE PREVIEW PAGE (DEFAULT)
+   ──────────────────────────────────────────────────────────── */
+$pageTitle = 'Export Students';
+$pageSubtitle = 'Review applicant details and select format to download.';
+
+require_once 'includes/dev_header.php';
+require_once 'includes/sidebar.php';
+require_once 'includes/dev_topbar.php';
+?>
+
+<section class="page-hero">
+    <div>
+        <h1>Export Records Sheet</h1>
+        <p class="panel-muted">Previewing applications under department: <strong><?php echo htmlspecialchars($deptName); ?></strong></p>
+    </div>
+    <div class="hero-actions">
+        <!-- Re-use existing query parameters for downloads -->
+        <a href="export-students.php?<?php echo http_build_query(array_merge($_GET, ['format' => 'csv'])); ?>" class="btn btn-success">
+            <i class="fas fa-file-excel me-1"></i>Download Excel / CSV
+        </a>
+        <a href="export-students.php?<?php echo http_build_query(array_merge($_GET, ['format' => 'pdf'])); ?>" class="btn btn-danger">
+            <i class="fas fa-file-pdf me-1"></i>Download / Print PDF
+        </a>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h3 class="panel-title">Records Preview (Total: <?php echo count($rows); ?>)</h3>
+            <div class="panel-muted">Review the data columns before executing the report download.</div>
+        </div>
+    </div>
+    <div class="panel-body">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Student Name</th>
+                        <th>App No</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Gender</th>
+                        <th>DOB</th>
+                        <th>Programme</th>
+                        <th>Degree</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (!empty($rows)): ?>
+                        <?php foreach ($rows as $i => $row): ?>
+                            <?php
+                            $candidateName = trim(($row['Surname'] ?? '') . ' ' . ($row['First_Name'] ?? '') . ' ' . ($row['Other_Names'] ?? ''));
+                            if ($candidateName === '') $candidateName = 'N/A';
+
+                            $statusClass = 'status-muted';
+                            if (($row['Status'] ?? '') === 'Admitted')  $statusClass = 'status-success';
+                            elseif (($row['Status'] ?? '') === 'Rejected') $statusClass = 'status-danger';
+                            elseif (($row['Status'] ?? '') === 'Submitted') $statusClass = 'status-warning';
+                            ?>
+                            <tr>
+                                <td class="text-muted small"><?php echo $i + 1; ?></td>
+                                <td>
+                                    <div class="fw-semibold"><?php echo htmlspecialchars($candidateName); ?></div>
+                                </td>
+                                <td><code><?php echo htmlspecialchars((string)($row['Application_Number'] ?: 'N/A')); ?></code></td>
+                                <td><?php echo htmlspecialchars($row['Email'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($row['Phone'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($row['Gender'] ?? ''); ?></td>
+                                <td><?php echo $row['Date_of_Birth'] ? date('M d, Y', strtotime($row['Date_of_Birth'])) : '—'; ?></td>
+                                <td><?php echo htmlspecialchars($row['Programme'] ?? ''); ?></td>
+                                <td><?php echo htmlspecialchars($row['Degree_Type'] ?? ''); ?></td>
+                                <td><span class="status-chip <?php echo $statusClass; ?>"><?php echo htmlspecialchars((string)($row['Status'] ?: 'Unknown')); ?></span></td>
+                                <td class="small text-muted">
+                                    <?php echo $row['Submitted_At'] ? date('M d, Y', strtotime($row['Submitted_At'])) : '—'; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="11" class="text-center text-muted py-5">
+                                <i class="fas fa-folder-open fa-2x mb-2 d-block opacity-25"></i>
+                                No records found matching the active filters.
+                            </td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<?php require_once 'includes/footer.php'; ?>
