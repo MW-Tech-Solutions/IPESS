@@ -13,17 +13,81 @@ if (!$pdo) {
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 function dept_id_from_session(): ?int {
-    if (!isset($_SESSION['department_id']) && isset($_SESSION['user_id'])) {
+    global $pdo;
+    if (!isset($_SESSION['department_id']) || !$_SESSION['department_id']) {
+        $deptId = null;
+        $userId = $_SESSION['user_id'] ?? null;
+        $userSessionName = $_SESSION['userid'] ?? '';
+
         try {
-            require_once __DIR__ . '/../../db.php';
-            global $pdo;
-            $stmt = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
-            $stmt->execute([$_SESSION['user_id']]);
-            $deptId = $stmt->fetchColumn();
+            // 1. Try querying users table by user_id
+            if ($userId) {
+                $stmt = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
+                $stmt->execute([(int)$userId]);
+                $deptId = $stmt->fetchColumn();
+            }
+
+            // 2. Try querying users table by userSessionName if it looks like an email or numeric ID
+            if (!$deptId && $userSessionName) {
+                $stmt = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? OR email = ? LIMIT 1");
+                $stmt->execute([$userSessionName, $userSessionName]);
+                $deptId = $stmt->fetchColumn();
+            }
+
+            // 3. Try legacy mapping table sch_departmental_officer by username (userSessionName)
+            if (!$deptId && $userSessionName) {
+                $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '', 'sch_departmental_officer');
+                $tableExists = false;
+                try {
+                    $pdo->query("SELECT 1 FROM `{$sanitized}` LIMIT 0");
+                    $tableExists = true;
+                } catch (Throwable $e) {}
+
+                if ($tableExists) {
+                    $stmt = $pdo->prepare("SELECT departmentID FROM sch_departmental_officer WHERE userID = ? LIMIT 1");
+                    $stmt->execute([$userSessionName]);
+                    $deptId = $stmt->fetchColumn();
+                }
+            }
+
+            // 4. Try legacy mapping table sch_departmental_officer by username fetched from user_access
+            if (!$deptId && ($userId || $userSessionName)) {
+                $stmtAcc = $pdo->prepare("SELECT userName, EmailAddress FROM user_access WHERE staffIDs = ? OR userName = ? OR EmailAddress = ? LIMIT 1");
+                $stmtAcc->execute([$userId, $userSessionName, $userSessionName]);
+                $accRow = $stmtAcc->fetch(PDO::FETCH_ASSOC);
+                if ($accRow) {
+                    $uname = $accRow['userName'];
+                    $uemail = $accRow['EmailAddress'];
+
+                    // Try users table with email
+                    $stmt = $pdo->prepare("SELECT department_id FROM users WHERE email = ? LIMIT 1");
+                    $stmt->execute([$uemail]);
+                    $deptId = $stmt->fetchColumn();
+
+                    // Try sch_departmental_officer with username
+                    if (!$deptId) {
+                        $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '', 'sch_departmental_officer');
+                        $tableExists = false;
+                        try {
+                            $pdo->query("SELECT 1 FROM `{$sanitized}` LIMIT 0");
+                            $tableExists = true;
+                        } catch (Throwable $e) {}
+
+                        if ($tableExists) {
+                            $stmt = $pdo->prepare("SELECT departmentID FROM sch_departmental_officer WHERE userID = ? LIMIT 1");
+                            $stmt->execute([$uname]);
+                            $deptId = $stmt->fetchColumn();
+                        }
+                    }
+                }
+            }
+
             if ($deptId !== false && $deptId !== null) {
                 $_SESSION['department_id'] = (int) $deptId;
             }
-        } catch (Throwable $e) {}
+        } catch (Throwable $e) {
+            error_log("Error resolving department: " . $e->getMessage());
+        }
     }
     return $_SESSION['department_id'] ?? $_SESSION['dept_id'] ?? null;
 }
