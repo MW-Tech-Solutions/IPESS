@@ -13,19 +13,52 @@ if (!isset($_SESSION['user_id'])) {
     die('Unauthorized access.');
 }
 
-$role = $_SESSION['role'] ?? '';
+$role = $_SESSION['role'] ?? $_SESSION['roleid'] ?? '';
 $userId = $_SESSION['user_id'];
 
-if (!has_permission('export_csv', $role, $userId) && !has_permission('export_excel', $role, $userId)) {
+// Resolve normalized role
+$normRole = function_exists('normalize_role') ? normalize_role($role) : strtoupper(trim($role));
+$isHod = in_array($normRole, ['HOD', 'DEPARTMENT_ADMIN'], true) || stripos($normRole, 'department') !== false;
+
+if (!$isHod && !has_permission('export_csv', $role, $userId) && !has_permission('export_excel', $role, $userId)) {
     http_response_code(403);
     die('Forbidden. Insufficient permissions to export CSV/Excel.');
 }
 
 require_once 'db.php';
 
+// Resolve HOD department mapping
+$loggedInUserAccessName = $_SESSION['userid'] ?? '';
+$loggedInDepartmentId = null;
+try {
+    $stmtDept = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
+    $stmtDept->execute([(int)$userId]);
+    $loggedInDepartmentId = $stmtDept->fetchColumn();
+
+    if (!$loggedInDepartmentId && $loggedInUserAccessName) {
+        $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '', 'sch_departmental_officer');
+        $tableExists = false;
+        try {
+            $pdo->query("SELECT 1 FROM `{$sanitized}` LIMIT 0");
+            $tableExists = true;
+        } catch (Throwable $e) {}
+
+        if ($tableExists) {
+            $stmtDept2 = $pdo->prepare("SELECT departmentID FROM sch_departmental_officer WHERE userID = ? LIMIT 1");
+            $stmtDept2->execute([$loggedInUserAccessName]);
+            $loggedInDepartmentId = $stmtDept2->fetchColumn();
+        }
+    }
+} catch (Throwable $e) {}
+
 $allowedStatuses = ['Admitted', 'Rejected', 'Submitted'];
 $statusParam   = $_GET['status'] ?? 'all';
 $typeParam     = $_GET['type']   ?? 'students';
+
+$deptFilterSql = "";
+if ($isHod && $loggedInDepartmentId) {
+    $deptFilterSql = " AND (pc.department = " . (int)$loggedInDepartmentId . " OR a.department_id = " . (int)$loggedInDepartmentId . ")";
+}
 
 /* ── Programme Summary Export ─────────────────────────────── */
 if ($typeParam === 'summary') {
@@ -43,6 +76,7 @@ if ($typeParam === 'summary') {
             )                                                                  AS Approval_Rate_Pct
         FROM programme_choices pc
         JOIN applications a ON pc.application_id = a.application_id AND pc.faculty > 0
+        WHERE 1=1 $deptFilterSql
         GROUP BY pc.course, pc.department
         ORDER BY Total_Applications DESC
     ";
@@ -52,15 +86,15 @@ if ($typeParam === 'summary') {
 
 /* ── Per-Status / All Students Export ─────────────────────── */
 } else {
-    $where = '';
+    $where = $deptFilterSql;
     $label = 'all';
 
     if ($statusParam === 'Submitted') {
         // "Pending" in the UI = Submitted in DB
-        $where = "AND a.status = 'Submitted'";
+        $where .= " AND a.status = 'Submitted'";
         $label = 'pending';
     } elseif (in_array($statusParam, $allowedStatuses, true)) {
-        $where = "AND a.status = " . $pdo->quote($statusParam);
+        $where .= " AND a.status = " . $pdo->quote($statusParam);
         $label = strtolower($statusParam);
     }
 
