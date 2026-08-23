@@ -257,6 +257,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 unset($_SESSION['pending_admin_login']);
 
+                // Log login event
+                try {
+                    require_once __DIR__ . '/../includes/user_activity_logger.php';
+                    log_user_login($pdo, $pending['user_id'], $pending['username'] ?? $pending['email'] ?? (string)$pending['user_id'], $pending['full_name'] ?? '', $pending['role'] ?? '');
+                } catch (Throwable $_lge) {}
+
                 session_write_close();
                 admin_redirect_by_role($_SESSION['role']);
             }
@@ -313,6 +319,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $_SESSION['userid'] = (int) $user['user_id'];
                         $_SESSION['roleid'] = $loginRole;
                         $_SESSION['last_activity'] = time();
+
+                        // Log login event
+                        try {
+                            require_once __DIR__ . '/../includes/user_activity_logger.php';
+                            log_user_login($pdo, $user['user_id'], $user['username'] ?? $user['email'] ?? (string)$user['user_id'], $user['full_name'] ?? '', $loginRole);
+                        } catch (Throwable $_lge) {}
+
                         session_write_close();
                         admin_redirect_by_role($loginRole);
                     }

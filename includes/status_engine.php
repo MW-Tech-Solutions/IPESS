@@ -219,6 +219,31 @@ function update_application_status(PDO $pdo, int $application_id, string $new_st
     log_application_history($pdo, $application_id, $prev_status, $new_status, $actor_id, $actor_role, $note);
     log_audit($pdo, 'Application Status Update', $actor_id, "Application {$application_id}: {$prev_status} -> {$new_status}");
 
+    // Log detailed activity to user_login_logs
+    try {
+        require_once __DIR__ . '/user_activity_logger.php';
+        $statusLabels = workflow_status_map();
+        $newLabel = $statusLabels[$new_status]['label'] ?? $new_status;
+        $prevLabel = ($prev_status && isset($statusLabels[$prev_status])) ? $statusLabels[$prev_status]['label'] : ($prev_status ?? 'N/A');
+        $actionLabel = match(true) {
+            $new_status === 'ADMISSION_APPROVED'              => 'Approve Applicant',
+            $new_status === 'ADMISSION_REJECTED'              => 'Reject Applicant',
+            $new_status === 'DEPT_APPROVED'                   => 'Department Approve',
+            $new_status === 'DEPT_REJECTED'                   => 'Department Reject',
+            $new_status === 'REVIEWER_APPROVED'               => 'Reviewer Approve',
+            $new_status === 'REVIEWER_REJECTED'               => 'Reviewer Reject',
+            $new_status === 'HOD_VERIFIED'                    => 'HOD Verify',
+            $new_status === 'ICT_VETTED'                      => 'ICT Vet Application',
+            $new_status === 'ASSIGNED_TO_DEPARTMENT'          => 'Assign to Department',
+            $new_status === 'APPROVED_BY_POSTGRADUATE_SCHOOL' => 'PG School Approve',
+            $new_status === 'REJECTED_BY_POSTGRADUATE_SCHOOL' => 'PG School Reject',
+            default                                           => 'Update Application Status',
+        };
+        $detail = "Application #{$application_id} status changed from '{$prevLabel}' to '{$newLabel}'";
+        if ($note) $detail .= ". Note: {$note}";
+        log_from_session($pdo, $actionLabel, $detail, 'application', $application_id);
+    } catch (Throwable $e) {}
+
     // Automatically update application_progress tracking table stages
     try {
         if (table_exists($pdo, 'application_progress')) {
