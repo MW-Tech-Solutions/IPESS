@@ -91,6 +91,15 @@ if ($action === 'toggle') {
         $actorId = $_SESSION['user_id'] ?? $_SESSION['userid'] ?? null;
         $actorId = !empty($actorId) ? (int)$actorId : null;
 
+        // Resolve to a valid users.user_id or NULL (FK: actor_user_id references users)
+        if ($actorId !== null) {
+            try {
+                $chkActor = $pdo->prepare("SELECT user_id FROM users WHERE user_id = ? LIMIT 1");
+                $chkActor->execute([$actorId]);
+                $actorId = $chkActor->fetchColumn() ? $actorId : null;
+            } catch (Throwable $e) { $actorId = null; }
+        }
+
         // Log to audit_logs
         $stmtLog = $pdo->prepare("INSERT INTO audit_logs (actor_user_id, action, details, ip_address, user_agent) VALUES (?, ?, ?, ?, ?)");
         $stmtLog->execute([

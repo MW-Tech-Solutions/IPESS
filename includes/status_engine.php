@@ -72,20 +72,34 @@ function log_audit(PDO $pdo, string $event, ?int $user_id, string $details): voi
         return;
     }
     try {
+        // Resolve actor_user_id — must be a real users.user_id or NULL (FK is ON DELETE SET NULL)
+        $safeActorId = null;
+        if ($user_id !== null && $user_id > 0) {
+            try {
+                $chk = $pdo->prepare("SELECT user_id FROM users WHERE user_id = ? LIMIT 1");
+                $chk->execute([$user_id]);
+                $found = $chk->fetchColumn();
+                $safeActorId = $found ? (int)$found : null;
+            } catch (Throwable $e) {
+                // If users table doesn't exist yet, leave null
+                $safeActorId = null;
+            }
+        }
+
         $cols = $pdo->prepare("SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'audit_logs'");
         $cols->execute();
         $available = array_map('strtolower', $cols->fetchAll(PDO::FETCH_COLUMN));
 
         if (in_array('actor_user_id', $available, true)) {
             $stmt = $pdo->prepare("INSERT INTO audit_logs (actor_user_id, action, details, created_at) VALUES (?, ?, ?, NOW())");
-            $stmt->execute([$user_id, $event, $details]);
+            $stmt->execute([$safeActorId, $event, $details]);
             return;
         }
 
         if (in_array('event', $available, true)) {
             try {
                 $stmt = $pdo->prepare("INSERT INTO audit_logs (event, user, details, timestamp) VALUES (?, ?, ?, NOW())");
-                $stmt->execute([$event, $user_id, $details]);
+                $stmt->execute([$event, $safeActorId, $details]);
                 return;
             } catch (PDOException $e) {
                 // Fall through to legacy insert if schema is different.
@@ -95,7 +109,7 @@ function log_audit(PDO $pdo, string $event, ?int $user_id, string $details): voi
         // Fallback for legacy schemas
         if (in_array('action', $available, true)) {
             $stmt = $pdo->prepare("INSERT INTO audit_logs (action, user_id, description, created_at) VALUES (?, ?, ?, NOW())");
-            $stmt->execute([$event, $user_id, $details]);
+            $stmt->execute([$event, $safeActorId, $details]);
         }
     } catch (PDOException $e) {
         return;

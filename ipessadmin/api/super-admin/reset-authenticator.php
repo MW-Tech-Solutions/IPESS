@@ -113,6 +113,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'reset') {
         try {
             $actorId = $_SESSION['user_id'] ?? $_SESSION['userid'] ?? null;
             $actorId = !empty($actorId) ? (int)$actorId : null;
+            // Resolve to a valid users.user_id or NULL (FK references users)
+            if ($actorId !== null) {
+                $chkA = $pdo->prepare("SELECT user_id FROM users WHERE user_id = ? LIMIT 1");
+                $chkA->execute([$actorId]);
+                $actorId = $chkA->fetchColumn() ? $actorId : null;
+            }
             $actorEmail = $_SESSION['email'] ?? 'unknown';
             $logStmt = $pdo->prepare("
                 INSERT INTO audit_logs (actor_user_id, action, details, ip_address, created_at)
