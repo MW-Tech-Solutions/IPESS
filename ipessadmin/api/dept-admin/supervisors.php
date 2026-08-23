@@ -18,21 +18,85 @@ function recalc_supervisor_load(PDO $pdo, string $supervisor_id): int {
     return (int) $stmt->fetchColumn();
 }
 
-if ($action === 'list') {
-    $deptId = null;
-    if (isset($_SESSION['department_id']) || isset($_SESSION['dept_id'])) {
-        $deptId = $_SESSION['department_id'] ?? $_SESSION['dept_id'];
-    } else if (isset($_SESSION['user_id'])) {
+function get_dept_id_robust(PDO $pdo): ?int {
+    if (!isset($_SESSION['department_id']) || !$_SESSION['department_id']) {
+        $deptId = null;
+        $userId = $_SESSION['user_id'] ?? null;
+        $userSessionName = $_SESSION['userid'] ?? '';
+
         try {
-            $stmt = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
-            $stmt->execute([$_SESSION['user_id']]);
-            $dVal = $stmt->fetchColumn();
-            if ($dVal !== false && $dVal !== null) {
-                $_SESSION['department_id'] = (int) $dVal;
-                $deptId = (int) $dVal;
+            // 1. Try querying users table by user_id
+            if ($userId) {
+                $stmt = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
+                $stmt->execute([(int)$userId]);
+                $deptId = $stmt->fetchColumn();
+            }
+
+            // 2. Try querying users table by userSessionName if it looks like an email or numeric ID
+            if (!$deptId && $userSessionName) {
+                $stmt = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? OR email = ? LIMIT 1");
+                $stmt->execute([$userSessionName, $userSessionName]);
+                $deptId = $stmt->fetchColumn();
+            }
+
+            // 3. Try legacy mapping table sch_departmental_officer by username (userSessionName)
+            if (!$deptId && $userSessionName) {
+                $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '', 'sch_departmental_officer');
+                $tableExists = false;
+                try {
+                    $pdo->query("SELECT 1 FROM `{$sanitized}` LIMIT 0");
+                    $tableExists = true;
+                } catch (Throwable $e) {}
+
+                if ($tableExists) {
+                    $stmt = $pdo->prepare("SELECT departmentID FROM sch_departmental_officer WHERE userID = ? LIMIT 1");
+                    $stmt->execute([$userSessionName]);
+                    $deptId = $stmt->fetchColumn();
+                }
+            }
+
+            // 4. Try legacy mapping table sch_departmental_officer by username fetched from user_access
+            if (!$deptId && ($userId || $userSessionName)) {
+                $stmtAcc = $pdo->prepare("SELECT userName, EmailAddress FROM user_access WHERE staffIDs = ? OR userName = ? OR EmailAddress = ? LIMIT 1");
+                $stmtAcc->execute([$userId, $userSessionName, $userSessionName]);
+                $accRow = $stmtAcc->fetch(PDO::FETCH_ASSOC);
+                if ($accRow) {
+                    $uname = $accRow['userName'];
+                    $uemail = $accRow['EmailAddress'];
+
+                    // Try users table with email
+                    $stmt = $pdo->prepare("SELECT department_id FROM users WHERE email = ? LIMIT 1");
+                    $stmt->execute([$uemail]);
+                    $deptId = $stmt->fetchColumn();
+
+                    // Try sch_departmental_officer with username
+                    if (!$deptId) {
+                        $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '', 'sch_departmental_officer');
+                        $tableExists = false;
+                        try {
+                            $pdo->query("SELECT 1 FROM `{$sanitized}` LIMIT 0");
+                            $tableExists = true;
+                        } catch (Throwable $e) {}
+
+                        if ($tableExists) {
+                            $stmt = $pdo->prepare("SELECT departmentID FROM sch_departmental_officer WHERE userID = ? LIMIT 1");
+                            $stmt->execute([$uname]);
+                            $deptId = $stmt->fetchColumn();
+                        }
+                    }
+                }
+            }
+
+            if ($deptId !== false && $deptId !== null) {
+                $_SESSION['department_id'] = (int) $deptId;
             }
         } catch (Throwable $e) {}
     }
+    return $_SESSION['department_id'] ?? $_SESSION['dept_id'] ?? null;
+}
+
+if ($action === 'list') {
+    $deptId = get_dept_id_robust($pdo);
 
     if ($deptId) {
         $stmt = $pdo->prepare("SELECT supervisor_id, full_name, title, specialization, max_capacity, current_students, status, email, phone, research_interests, notes FROM supervisor_profiles WHERE department_id = ? ORDER BY full_name");
@@ -66,20 +130,7 @@ if ($action === 'save') {
     }
 
     // Determine department and faculty ID
-    $deptId = null;
-    if (isset($_SESSION['department_id']) || isset($_SESSION['dept_id'])) {
-        $deptId = $_SESSION['department_id'] ?? $_SESSION['dept_id'];
-    } else if (isset($_SESSION['user_id'])) {
-        try {
-            $stmt = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
-            $stmt->execute([$_SESSION['user_id']]);
-            $dVal = $stmt->fetchColumn();
-            if ($dVal !== false && $dVal !== null) {
-                $_SESSION['department_id'] = (int) $dVal;
-                $deptId = (int) $dVal;
-            }
-        } catch (Throwable $e) {}
-    }
+    $deptId = get_dept_id_robust($pdo);
 
     $facultyId = null;
     if ($deptId) {
