@@ -239,7 +239,7 @@ if ($format === 'pdf') {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" type="image/jpeg" href="/ADMIN/images/logo.jpeg">
+        <link rel="icon" type="image/jpeg" href="images/logo.jpeg">
         <title><?php echo htmlspecialchars($documentTitle); ?></title>
         <style>
             body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #f5f7fb; margin: 0; padding: 24px; color: #1e293b; }
@@ -275,7 +275,7 @@ if ($format === 'pdf') {
         <div class="sheet">
             <div class="header">
                 <div class="logo-title-group">
-                    <img src="../ADMIN/images/logo.jpeg" class="logo-img" alt="Logo">
+                    <img src="images/logo.jpeg" class="logo-img" alt="Logo">
                     <div>
                         <h1 class="title">JOSTUM PG School - Applicants Record Sheet</h1>
                         <div class="meta">Department: <strong><?php echo htmlspecialchars($deptName); ?></strong></div>

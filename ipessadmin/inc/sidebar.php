@@ -162,10 +162,18 @@
 		
 		$myactivepage = ($mypage=$urlpages)?$activebyid['keep_active']:"";
 		*/
-		$getdashboard = $con->query("SELECT * FROM dash_borad WHERE userType = '$rolesession' ")->fetch(PDO::FETCH_ASSOC);
-		$mydashboard = !empty($getdashboard['pageName']) ? $getdashboard['pageName'] : 'ipessadmin/general-dashboard.php';
+		try {
+			require_once __DIR__ . '/../../app/helpers/auth.php';
+		} catch (Throwable $e) {}
+
+		if (function_exists('dashboard_for_role')) {
+			$mydashboard = dashboard_for_role($rolesession);
+		} else {
+			$getdashboard = $con->query("SELECT * FROM dash_borad WHERE userType = '$rolesession' ")->fetch(PDO::FETCH_ASSOC);
+			$mydashboard = !empty($getdashboard['pageName']) ? $getdashboard['pageName'] : 'ipessadmin/general-dashboard.php';
+		}
 		$firstdash = explode(".", $mydashboard);
-		$folders = !empty($getdashboard['folder']) ? $getdashboard['folder'] : 'ipessadmin';
+		$folders = 'ipessadmin';
 		?>
 <aside id="sidebar" class="sidebar">
 
