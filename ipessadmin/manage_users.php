@@ -3,6 +3,18 @@ session_start();
 include("inc/main.config.php");
 include("inc/selectorVendor.php");
 
+if (!function_exists('table_exists')) {
+    function table_exists(PDO $pdo, string $table): bool {
+        try {
+            $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+            $pdo->query("SELECT 1 FROM `{$sanitized}` LIMIT 0");
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+}
+
 /* =========================
    SESSION VALIDATION
 ========================= */
@@ -87,8 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
                 $stmtDelU->execute([$email]);
 
                 // 3. Delete from sch_departmental_officer
-                $stmtDelSDO = $con->prepare("DELETE FROM sch_departmental_officer WHERE userID = ?");
-                $stmtDelSDO->execute([$username]);
+                if (table_exists($con, 'sch_departmental_officer')) {
+                    $stmtDelSDO = $con->prepare("DELETE FROM sch_departmental_officer WHERE userID = ?");
+                    $stmtDelSDO->execute([$username]);
+                }
 
                 // 4. Delete from pesonal_right_page_main_menus
                 $stmtDelMenus = $con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?");
@@ -218,7 +232,7 @@ try {
         $stmtDept->execute([(int)$_SESSION['user_id']]);
         $loggedInDepartmentId = $stmtDept->fetchColumn();
     }
-    if (!$loggedInDepartmentId && $loggedInUserAccessName) {
+    if (!$loggedInDepartmentId && $loggedInUserAccessName && table_exists($con, 'sch_departmental_officer')) {
         $stmtDept2 = $con->prepare("SELECT departmentID FROM sch_departmental_officer WHERE userID = ? LIMIT 1");
         $stmtDept2->execute([$loggedInUserAccessName]);
         $loggedInDepartmentId = $stmtDept2->fetchColumn();
@@ -226,15 +240,26 @@ try {
 } catch (Throwable $e) {}
 
 if (($currentRole === 'HOD' || $currentRole === 'DEPARTMENT_ADMIN' || stripos($currentRole, 'department') !== false) && $loggedInDepartmentId) {
-    $stmt = $con->prepare("
-        SELECT DISTINCT ua.* 
-        FROM user_access ua
-        LEFT JOIN sch_departmental_officer sdo ON ua.userName = sdo.userID
-        LEFT JOIN users u ON ua.EmailAddress = u.email
-        WHERE sdo.departmentID = ? OR u.department_id = ?
-        ORDER BY ua.staffIDs DESC
-    ");
-    $stmt->execute([$loggedInDepartmentId, $loggedInDepartmentId]);
+    if (table_exists($con, 'sch_departmental_officer')) {
+        $stmt = $con->prepare("
+            SELECT DISTINCT ua.* 
+            FROM user_access ua
+            LEFT JOIN sch_departmental_officer sdo ON ua.userName = sdo.userID
+            LEFT JOIN users u ON ua.EmailAddress = u.email
+            WHERE sdo.departmentID = ? OR u.department_id = ?
+            ORDER BY ua.staffIDs DESC
+        ");
+        $stmt->execute([$loggedInDepartmentId, $loggedInDepartmentId]);
+    } else {
+        $stmt = $con->prepare("
+            SELECT DISTINCT ua.* 
+            FROM user_access ua
+            LEFT JOIN users u ON ua.EmailAddress = u.email
+            WHERE u.department_id = ?
+            ORDER BY ua.staffIDs DESC
+        ");
+        $stmt->execute([$loggedInDepartmentId]);
+    }
 } else {
     $stmt = $con->query("SELECT * FROM user_access ORDER BY staffIDs DESC");
 }

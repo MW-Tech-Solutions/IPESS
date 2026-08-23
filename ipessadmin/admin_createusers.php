@@ -2,8 +2,19 @@
 session_start();
 include("inc/main.config.php");
 include("inc/selectorVendor.php");
-//include("includes/ProcessorVendor.php");
 $myclass = new selectorVendor();
+
+if (!function_exists('table_exists')) {
+    function table_exists(PDO $pdo, string $table): bool {
+        try {
+            $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+            $pdo->query("SELECT 1 FROM `{$sanitized}` LIMIT 0");
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+}
 
 
 
@@ -157,7 +168,7 @@ if (!is_dir($target_dir)) {
 					$stmtU->execute([$emails, $fullname, $rolecode, $department_id, $pwdBcrypt]);
 
 					// If Department is selected, bind to legacy departmental officer
-					if (!empty($department_id)) {
+					if (!empty($department_id) && table_exists($con, 'sch_departmental_officer')) {
 						$stmtSDO = $con->prepare("
 							INSERT IGNORE INTO sch_departmental_officer
 							(userID, departmentID, programID, startDate, stopDate, dateCreated, setupStatus)
