@@ -262,7 +262,7 @@ function renderVetted(list) {
             <td><span class="text-muted">${item.submitted_date || '-'}</span></td>
             <td class="text-end">
                 <button class="btn btn-sm btn-success fw-bold" onclick="verifyApplicant(${item.app_id})"><i class="fas fa-check me-1"></i>Verify</button>
-                <a href="../view.php?app_no=${encodeURIComponent(item.app_code)}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fas fa-eye"></i></a>
+                <a href="view.php?app_no=${encodeURIComponent(item.app_code)}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="fas fa-eye"></i></a>
             </td>
         </tr>
     `).join('');
