@@ -42,81 +42,143 @@ if (!is_dir($target_dir)) {
 			$fullname = $_POST['fullname'];
 			$explode = explode(" ",$fullname);
 			$firstname = $explode[0];
-			$middlename = $explode[1];
+			$middlename = !empty($explode[1])?$explode[1]:"";
 			$lastname = !empty($explode[2])?$explode[2]:"";
 			
 			$UserName = $_POST['UserName'];
-			$pwd = md5($_POST['pwd']);
-			$emails = $_POST['emails'];
+			$rawPwd = $_POST['pwd'];
+			$pwdMd5 = md5($rawPwd);
+			$pwdBcrypt = password_hash($rawPwd, PASSWORD_BCRYPT);
+			$emails = trim($_POST['emails']);
 			$phoneno = $_POST['phoneno'];
 			$deviceAddress = $_POST['deviceAddress'];
-			$rolecode = $_POST['rolecode'];
+			$rolecode = (int)$_POST['rolecode'];
+			$department_id = !empty($_POST['department_id']) ? (int)$_POST['department_id'] : null;
 			
-		$photolink = "";
-		$uploadOk = 1;
-		$imagesupload = "";
+			$photolink = "";
+			$uploadOk = 1;
+			$imagesupload = "";
 
-		if (!empty($_FILES["fileToUpload"]["name"])) {
-			$target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
-			$imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
-			$check = getimagesize($_FILES["fileToUpload"]["tmp_name"]);
-			if ($check !== false) {
-				$uploadOk = 1;
-			} else {
-				$msg = '<div class="alert alert-warning" role="alert">File is not an image.</div>';
-				$uploadOk = 0;
-			}
+			// 1. Enforce uniqueness: Email Address must not exist in users or user_access
+			try {
+				$checkEmailU = $con->prepare("SELECT COUNT(*) FROM users WHERE email = ?");
+				$checkEmailU->execute([$emails]);
+				$existsU = (int)$checkEmailU->fetchColumn();
 
-			// Check if file already exists
-			if ($uploadOk && file_exists($target_file)) {
-				$msg = '<div class="alert alert-info" role="alert">Sorry, file already exists.</div>';
-				$uploadOk = 0;
-			}
+				$checkEmailUA = $con->prepare("SELECT COUNT(*) FROM user_access WHERE EmailAddress = ?");
+				$checkEmailUA->execute([$emails]);
+				$existsUA = (int)$checkEmailUA->fetchColumn();
 
-			// Check file size
-			if ($uploadOk && $_FILES["fileToUpload"]["size"] > 500000) {
-				$msg = '<div class="alert alert-warning" role="alert">Sorry, your file is too large.</div>';
-				$uploadOk = 0;
-			}
-
-			// Allow certain file formats
-			if ($uploadOk && $imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg" && $imageFileType != "gif") {
-				$msg = '<div class="alert alert-warning" role="alert">Sorry, only JPG, JPEG, PNG & GIF files are allowed.</div>';
-				$uploadOk = 0;
-			}
-
-			if ($uploadOk) {
-				if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-					$photolink = $target_file;
-					$imagesupload = "and the file " . htmlspecialchars(basename($_FILES["fileToUpload"]["name"])) . " has been uploaded.";
-				} else {
-					$msg = '<div class="alert alert-danger" role="alert">Sorry, there was an error uploading your file.</div>';
+				if ($existsU > 0 || $existsUA > 0) {
+					$msg = '<div class="alert alert-danger" role="alert">Error: A user with this email address already exists.</div>';
 					$uploadOk = 0;
+				}
+			} catch (Throwable $e) {
+				$msg = '<div class="alert alert-danger" role="alert">Validation error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+				$uploadOk = 0;
+			}
+
+			// 2. Enforce Username uniqueness in user_access
+			if ($uploadOk) {
+				try {
+					$checkUserUA = $con->prepare("SELECT COUNT(*) FROM user_access WHERE userName = ?");
+					$checkUserUA->execute([$UserName]);
+					$existsUserUA = (int)$checkUserUA->fetchColumn();
+
+					if ($existsUserUA > 0) {
+						$msg = '<div class="alert alert-danger" role="alert">Error: Username already exists.</div>';
+						$uploadOk = 0;
+					}
+				} catch (Throwable $e) {}
+			}
+
+			// 3. Image Upload (Saving image as username of the user created)
+			if ($uploadOk && !empty($_FILES["fileToUpload"]["name"])) {
+				$imageFileType = strtolower(pathinfo($_FILES["fileToUpload"]["name"], PATHINFO_EXTENSION));
+				$target_file = $target_dir . $UserName . '.' . $imageFileType;
+				$check = getimagesize($_FILES["fileToUpload"]["tmp_name"]);
+				if ($check !== false) {
+					$uploadOk = 1;
+				} else {
+					$msg = '<div class="alert alert-warning" role="alert">File is not an image.</div>';
+					$uploadOk = 0;
+				}
+
+				// Check file size (5MB limit)
+				if ($uploadOk && $_FILES["fileToUpload"]["size"] > 5000000) {
+					$msg = '<div class="alert alert-warning" role="alert">Sorry, your file is too large (max 5MB).</div>';
+					$uploadOk = 0;
+				}
+
+				// Allow certain file formats
+				if ($uploadOk && $imageFileType != "jpg" && $imageFileType != "png" && $imageFileType != "jpeg" && $imageFileType != "gif") {
+					$msg = '<div class="alert alert-warning" role="alert">Sorry, only JPG, JPEG, PNG & GIF files are allowed.</div>';
+					$uploadOk = 0;
+				}
+
+				if ($uploadOk) {
+					// Delete existing file if any to overwrite
+					if (file_exists($target_file)) {
+						@unlink($target_file);
+					}
+					if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+						$photolink = $target_file;
+						$imagesupload = "and the file has been uploaded.";
+					} else {
+						$msg = '<div class="alert alert-danger" role="alert">Sorry, there was an error uploading your file.</div>';
+						$uploadOk = 0;
+					}
+				}
+			}
+
+			// 4. Save User
+			if ($uploadOk == 1) {
+				try {
+					$con->beginTransaction();
+
+					// Insert into user_access
+					$stmtUA = $con->prepare("
+						INSERT INTO user_access
+						(title, FirstName, MiddleName, LastName, userName, passWord, EmailAddress,
+						mackAddress, pixUrl, createdDate, createdTime, activeStatus, phoneno, userRoleID, approveUser) 
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', '1', ?, ?, 'approved')
+					");
+					$stmtUA->execute([
+						$usertitle, $firstname, $middlename, $lastname, $UserName, $pwdMd5, $emails,
+						$deviceAddress, $photolink, $createdDate, $phoneno, $rolecode
+					]);
+
+					// Insert into users
+					$stmtU = $con->prepare("
+						INSERT INTO users 
+						(email, full_name, role_id, department_id, account_status, password_hash, created_at)
+						VALUES (?, ?, ?, ?, 'Active', ?, NOW())
+					");
+					$stmtU->execute([$emails, $fullname, $rolecode, $department_id, $pwdBcrypt]);
+
+					// If Department is selected, bind to legacy departmental officer
+					if (!empty($department_id)) {
+						$stmtSDO = $con->prepare("
+							INSERT IGNORE INTO sch_departmental_officer
+							(userID, departmentID, programID, startDate, stopDate, dateCreated, setupStatus)
+							VALUES (?, ?, '', '', '', ?, 'Active')
+						");
+						$stmtSDO->execute([$UserName, $department_id, $createdDate]);
+					}
+
+					$con->commit();
+
+					$msg = '<div class="alert alert-success" role="alert">
+							 User has been captured Successfully ' . $imagesupload . '
+							</div>';
+				} catch (Throwable $e) {
+					if ($con->inTransaction()) {
+						$con->rollBack();
+					}
+					$msg = '<div class="alert alert-danger" role="alert">Database execution error: ' . htmlspecialchars($e->getMessage()) . '</div>';
 				}
 			}
 		}
-
-		if ($uploadOk == 1) {
-			$checkdata = $con->query("SELECT * FROM user_access where EmailAddress = '$emails' AND userName = '$UserName' ")->rowCount();	
-			if ($checkdata < 1) {
-				$con->query("INSERT INTO user_access
-				(title,FirstName,MiddleName,LastName,userName,passWord,EmailAddress,
-				mackAddress,pixUrl,createdDate,createdTime,activeStatus,phoneno,userRoleID,approveUser) 
-				VALUES('$usertitle','$firstname','$middlename','$lastname','$UserName','$pwd','$emails','$deviceAddress',
-				'$photolink','$createdDate','','1','$phoneno','$rolecode','pending')");	
-
-
-
-				$msg = '<div class="alert alert-success" role="alert">
-						 User has been captured Successfully ' . $imagesupload . '
-						</div>';
-			} else {
-				$msg = '<div class="alert alert-danger" role="alert">
-					 Sorry record already Exist
-					</div>';
-			}
-		}
-	}
 
 
 
@@ -275,7 +337,7 @@ if (!is_dir($target_dir)) {
 						<div class="row mb-3">
                           <label class="col-sm-2 col-form-label" for="basic-default-message">Assign Role</label>
                           <div class="col-sm-10">
-						 <select name="rolecode" class="form-control" id=""  required> 
+						 <select name="rolecode" class="form-control" id="rolecode"  required> 
 								<option value="">-- Select Option -- </option>
 					
 								<?php 
@@ -312,10 +374,28 @@ if (!is_dir($target_dir)) {
 
 								if (count($uniqueRoles) > 0) {
 									foreach ($uniqueRoles as $r) {
-										echo '<option value="' . $r['id'] . '">' . htmlspecialchars($r['name']) . '</option>';
+										echo '<option value="' . $r['id'] . '" data-name="' . htmlspecialchars($r['name']) . '">' . htmlspecialchars($r['name']) . '</option>';
 									}
 								}
 								?>
+								</select>
+						</div>
+						</div>
+
+						<?php
+						$departments = [];
+						try {
+							$departments = $con->query("SELECT dept_id, dept_name FROM departments ORDER BY dept_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+						} catch (Throwable $e) {}
+						?>
+						<div class="row mb-3 d-none" id="departmentContainer">
+                          <label class="col-sm-2 col-form-label" for="department_id">Department</label>
+                          <div class="col-sm-10">
+						 <select name="department_id" class="form-control" id="department_id"> 
+								<option value="">-- Select Department -- </option>
+								<?php foreach ($departments as $dept): ?>
+									<option value="<?= $dept['dept_id'] ?>"><?= htmlspecialchars($dept['dept_name']) ?></option>
+								<?php endforeach; ?>
 								</select>
 						</div>
 						</div>
@@ -379,6 +459,24 @@ if (!is_dir($target_dir)) {
 
   <!-- Template Main JS File -->
   <script src="assets/js/main.js"></script>
+
+  <script>
+  document.getElementById('rolecode').addEventListener('change', function() {
+      const selectedOption = this.options[this.selectedIndex];
+      const roleName = (selectedOption.getAttribute('data-name') || '').toLowerCase();
+      const deptContainer = document.getElementById('departmentContainer');
+      const deptSelect = document.getElementById('department_id');
+
+      if (roleName.includes('department') || roleName.includes('hod') || roleName.includes('head of department')) {
+          deptContainer.classList.remove('d-none');
+          deptSelect.required = true;
+      } else {
+          deptContainer.classList.add('d-none');
+          deptSelect.required = false;
+          deptSelect.value = '';
+      }
+  });
+  </script>
 
 </body>
 

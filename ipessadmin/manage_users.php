@@ -62,6 +62,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_password'])) {
 }
 
 /* =========================
+   HANDLE USER DELETION
+========================= */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_user'])) {
+    $staffIdToDelete = (int)($_POST['target_staff_id'] ?? 0);
+    if ($staffIdToDelete > 0) {
+        try {
+            $stmtFind = $con->prepare("SELECT EmailAddress, userName FROM user_access WHERE staffIDs = ? LIMIT 1");
+            $stmtFind->execute([$staffIdToDelete]);
+            $staffRow = $stmtFind->fetch(PDO::FETCH_ASSOC);
+
+            if ($staffRow) {
+                $email = $staffRow['EmailAddress'];
+                $username = $staffRow['userName'];
+
+                $con->beginTransaction();
+
+                // 1. Delete from user_access
+                $stmtDelUA = $con->prepare("DELETE FROM user_access WHERE staffIDs = ?");
+                $stmtDelUA->execute([$staffIdToDelete]);
+
+                // 2. Delete from users table
+                $stmtDelU = $con->prepare("DELETE FROM users WHERE email = ?");
+                $stmtDelU->execute([$email]);
+
+                // 3. Delete from sch_departmental_officer
+                $stmtDelSDO = $con->prepare("DELETE FROM sch_departmental_officer WHERE userID = ?");
+                $stmtDelSDO->execute([$username]);
+
+                // 4. Delete from pesonal_right_page_main_menus
+                $stmtDelMenus = $con->prepare("DELETE FROM pesonal_right_page_main_menus WHERE userID = ?");
+                $stmtDelMenus->execute([$username]);
+
+                $con->commit();
+
+                $msg = '<div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle-fill me-2"></i>
+                            User has been completely deleted from the system.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>';
+            } else {
+                $msg = '<div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>User record not found.
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>';
+            }
+        } catch (Throwable $e) {
+            if ($con->inTransaction()) {
+                $con->rollBack();
+            }
+            $msg = '<div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Error deleting user: ' . htmlspecialchars($e->getMessage()) . '
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>';
+        }
+    }
+}
+
+/* =========================
    SEND MESSAGE
 ========================= */
 if (isset($_POST['sendmsg'])) {
@@ -148,8 +206,38 @@ if (isset($_POST['sendmsg'])) {
 
 <?php
 $sno = 0;
-// Load all staff from user_access
-$stmt = $con->query("SELECT * FROM user_access ORDER BY staffIDs DESC");
+
+// Determine department restrictions
+$currentRole = function_exists('normalize_role') ? normalize_role($_SESSION['roleid'] ?? '') : strtoupper(trim($_SESSION['roleid'] ?? ''));
+$loggedInUserAccessName = $_SESSION['userid'] ?? ''; // userName
+$loggedInDepartmentId = null;
+
+try {
+    if (isset($_SESSION['user_id'])) {
+        $stmtDept = $con->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
+        $stmtDept->execute([(int)$_SESSION['user_id']]);
+        $loggedInDepartmentId = $stmtDept->fetchColumn();
+    }
+    if (!$loggedInDepartmentId && $loggedInUserAccessName) {
+        $stmtDept2 = $con->prepare("SELECT departmentID FROM sch_departmental_officer WHERE userID = ? LIMIT 1");
+        $stmtDept2->execute([$loggedInUserAccessName]);
+        $loggedInDepartmentId = $stmtDept2->fetchColumn();
+    }
+} catch (Throwable $e) {}
+
+if (($currentRole === 'HOD' || $currentRole === 'DEPARTMENT_ADMIN' || stripos($currentRole, 'department') !== false) && $loggedInDepartmentId) {
+    $stmt = $con->prepare("
+        SELECT DISTINCT ua.* 
+        FROM user_access ua
+        LEFT JOIN sch_departmental_officer sdo ON ua.userName = sdo.userID
+        LEFT JOIN users u ON ua.EmailAddress = u.email
+        WHERE sdo.departmentID = ? OR u.department_id = ?
+        ORDER BY ua.staffIDs DESC
+    ");
+    $stmt->execute([$loggedInDepartmentId, $loggedInDepartmentId]);
+} else {
+    $stmt = $con->query("SELECT * FROM user_access ORDER BY staffIDs DESC");
+}
 
 while ($readusers = $stmt->fetch(PDO::FETCH_ASSOC)) {
     $sno++;
@@ -213,6 +301,13 @@ while ($readusers = $stmt->fetch(PDO::FETCH_ASSOC)) {
       <a href="reset_user_password.php?id=<?= $readusers['staffIDs'] ?>" class="btn btn-sm btn-outline-danger" title="Reset password to 1234567" onclick="return confirm('Are you sure you want to reset password for <?= htmlspecialchars(addslashes($fullusername)) ?> (<?= htmlspecialchars(addslashes($readusers['userName'])) ?>) to 1234567?');">
         <i class="bi bi-key-fill me-1"></i>Reset Pwd
       </a>
+      
+      <form method="POST" style="display:inline-block;" onsubmit="return confirm('Are you sure you want to completely delete <?= htmlspecialchars(addslashes($fullusername)) ?> from the system? This action is irreversible!');">
+        <input type="hidden" name="target_staff_id" value="<?= $readusers['staffIDs'] ?>">
+        <button type="submit" name="delete_user" class="btn btn-sm btn-danger" title="Delete User">
+          <i class="bi bi-trash-fill me-1"></i>Delete
+        </button>
+      </form>
     </div>
   </td>
 </tr>
