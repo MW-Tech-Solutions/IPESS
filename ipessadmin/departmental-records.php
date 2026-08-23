@@ -26,16 +26,70 @@ if (!function_exists('table_exists')) {
     }
 }
 
+// Resolve HOD department mapping
 try {
-    if (isset($_SESSION['user_id'])) {
+    $userIdVal = $_SESSION['user_id'] ?? null;
+    
+    // 1. Try querying users table by user_id
+    if ($userIdVal) {
         $stmtDept = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? LIMIT 1");
-        $stmtDept->execute([(int)$_SESSION['user_id']]);
+        $stmtDept->execute([(int)$userIdVal]);
         $loggedInDepartmentId = $stmtDept->fetchColumn();
     }
-    if (!$loggedInDepartmentId && $loggedInUserAccessName && table_exists($pdo, 'sch_departmental_officer')) {
-        $stmtDept2 = $pdo->prepare("SELECT departmentID FROM sch_departmental_officer WHERE userID = ? LIMIT 1");
-        $stmtDept2->execute([$loggedInUserAccessName]);
-        $loggedInDepartmentId = $stmtDept2->fetchColumn();
+
+    // 2. Try querying users table by userSessionName if it looks like an email or numeric ID
+    if (!$loggedInDepartmentId && $loggedInUserAccessName) {
+        $stmtDept = $pdo->prepare("SELECT department_id FROM users WHERE user_id = ? OR email = ? LIMIT 1");
+        $stmtDept->execute([$loggedInUserAccessName, $loggedInUserAccessName]);
+        $loggedInDepartmentId = $stmtDept->fetchColumn();
+    }
+
+    // 3. Try legacy mapping table sch_departmental_officer by username (loggedInUserAccessName)
+    if (!$loggedInDepartmentId && $loggedInUserAccessName) {
+        $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '', 'sch_departmental_officer');
+        $tableExists = false;
+        try {
+            $pdo->query("SELECT 1 FROM `{$sanitized}` LIMIT 0");
+            $tableExists = true;
+        } catch (Throwable $e) {}
+
+        if ($tableExists) {
+            $stmtDept2 = $pdo->prepare("SELECT departmentID FROM sch_departmental_officer WHERE userID = ? LIMIT 1");
+            $stmtDept2->execute([$loggedInUserAccessName]);
+            $loggedInDepartmentId = $stmtDept2->fetchColumn();
+        }
+    }
+
+    // 4. Try legacy mapping table sch_departmental_officer by username fetched from user_access
+    if (!$loggedInDepartmentId && ($userIdVal || $loggedInUserAccessName)) {
+        $stmtAcc = $pdo->prepare("SELECT userName, EmailAddress FROM user_access WHERE staffIDs = ? OR userName = ? OR EmailAddress = ? LIMIT 1");
+        $stmtAcc->execute([$userIdVal, $loggedInUserAccessName, $loggedInUserAccessName]);
+        $accRow = $stmtAcc->fetch(PDO::FETCH_ASSOC);
+        if ($accRow) {
+            $uname = $accRow['userName'];
+            $uemail = $accRow['EmailAddress'];
+
+            // Try users table with email
+            $stmtDept = $pdo->prepare("SELECT department_id FROM users WHERE email = ? LIMIT 1");
+            $stmtDept->execute([$uemail]);
+            $loggedInDepartmentId = $stmtDept->fetchColumn();
+
+            // Try sch_departmental_officer with username
+            if (!$loggedInDepartmentId) {
+                $sanitized = preg_replace('/[^a-zA-Z0-9_]/', '', 'sch_departmental_officer');
+                $tableExists = false;
+                try {
+                    $pdo->query("SELECT 1 FROM `{$sanitized}` LIMIT 0");
+                    $tableExists = true;
+                } catch (Throwable $e) {}
+
+                if ($tableExists) {
+                    $stmtDept2 = $pdo->prepare("SELECT departmentID FROM sch_departmental_officer WHERE userID = ? LIMIT 1");
+                    $stmtDept2->execute([$uname]);
+                    $loggedInDepartmentId = $stmtDept2->fetchColumn();
+                }
+            }
+        }
     }
 } catch (Throwable $e) {}
 
