@@ -141,15 +141,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     redirect_to('APPLICANT/ACADEMICS/student-portal/index.php#dashboard');
                 }
 
-                // Block non-admitted users if admissions module is closed
-                if ($admissions_closed) {
+                // Block draft applications if restrict_unsubmitted_login module is active
+                if ($restrict_unsubmitted && $appStatus === 'Draft') {
+                    session_destroy();
+                    $error = "<strong>Application Closed.</strong><br>The submission window for new or draft applications has closed. Only submitted applications can log in to track status.";
+                } elseif ($admissions_closed) {
+                    // Block non-admitted users if admissions module is closed
                     // Destroy session for non-admitted users so they can't access the dashboard
                     session_destroy();
                     $error = "<strong>Admissions Exercise is Closed.</strong><br>Access to the admissions portal is currently disabled. Please check back later or contact the admissions office.";
-                } elseif ($restrict_unsubmitted && $appStatus === 'Draft') {
-                    // Block draft applications if restrict_unsubmitted_login module is active
-                    session_destroy();
-                    $error = "<strong>Application Closed.</strong><br>The submission window for new or draft applications has closed. Only submitted applications can log in to track status.";
                 } else {
                     redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
                 }
