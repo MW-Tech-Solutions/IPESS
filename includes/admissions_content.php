@@ -47,7 +47,7 @@ function admissions_content_defaults(): array
         ],
         'notice' => [
             'title' => 'Important Notice',
-            'message' => 'Admissions updates, deadlines, and urgent notices will appear here once published by the portal administration team.',
+            'message' => 'All applicants who have not yet submitted their application should do so on or before 31st August, 2026.',
             'button_label' => '',
             'button_url' => '',
         ],

@@ -87,6 +87,7 @@ $portalLinks = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="<?php echo app_url('asset/homepage/ipess_logo.png'); ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <title>IPESS JOSTUM Postgraduate Admissions</title>
     <style>
         @import url("https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+3:wght@400;500;600;700&display=swap");
@@ -291,6 +292,12 @@ $portalLinks = [
             </div>
         </div>
     </header>
+
+    <!-- Global Notice Bar -->
+    <div style="background: #fffbeb; border-bottom: 1px solid #fef3c7; color: #b45309; padding: 12px 20px; font-size: 0.95rem; font-weight: 600; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); z-index: 45; position: relative;">
+        <i class="fas fa-exclamation-triangle" style="color: #d97706; font-size: 1.1rem; margin-right: 4px;"></i>
+        <span>All applicants who have not yet submitted their application should do so on or before 31st August, 2026.</span>
+    </div>
 
     <section class="hero">
         <div class="hero-bg" id="heroBg" style="background-image: url('<?php echo htmlspecialchars($heroImages[0]); ?>');"></div>
