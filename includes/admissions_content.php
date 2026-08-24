@@ -35,10 +35,10 @@ function admissions_content_defaults(): array
             ['title' => 'Programme-Specific Conditions', 'description' => 'Some programmes may require extra screening, references, or professional qualifications.', 'sort_order' => 4],
         ],
         'important_dates' => [
-            ['title' => 'Applications Open', 'event_date' => '2026-01-20', 'sort_order' => 1],
-            ['title' => 'Early Submission Deadline', 'event_date' => '2026-03-15', 'sort_order' => 2],
-            ['title' => 'Final Submission Deadline', 'event_date' => '2026-05-30', 'sort_order' => 3],
-            ['title' => 'Admission Decisions', 'event_date' => '2026-06-20', 'sort_order' => 4],
+            ['title' => 'Applications Open', 'event_date' => '2026-07-19', 'sort_order' => 1],
+            ['title' => 'Early Submission Deadline', 'event_date' => '2026-08-22', 'sort_order' => 2],
+            ['title' => 'Final Submission Deadline', 'event_date' => '2026-08-31', 'sort_order' => 3],
+            ['title' => 'Admission Decisions', 'event_date' => '2026-09-20', 'sort_order' => 4],
         ],
         'faqs' => [
             ['question' => 'Can I edit my application after submission?', 'answer' => 'Yes, you can log in and update your application before the final deadline where the portal keeps that window open.', 'sort_order' => 1],
