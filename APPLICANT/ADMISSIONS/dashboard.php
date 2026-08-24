@@ -82,6 +82,11 @@ if ($app_data) {
     $current_step = isset($_GET['step']) ? (int)$_GET['step'] : 1;
 }
 
+$show_unsubmitted_notice = false;
+if (!$app_data || can_edit_application($app_data['current_status'] ?? 'DRAFT')) {
+    $show_unsubmitted_notice = true;
+}
+
 if (isset($_SESSION['application_id'])) {
     $app_id = $_SESSION['application_id'];
     $_SESSION['form_data'] = [];
@@ -482,9 +487,104 @@ function render_notification_list($notifications) {
             .desktop-sidebar { display: none; }
             .main-content { padding: 15px !important; }
         }
+
+        /* Notice Modal Popup Styles */
+        .notice-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+        .notice-modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .notice-modal {
+            background: #ffffff;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 4px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 30px;
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            border-top: 5px solid #782D32;
+        }
+        .notice-modal-overlay.open .notice-modal {
+            transform: scale(1);
+        }
+        .notice-modal-header {
+            margin-bottom: 20px;
+        }
+        .notice-modal-header i {
+            font-size: 2.5rem;
+            color: #d4af37;
+            margin-bottom: 10px;
+        }
+        .notice-modal-header h3 {
+            font-family: "Merriweather", serif;
+            color: #782D32;
+            font-size: 1.5rem;
+            margin: 0;
+            font-weight: 700;
+        }
+        .notice-modal-body {
+            font-family: "Source Sans 3", sans-serif;
+            color: #334155;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        .notice-modal-footer {
+            display: flex;
+            justify-content: center;
+        }
+        .notice-modal-btn {
+            background: #782D32;
+            color: #ffffff;
+            border: none;
+            padding: 12px 30px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .notice-modal-btn:hover {
+            background: #5d2226;
+        }
     </style>
 </head>
 <body>
+    <?php if ($show_unsubmitted_notice): ?>
+    <!-- Notice Modal Popup -->
+    <div class="notice-modal-overlay" id="noticeModal">
+        <div class="notice-modal">
+            <div class="notice-modal-header">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <h3>Important Admission Notice</h3>
+            </div>
+            <div class="notice-modal-body">
+                All applicants who have not yet submitted their application should do so on or before 31st August, 2026.
+            </div>
+            <div class="notice-modal-footer">
+                <button class="notice-modal-btn" onclick="closeNoticeModal()">Acknowledge & Close</button>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
 <?php if (isset($_SESSION['msg'])): ?>
     <div id="layout-alert" class="position-fixed top-0 start-50 translate-middle-x w-100 p-3" style="z-index: 2000; max-width: 600px;">
@@ -870,6 +970,27 @@ function toggleNotificationAudio(event, btn) {
 
     synth.speak(utterance);
 }
+
+function openNoticeModal() {
+    const modal = document.getElementById('noticeModal');
+    modal?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+function closeNoticeModal() {
+    const modal = document.getElementById('noticeModal');
+    modal?.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+window.addEventListener('load', () => {
+    // Only show if the notice container is present in the DOM (i.e. $show_unsubmitted_notice is true)
+    if (document.getElementById('noticeModal') && !sessionStorage.getItem('admissions_notice_shown')) {
+        setTimeout(() => {
+            openNoticeModal();
+            sessionStorage.setItem('admissions_notice_shown', 'true');
+        }, 800);
+    }
+});
 </script>
 </body>
 </html>
