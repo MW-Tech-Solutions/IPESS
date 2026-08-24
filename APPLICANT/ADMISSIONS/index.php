@@ -245,9 +245,106 @@ $portalLinks = [
             .stats { grid-template-columns: 1fr; }
             .process-steps { grid-template-columns: 1fr; }
         }
+
+        /* Notice Modal Popup Styles */
+        .notice-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            padding: 1.25rem;
+        }
+        .notice-modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .notice-modal {
+            background: var(--white);
+            border-top: 5px solid var(--gold-500);
+            max-width: 500px;
+            width: 100%;
+            border-radius: 4px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+        }
+        .notice-modal-overlay.open .notice-modal {
+            transform: scale(1);
+        }
+        .notice-modal-header {
+            background: #fffbeb;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid #fef3c7;
+        }
+        .notice-modal-header i {
+            color: #d97706;
+            font-size: 1.5rem;
+        }
+        .notice-modal-header h3 {
+            font-family: "Source Sans 3", sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #92400e;
+            margin: 0;
+        }
+        .notice-modal-body {
+            padding: 1.75rem 1.5rem;
+            font-size: 1.05rem;
+            color: var(--slate-700);
+            line-height: 1.5;
+            font-weight: 600;
+        }
+        .notice-modal-footer {
+            padding: 1rem 1.5rem;
+            background: #f8fafc;
+            border-top: 1px solid var(--slate-200);
+            display: flex;
+            justify-content: flex-end;
+        }
+        .notice-modal-btn {
+            background: var(--green-900);
+            color: var(--white);
+            border: none;
+            padding: 0.65rem 1.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .notice-modal-btn:hover {
+            background: #5d2226;
+        }
     </style>
 </head>
 <body>
+    <!-- Notice Modal Popup -->
+    <div class="notice-modal-overlay" id="noticeModal">
+        <div class="notice-modal">
+            <div class="notice-modal-header">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h3>Important Admission Notice</h3>
+            </div>
+            <div class="notice-modal-body">
+                All applicants who have not yet submitted their application should do so on or before 31st August, 2026.
+            </div>
+            <div class="notice-modal-footer">
+                <button class="notice-modal-btn" onclick="closeNoticeModal()">Acknowledge & Close</button>
+            </div>
+        </div>
+    </div>
+
     <div class="preloader" id="preloader" aria-label="Loading homepage">
         <div class="preloader-box">
             <img class="preloader-logo" src="<?php echo htmlspecialchars($officialLogo); ?>" alt="IPESS JOSTUM Logo">
@@ -292,12 +389,6 @@ $portalLinks = [
             </div>
         </div>
     </header>
-
-    <!-- Global Notice Bar -->
-    <div style="background: #fffbeb; border-bottom: 1px solid #fef3c7; color: #b45309; padding: 12px 20px; font-size: 0.95rem; font-weight: 600; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.03); z-index: 45; position: relative;">
-        <i class="fas fa-exclamation-triangle" style="color: #d97706; font-size: 1.1rem; margin-right: 4px;"></i>
-        <span>All applicants who have not yet submitted their application should do so on or before 31st August, 2026.</span>
-    </div>
 
     <section class="hero">
         <div class="hero-bg" id="heroBg" style="background-image: url('<?php echo htmlspecialchars($heroImages[0]); ?>');"></div>
@@ -521,6 +612,19 @@ $portalLinks = [
     </footer>
 
     <script>
+        // Modal functions
+        const noticeModal = document.getElementById('noticeModal');
+        
+        function openNoticeModal() {
+            noticeModal?.classList.add('open');
+            document.body.style.overflow = 'hidden'; // Lock background scroll
+        }
+        
+        function closeNoticeModal() {
+            noticeModal?.classList.remove('open');
+            document.body.style.overflow = ''; // Restore background scroll
+        }
+
         const menuToggle = document.querySelector('.menu-toggle');
         const nav = document.querySelector('.nav');
         menuToggle?.addEventListener('click', () => {
@@ -531,6 +635,14 @@ $portalLinks = [
         const preloader = document.getElementById('preloader');
         window.addEventListener('load', () => {
             setTimeout(() => preloader?.classList.add('hidden'), 450);
+            
+            // Check session storage to show modal once per session
+            if (!sessionStorage.getItem('admissions_notice_shown')) {
+                setTimeout(() => {
+                    openNoticeModal();
+                    sessionStorage.setItem('admissions_notice_shown', 'true');
+                }, 800);
+            }
         });
         setTimeout(() => preloader?.classList.add('hidden'), 3000);
     </script>
