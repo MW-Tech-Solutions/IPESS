@@ -145,6 +145,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($restrict_unsubmitted && $appStatus === 'Draft') {
                     session_destroy();
                     $error = "<strong>Application Closed.</strong><br>The submission window for new or draft applications has closed. Only submitted applications can log in to track status.";
+                } elseif ($appStatus === 'Draft') {
+                    // If restrict_unsubmitted is NOT active, allow drafts to log in and finish their application
+                    redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
                 } elseif ($admissions_closed) {
                     // Block non-admitted users if admissions module is closed
                     // Destroy session for non-admitted users so they can't access the dashboard
