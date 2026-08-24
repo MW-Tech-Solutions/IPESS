@@ -7,6 +7,12 @@ if (!isset($_SESSION['user_id'])) {
     die('Unauthorized access.');
 }
 
+require_once 'db.php';
+if (!$pdo) {
+    http_response_code(500);
+    die('Database unavailable.');
+}
+
 $role = $_SESSION['role'] ?? $_SESSION['roleid'] ?? '';
 $userId = $_SESSION['user_id'];
 
@@ -14,17 +20,44 @@ $userId = $_SESSION['user_id'];
 $normRole = function_exists('normalize_role') ? normalize_role($role) : strtoupper(trim($role));
 $isHod = in_array($normRole, ['HOD', 'DEPARTMENT_ADMIN'], true) || stripos($normRole, 'department') !== false;
 
-if (!$isHod && !has_permission('export_csv', $role, $userId) && !has_permission('export_excel', $role, $userId)) {
+// Roles that are always allowed to export
+$exportAllowedRoles = [
+    'SUPER_ADMIN', 'DEVELOPER', 'ICT_ADMIN', 'ADMISSIONS_OFFICER',
+    'PG_SCHOOL_OFFICER', 'PORTAL_ADMIN', 'STUDENT_MANAGER', 'REGISTRY',
+    'ICT_SUPPORT', 'FACULTY_OFFICER'
+];
+$hasExportRole = in_array($normRole, $exportAllowedRoles, true);
+
+// Also check if the page is dynamically assigned to this user's role/sidebar
+$hasPageAssigned = false;
+try {
+    $stmtPageCheck = $pdo->prepare("
+        SELECT COUNT(*) FROM right_page_main_menus
+        WHERE page_url LIKE '%export-students.php'
+          AND roleID IN (SELECT role_id FROM roles WHERE role_key = ? OR role_name = ? LIMIT 1)
+          AND page_status = '1'
+    ");
+    $stmtPageCheck->execute([$normRole, $normRole]);
+    if ((int)$stmtPageCheck->fetchColumn() > 0) $hasPageAssigned = true;
+
+    if (!$hasPageAssigned) {
+        $stmtPersonal = $pdo->prepare("
+            SELECT COUNT(*) FROM pesonal_right_page_main_menus
+            WHERE page_url LIKE '%export-students.php' AND userID = ? AND page_status = '1'
+        ");
+        $stmtPersonal->execute([$userId]);
+        if ((int)$stmtPersonal->fetchColumn() > 0) $hasPageAssigned = true;
+    }
+} catch (Throwable $e) {}
+
+if (!$isHod && !$hasExportRole && !$hasPageAssigned
+    && !has_permission('export_csv', $role, $userId)
+    && !has_permission('export_excel', $role, $userId)) {
     http_response_code(403);
     die('Forbidden. Insufficient permissions to export CSV/Excel.');
 }
 
-require_once 'db.php';
-
-if (!$pdo) {
-    http_response_code(500);
-    die('Database unavailable.');
-}
+// db.php already loaded above
 
 // Resolve HOD department mapping
 $loggedInUserAccessName = $_SESSION['userid'] ?? '';
