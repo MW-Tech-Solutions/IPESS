@@ -200,14 +200,7 @@
       </li>
       <?php endif; ?>
 
-      <?php if (in_array(strtoupper(trim($rolesession ?? '')), ['SUPER_ADMIN', 'DEVELOPER', 'ICT_ADMIN', 'PG_SCHOOL_OFFICER', 'ADMISSIONS_OFFICER'], true)): ?>
-      <li class="nav-item">
-        <a class="nav-link collapsed" href="<?php echo app_url('ipessadmin/create-student.php'); ?>">
-          <i class="bi bi-person-plus"></i>
-          <span>Create Student</span>
-        </a>
-      </li>
-      <?php endif; ?>
+
 
 			<?php
 			$tab = $con->query("SELECT * FROM personal_page_menu_tab WHERE tab_status = '1' AND userID = '$usersession' ");	

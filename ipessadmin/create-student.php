@@ -1,6 +1,9 @@
-﻿<?php
+<?php
 session_start();
 require_once "db.php";
+if (!isset($pdo)) {
+    $pdo = db();
+}
 require_once __DIR__ . "/../app/helpers/auth.php";
 
 $currentRole = function_exists("normalize_role") ? normalize_role($_SESSION["roleid"] ?? "") : strtoupper(trim($_SESSION["roleid"] ?? ""));
