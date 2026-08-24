@@ -239,7 +239,18 @@ function update_application_status(PDO $pdo, int $application_id, string $new_st
             $new_status === 'REJECTED_BY_POSTGRADUATE_SCHOOL' => 'PG School Reject',
             default                                           => 'Update Application Status',
         };
-        $detail = "Application #{$application_id} status changed from '{$prevLabel}' to '{$newLabel}'";
+        // Resolve applicant full name from DB
+        $applicantName = '';
+        try {
+            $stmtApp = $pdo->prepare("SELECT first_name, surname FROM personal_details WHERE application_id = ? LIMIT 1");
+            $stmtApp->execute([$application_id]);
+            $pd = $stmtApp->fetch(PDO::FETCH_ASSOC);
+            if ($pd) {
+                $applicantName = trim(($pd['first_name'] ?? '') . ' ' . ($pd['surname'] ?? ''));
+            }
+        } catch (Throwable $eApp) {}
+
+        $detail = "Application #{$application_id}" . ($applicantName ? " ({$applicantName})" : "") . " status changed from '{$prevLabel}' to '{$newLabel}'";
         if ($note) $detail .= ". Note: {$note}";
         log_from_session($pdo, $actionLabel, $detail, 'application', $application_id);
     } catch (Throwable $e) {}

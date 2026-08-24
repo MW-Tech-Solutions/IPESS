@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * User Activity Logger Helper
  */
@@ -44,6 +44,40 @@ if (!function_exists("get_real_ip")) {
 if (!function_exists("log_user_login")) {
     function log_user_login(PDO $pdo, $staffId, string $username, string $fullName, string $role): void {
         ensure_user_logs_tables($pdo);
+        
+        // Resolve full name and username if they are empty, numeric, or matching IDs
+        if (empty($fullName) || is_numeric($fullName) || $fullName === (string)$staffId || $fullName === $username) {
+            try {
+                $stmt = $pdo->prepare("SELECT full_name FROM users WHERE user_id = ? LIMIT 1");
+                $stmt->execute([(int)$staffId]);
+                $dbName = $stmt->fetchColumn();
+                if ($dbName) {
+                    $fullName = trim($dbName);
+                } else {
+                    $stmtAccess = $pdo->prepare("SELECT FirstName, LastName FROM user_access WHERE staffIDs = ? LIMIT 1");
+                    $stmtAccess->execute([(int)$staffId]);
+                    $ua = $stmtAccess->fetch(PDO::FETCH_ASSOC);
+                    if ($ua) {
+                        $resolved = trim(($ua['FirstName'] ?? '') . ' ' . ($ua['LastName'] ?? ''));
+                        if ($resolved !== '') {
+                            $fullName = $resolved;
+                        }
+                    }
+                }
+            } catch (Throwable $e) {}
+        }
+
+        if (is_numeric($username)) {
+            try {
+                $stmtAccess = $pdo->prepare("SELECT userName FROM user_access WHERE staffIDs = ? LIMIT 1");
+                $stmtAccess->execute([(int)$username]);
+                $uName = $stmtAccess->fetchColumn();
+                if ($uName) {
+                    $username = trim($uName);
+                }
+            } catch (Throwable $e) {}
+        }
+
         try {
             $stmt = $pdo->prepare("INSERT INTO user_login_logs (staff_id, username, full_name, role, event_type, action, details, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, \"LOGIN\", \"User Login\", ?, ?, ?, NOW())");
             $stmt->execute([(string)$staffId, $username, $fullName, strtoupper($role), "User \"{$fullName}\" ({$username}) logged in with role: {$role}", get_real_ip(), substr($_SERVER["HTTP_USER_AGENT"] ?? "Unknown", 0, 500)]);
@@ -67,6 +101,40 @@ if (!function_exists("log_from_session")) {
         $username = $_SESSION["userid"]    ?? (string)$staffId;
         $fullName = $_SESSION["full_name"] ?? $_SESSION["name"]   ?? $username;
         $role     = $_SESSION["role"]      ?? $_SESSION["roleid"] ?? "UNKNOWN";
+
+        // Resolve full name and username if they are empty, numeric, or matching IDs
+        if (empty($fullName) || is_numeric($fullName) || $fullName === (string)$staffId || $fullName === $username) {
+            try {
+                $stmt = $pdo->prepare("SELECT full_name FROM users WHERE user_id = ? LIMIT 1");
+                $stmt->execute([(int)$staffId]);
+                $dbName = $stmt->fetchColumn();
+                if ($dbName) {
+                    $fullName = trim($dbName);
+                } else {
+                    $stmtAccess = $pdo->prepare("SELECT FirstName, LastName FROM user_access WHERE staffIDs = ? LIMIT 1");
+                    $stmtAccess->execute([(int)$staffId]);
+                    $ua = $stmtAccess->fetch(PDO::FETCH_ASSOC);
+                    if ($ua) {
+                        $resolved = trim(($ua['FirstName'] ?? '') . ' ' . ($ua['LastName'] ?? ''));
+                        if ($resolved !== '') {
+                            $fullName = $resolved;
+                        }
+                    }
+                }
+            } catch (Throwable $e) {}
+        }
+
+        if (is_numeric($username)) {
+            try {
+                $stmtAccess = $pdo->prepare("SELECT userName FROM user_access WHERE staffIDs = ? LIMIT 1");
+                $stmtAccess->execute([(int)$username]);
+                $uName = $stmtAccess->fetchColumn();
+                if ($uName) {
+                    $username = trim($uName);
+                }
+            } catch (Throwable $e) {}
+        }
+
         log_user_activity($pdo, $staffId, $username, $fullName, $role, $action, $details, $entityType, $entityId);
     }
 }

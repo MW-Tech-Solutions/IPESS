@@ -191,14 +191,7 @@
         </a>
       </li><!-- End Dashboard Nav -->
 
-      <?php if (in_array(strtoupper(trim($rolesession ?? '')), ['SUPER_ADMIN', 'DEVELOPER', 'ICT_ADMIN'], true)): ?>
-      <li class="nav-item">
-        <a class="nav-link collapsed" href="<?php echo app_url('ipessadmin/user-logs.php'); ?>">
-          <i class="bi bi-file-earmark-text"></i>
-          <span>User Logs</span>
-        </a>
-      </li>
-      <?php endif; ?>
+
 
 
 
