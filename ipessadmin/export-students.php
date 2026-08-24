@@ -24,7 +24,7 @@ $isHod = in_array($normRole, ['HOD', 'DEPARTMENT_ADMIN'], true) || stripos($norm
 $exportAllowedRoles = [
     'SUPER_ADMIN', 'DEVELOPER', 'ICT_ADMIN', 'ADMISSIONS_OFFICER',
     'PG_SCHOOL_OFFICER', 'PORTAL_ADMIN', 'STUDENT_MANAGER', 'REGISTRY',
-    'ICT_SUPPORT', 'FACULTY_OFFICER'
+    'ICT_SUPPORT', 'FACULTY_OFFICER', 'IPESS_ICT_ADMIN'
 ];
 $hasExportRole = in_array($normRole, $exportAllowedRoles, true);
 
