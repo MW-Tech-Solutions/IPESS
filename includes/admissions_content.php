@@ -38,7 +38,7 @@ function admissions_content_defaults(): array
             ['title' => 'Applications Open', 'event_date' => '2026-07-19', 'sort_order' => 1],
             ['title' => 'Early Submission Deadline', 'event_date' => '2026-08-22', 'sort_order' => 2],
             ['title' => 'Final Submission Deadline', 'event_date' => '2026-08-31', 'sort_order' => 3],
-            ['title' => 'Admission Decisions', 'event_date' => '2026-09-20', 'sort_order' => 4],
+            // ['title' => 'Admission Decisions', 'event_date' => '2026-09-20', 'sort_order' => 4],
         ],
         'faqs' => [
             ['question' => 'Can I edit my application after submission?', 'answer' => 'Yes, you can log in and update your application before the final deadline where the portal keeps that window open.', 'sort_order' => 1],
