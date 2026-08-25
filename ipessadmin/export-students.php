@@ -146,10 +146,14 @@ $statusParam   = $_GET['status'] ?? 'all';
 $q             = trim((string)($_GET['q'] ?? ''));
 $filterYear    = (int)($_GET['year'] ?? 0);
 $filterProgram = (int)($_GET['program'] ?? 0);
+$filterDegree  = (int)($_GET['degree'] ?? 0);
+$filterDept    = (int)($_GET['dept'] ?? 0);
 $format        = strtolower(trim($_GET['format'] ?? ''));
 
 $availableCourses = [];
 $availableYears = [];
+$degreeTypes = [];
+$departments = [];
 
 if ($pdo) {
     try {
@@ -166,6 +170,14 @@ if ($pdo) {
 
     try {
         $availableYears = $pdo->query("SELECT DISTINCT YEAR(submitted_at) AS yr FROM applications WHERE submitted_at IS NOT NULL ORDER BY yr DESC")->fetchAll(PDO::FETCH_COLUMN);
+    } catch (Throwable $e) {}
+
+    try {
+        $degreeTypes = $pdo->query("SELECT degree_id, degree_name FROM degree_types ORDER BY degree_name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {}
+
+    try {
+        $departments = $pdo->query("SELECT dept_id, dept_name FROM departments ORDER BY dept_name ASC")->fetchAll(PDO::FETCH_ASSOC);
     } catch (Throwable $e) {}
 }
 
@@ -193,6 +205,14 @@ if ($q !== '') {
 
 if ($filterProgram) {
     $where .= " AND pc.course = " . (int)$filterProgram;
+}
+
+if ($filterDegree) {
+    $where .= " AND pc.degree_type = " . (int)$filterDegree;
+}
+
+if (!$isHod && $filterDept) {
+    $where .= " AND (pc.department = " . (int)$filterDept . " OR a.department_id = " . (int)$filterDept . ")";
 }
 
 if ($filterYear) {
@@ -235,13 +255,12 @@ $rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
    MODE 1: STREAM CSV / EXCEL
    ──────────────────────────────────────────────────────────── */
 if ($format === 'excel') {
-    $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.xls';
-    
-    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
-    header('Cache-Control: no-cache, no-store, must-revalidate');
-    header('Pragma: no-cache');
-    header('Expires: 0');
+    require_once __DIR__ . '/../vendor/autoload.php';
+
+    $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.xlsx';
+
+    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+    $spreadsheet->removeSheetByIndex(0); // Remove default sheet
 
     // Group rows by Degree Type (MSc, PGD, PhD)
     $degreeSheets = [
@@ -265,88 +284,78 @@ if ($format === 'excel') {
         $degreeSheets[$normalizedKey][] = $row;
     }
 
-    // Output Excel XML Spreadsheet format
-    echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-    echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
-    ?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Author>IPESS JOSTUM Portal</Author>
-  <Created><?php echo date('Y-m-d\TH:i:s\Z'); ?></Created>
- </DocumentProperties>
- <Styles>
-  <Style ss:ID="Default" ss:Name="Normal">
-   <Alignment ss:Vertical="Bottom"/>
-   <Borders/>
-   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#000000"/>
-   <Interior/>
-   <NumberFormat/>
-   <Protection/>
-  </Style>
-  <Style ss:ID="Header">
-   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
-   <Interior ss:Color="#782D32" ss:Pattern="Solid"/>
-  </Style>
- </Styles>
- <?php foreach ($degreeSheets as $sheetName => $sheetRows): 
-    // Sanitize sheet name for Excel
-    $cleanSheetName = preg_replace('/[\\\\\/*?:\[\]]/', '', $sheetName);
-    $cleanSheetName = substr($cleanSheetName, 0, 31);
-    if (empty($cleanSheetName)) {
-        $cleanSheetName = "Sheet";
+    $headers = [
+        'Application Number', 'Surname', 'First Name', 'Other Names',
+        'Gender', 'Date of Birth', 'Phone', 'Email',
+        'Programme', 'Department', 'Faculty', 'Degree Type',
+        'Status', 'Submitted At'
+    ];
+
+    foreach ($degreeSheets as $sheetName => $sheetRows) {
+        $cleanSheetName = preg_replace('/[\\\\\/*?:\[\]]/', '', $sheetName);
+        $cleanSheetName = substr($cleanSheetName, 0, 31);
+        if (empty($cleanSheetName)) {
+            $cleanSheetName = "Sheet";
+        }
+
+        $worksheet = $spreadsheet->createSheet();
+        $worksheet->setTitle($cleanSheetName);
+
+        // Render headers
+        $colChar = 'A';
+        foreach ($headers as $header) {
+            $worksheet->setCellValue($colChar . '1', $header);
+            $colChar++;
+        }
+
+        // Style headers (Burgundy background, white bold text)
+        $lastColChar = chr(ord('A') + count($headers) - 1);
+        $worksheet->getStyle('A1:' . $lastColChar . '1')->getFont()->setBold(true)->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_WHITE));
+        $worksheet->getStyle('A1:' . $lastColChar . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FF782D32');
+
+        $rowNum = 2;
+        if (empty($sheetRows)) {
+            $worksheet->setCellValue('A2', 'No records found for this degree type.');
+            $worksheet->mergeCells('A2:' . $lastColChar . '2');
+        } else {
+            foreach ($sheetRows as $row) {
+                $worksheet->setCellValue('A' . $rowNum, $row['Application_Number'] ?? '');
+                $worksheet->setCellValue('B' . $rowNum, $row['Surname'] ?? '');
+                $worksheet->setCellValue('C' . $rowNum, $row['First_Name'] ?? '');
+                $worksheet->setCellValue('D' . $rowNum, $row['Other_Names'] ?? '');
+                $worksheet->setCellValue('E' . $rowNum, $row['Gender'] ?? '');
+                $worksheet->setCellValue('F' . $rowNum, $row['Date_of_Birth'] ?? '');
+                $worksheet->setCellValue('G' . $rowNum, $row['Phone'] ?? '');
+                $worksheet->setCellValue('H' . $rowNum, $row['Email'] ?? '');
+                $worksheet->setCellValue('I' . $rowNum, $row['Programme'] ?? '');
+                $worksheet->setCellValue('J' . $rowNum, $row['Department'] ?? '');
+                $worksheet->setCellValue('K' . $rowNum, $row['Faculty'] ?? '');
+                $worksheet->setCellValue('L' . $rowNum, $row['Degree_Type'] ?? '');
+                $worksheet->setCellValue('M' . $rowNum, $row['Status'] ?? '');
+                $worksheet->setCellValue('N' . $rowNum, $row['Submitted_At'] ?? '');
+                $rowNum++;
+            }
+        }
+
+        // Auto-fit columns
+        $colChar = 'A';
+        for ($i = 0; $i < count($headers); $i++) {
+            $worksheet->getColumnDimension($colChar)->setAutoSize(true);
+            $colChar++;
+        }
     }
- ?>
- <Worksheet ss:Name="<?php echo htmlspecialchars($cleanSheetName); ?>">
-  <Table>
-   <Row ss:StyleID="Header">
-    <Cell><Data ss:Type="String">Application Number</Data></Cell>
-    <Cell><Data ss:Type="String">Surname</Data></Cell>
-    <Cell><Data ss:Type="String">First Name</Data></Cell>
-    <Cell><Data ss:Type="String">Other Names</Data></Cell>
-    <Cell><Data ss:Type="String">Gender</Data></Cell>
-    <Cell><Data ss:Type="String">Date of Birth</Data></Cell>
-    <Cell><Data ss:Type="String">Phone</Data></Cell>
-    <Cell><Data ss:Type="String">Email</Data></Cell>
-    <Cell><Data ss:Type="String">Programme</Data></Cell>
-    <Cell><Data ss:Type="String">Department</Data></Cell>
-    <Cell><Data ss:Type="String">Faculty</Data></Cell>
-    <Cell><Data ss:Type="String">Degree Type</Data></Cell>
-    <Cell><Data ss:Type="String">Status</Data></Cell>
-    <Cell><Data ss:Type="String">Submitted At</Data></Cell>
-   </Row>
-   <?php if (empty($sheetRows)): ?>
-   <Row>
-    <Cell ss:MergeAcross="13"><Data ss:Type="String">No records found for this degree type.</Data></Cell>
-   </Row>
-   <?php else: ?>
-   <?php foreach ($sheetRows as $row): ?>
-   <Row>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Application_Number'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Surname'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['First_Name'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Other_Names'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Gender'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Date_of_Birth'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Phone'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Email'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Programme'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Department'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Faculty'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Degree_Type'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Status'] ?? '')); ?></Data></Cell>
-    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Submitted_At'] ?? '')); ?></Data></Cell>
-   </Row>
-   <?php endforeach; ?>
-   <?php endif; ?>
-  </Table>
- </Worksheet>
- <?php endforeach; ?>
-</Workbook>
-    <?php
+
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment;filename="' . $filename . '"');
+    header('Cache-Control: max-age=0');
+    header('Cache-Control: max-age=1');
+    header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+    header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
+    header('Cache-Control: cache, must-revalidate');
+    header('Pragma: public');
+
+    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+    $writer->save('php://output');
     exit();
 }
 
@@ -528,17 +537,37 @@ require_once 'includes/dev_topbar.php';
             <!-- Retain current format if any -->
             <input type="hidden" name="format" value="<?php echo htmlspecialchars($format); ?>">
             
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small fw-semibold text-muted">Search</label>
                 <input type="text" class="form-control" name="q" value="<?php echo htmlspecialchars($q, ENT_QUOTES, 'UTF-8'); ?>"
                     placeholder="Search candidate...">
             </div>
-            <div class="col-md-3">
-                <label class="form-label small fw-semibold text-muted">Program</label>
+            <?php if (!$isHod): ?>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold text-muted">Department</label>
+                <select class="form-select" name="dept">
+                    <option value="">All Departments</option>
+                    <?php foreach ($departments as $dept): ?>
+                        <option value="<?php echo $dept['dept_id']; ?>" <?php echo $filterDept == $dept['dept_id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($dept['dept_name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php endif; ?>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold text-muted">Program/Course</label>
                 <select class="form-select" name="program">
                     <option value="">All Programs</option>
                     <?php foreach ($availableCourses as $course): ?>
                         <option value="<?php echo $course['course_id']; ?>" <?php echo $filterProgram == $course['course_id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($course['course_title']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold text-muted">Degree Type</label>
+                <select class="form-select" name="degree">
+                    <option value="">All Degrees</option>
+                    <?php foreach ($degreeTypes as $dt): ?>
+                        <option value="<?php echo $dt['degree_id']; ?>" <?php echo $filterDegree == $dt['degree_id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($dt['degree_name']); ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -551,16 +580,16 @@ require_once 'includes/dev_topbar.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <label class="form-label small fw-semibold text-muted">Year</label>
                 <select class="form-select" name="year">
-                    <option value="">All Years</option>
+                    <option value="">All</option>
                     <?php foreach ($availableYears as $yr): ?>
                         <option value="<?php echo $yr; ?>" <?php echo $filterYear == $yr ? 'selected' : ''; ?>><?php echo $yr; ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-2 d-grid">
+            <div class="col-md-1 d-grid">
                 <button class="btn btn-primary" type="submit"><i class="fas fa-filter me-1"></i>Filter</button>
             </div>
         </form>

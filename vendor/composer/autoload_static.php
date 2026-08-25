@@ -13,6 +13,10 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
     );
 
     public static $prefixLengthsPsr4 = array (
+        'Z' =>
+        array (
+            'ZipStream\\' => 10,
+        ),
         'S' =>
         array (
             'Symfony\\Polyfill\\Php80\\' => 23,
@@ -25,9 +29,15 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
         ),
         'P' =>
         array (
+            'Psr\\SimpleCache\\' => 16,
             'PragmaRX\\Google2FA\\' => 19,
             'PhpOption\\' => 10,
+            'PhpOffice\\PhpSpreadsheet\\' => 25,
             'ParagonIE\\ConstantTime\\' => 23,
+        ),
+        'M' =>
+        array (
+            'Matrix\\' => 7,
         ),
         'G' =>
         array (
@@ -38,6 +48,11 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
             'Dotenv\\' => 7,
             'DASPRiD\\Enum\\' => 13,
         ),
+        'C' =>
+        array (
+            'Composer\\Pcre\\' => 14,
+            'Complex\\' => 8,
+        ),
         'B' =>
         array (
             'BaconQrCode\\' => 12,
@@ -45,6 +60,10 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
     );
 
     public static $prefixDirsPsr4 = array (
+        'ZipStream\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/maennchen/zipstream-php/src',
+        ),
         'Symfony\\Polyfill\\Php80\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php80',
@@ -61,6 +80,10 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
         array (
             0 => __DIR__ . '/..' . '/robthree/twofactorauth/lib',
         ),
+        'Psr\\SimpleCache\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/psr/simple-cache/src',
+        ),
         'PragmaRX\\Google2FA\\' =>
         array (
             0 => __DIR__ . '/..' . '/pragmarx/google2fa/src',
@@ -69,9 +92,17 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
         array (
             0 => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption',
         ),
+        'PhpOffice\\PhpSpreadsheet\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet',
+        ),
         'ParagonIE\\ConstantTime\\' =>
         array (
             0 => __DIR__ . '/..' . '/paragonie/constant_time_encoding/src',
+        ),
+        'Matrix\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/markbaker/matrix/classes/src',
         ),
         'GrahamCampbell\\ResultType\\' =>
         array (
@@ -84,6 +115,14 @@ class ComposerStaticInite875ae8441d070d7dda5f4b47a2117aa
         'DASPRiD\\Enum\\' =>
         array (
             0 => __DIR__ . '/..' . '/dasprid/enum/src',
+        ),
+        'Composer\\Pcre\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/composer/pcre/src',
+        ),
+        'Complex\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/markbaker/complex/classes/src',
         ),
         'BaconQrCode\\' =>
         array (

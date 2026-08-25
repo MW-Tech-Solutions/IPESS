@@ -23,3 +23,6 @@
 /modules/postutme/storage/jamb_imports/*
 !/modules/postutme/storage/uploads/.gitkeep
 !/modules/postutme/storage/jamb_imports/.gitkeep
+
+composer.phar
+/scratch/
