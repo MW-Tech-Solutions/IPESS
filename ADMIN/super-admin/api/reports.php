@@ -177,6 +177,40 @@ if ($action === 'download_individual_package') {
     }
 }
 
+if ($action === 'get_courses') {
+    $deptId = (int) ($_GET['department_id'] ?? 0);
+    $facultyId = (int) ($_GET['faculty_id'] ?? 0);
+    try {
+        $sql = "
+            SELECT c.course_id, c.course_title, c.dept_id, d.faculty_id 
+            FROM courses c
+            LEFT JOIN departments d ON c.dept_id = d.dept_id
+        ";
+        $where = [];
+        $params = [];
+        if ($deptId > 0) {
+            $where[] = 'c.dept_id = ?';
+            $params[] = $deptId;
+        }
+        if ($facultyId > 0) {
+            $where[] = 'd.faculty_id = ?';
+            $params[] = $facultyId;
+        }
+        if ($where) {
+            $sql .= ' WHERE ' . implode(' AND ', $where);
+        }
+        $sql .= " ORDER BY c.course_title ASC";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        echo json_encode(['success' => true, 'data' => $results]);
+        exit;
+    } catch (PDOException $e) {
+        json_error('Error fetching courses.');
+    }
+}
+
 if ($action !== 'generate') {
     json_error('Unsupported action.', 400);
 }
@@ -190,8 +224,11 @@ if (!is_writable($reportsDir)) {
 }
 
 $format = strtoupper(trim($_POST['format'] ?? 'PDF'));
+if ($format === 'EXCEL') {
+    $format = 'CSV';
+}
 $reportType = trim($_POST['report_type'] ?? 'Admissions Summary');
-$allowedFormats = ['PDF', 'EXCEL', 'DOSSIERS_ZIP'];
+$allowedFormats = ['PDF', 'CSV', 'DOSSIERS_ZIP'];
 $format = in_array($format, $allowedFormats, true) ? $format : 'PDF';
 
 $baseName = 'report_' . date('Ymd_His') . '_' . str_replace('.', '', uniqid('', true));
@@ -278,7 +315,7 @@ if ($format === 'DOSSIERS_ZIP') {
     $reportData = buildSuperAdminReportData($pdo, $reportType, $_POST);
     $lines = buildReportLines($reportData);
 
-    if ($format === 'EXCEL') {
+    if ($format === 'CSV') {
         $handle = fopen($fullPath, 'w');
         if (!$handle) {
             json_error('Unable to write report file.');
@@ -416,7 +453,7 @@ function buildSuperAdminReportData(PDO $pdo, string $reportType, array $filters 
         }
         
         $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
-        $isExcel = (strtoupper($filters['format'] ?? '') === 'EXCEL');
+        $isExcel = (strtoupper($filters['format'] ?? '') === 'EXCEL' || strtoupper($filters['format'] ?? '') === 'CSV');
         
         if ($isExcel) {
             $sql = "

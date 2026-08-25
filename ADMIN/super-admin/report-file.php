@@ -35,7 +35,7 @@ if (!file_exists($filePath)) {
 }
 
 $format = strtoupper($report['format'] ?? 'PDF');
-$extension = $format === 'EXCEL' ? 'csv' : 'pdf';
+$extension = ($format === 'EXCEL' || $format === 'CSV') ? 'csv' : 'pdf';
 $filename = preg_replace('/[^A-Za-z0-9_-]+/', '_', $report['report_name']) . '.' . $extension;
 
 if ($extension === 'pdf' && $mode === 'view' && !isset($_GET['raw'])) {

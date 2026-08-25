@@ -70,7 +70,7 @@ require_once 'includes/topbar.php';
                 <label class="form-label fw-bold">Format</label>
                 <select class="form-select" name="format" required>
                     <option value="PDF">PDF (Landscape for lists)</option>
-                    <option value="EXCEL">Excel / CSV</option>
+                    <option value="CSV">CSV</option>
                     <option value="DOSSIERS_ZIP">ZIP of Student Dossier PDFs</option>
                 </select>
             </div>
@@ -299,40 +299,45 @@ function filterStudentDepts() {
     });
 }
 
-// Handle dynamic academic programmes selection
-function filterStudentCourses() {
-    if (!studentFacultySelect || !studentDeptSelect || !studentCourseSelect) return;
-    const facultyId = studentFacultySelect.value;
-    const deptId = studentDeptSelect.value;
+// Handle dynamic academic programmes selection by fetching from API
+function fetchStudentCourses() {
+    if (!studentCourseSelect) return;
+    const facultyId = studentFacultySelect ? studentFacultySelect.value : '';
+    const deptId = studentDeptSelect ? studentDeptSelect.value : '';
     
-    Array.from(studentCourseSelect.options).forEach(opt => {
-        if (!opt.value) return;
-        const optFacultyId = opt.dataset.facultyId || '';
-        const optDeptId = opt.dataset.deptId || '';
-        
-        let show = true;
-        if (facultyId !== '' && optFacultyId !== facultyId) {
-            show = false;
-        }
-        if (deptId !== '' && optDeptId !== deptId) {
-            show = false;
-        }
-        
-        opt.hidden = !show;
-        opt.style.display = show ? 'block' : 'none';
-    });
+    studentCourseSelect.innerHTML = '<option value="">Loading Programmes...</option>';
+    
+    fetch(`api/reports.php?action=get_courses&department_id=${encodeURIComponent(deptId)}&faculty_id=${encodeURIComponent(facultyId)}`)
+        .then(res => res.json())
+        .then(data => {
+            studentCourseSelect.innerHTML = '<option value="">All Programmes</option>';
+            if (data.success && data.data) {
+                data.data.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.course_id;
+                    opt.textContent = c.course_title;
+                    opt.dataset.deptId = c.dept_id;
+                    opt.dataset.facultyId = c.faculty_id;
+                    studentCourseSelect.appendChild(opt);
+                });
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching courses:', err);
+            studentCourseSelect.innerHTML = '<option value="">Error loading programmes</option>';
+        });
 }
 
 studentFacultySelect.addEventListener('change', () => {
     studentDeptSelect.value = '';
     studentCourseSelect.value = '';
     filterStudentDepts();
-    filterStudentCourses();
+    fetchStudentCourses();
 });
 
 studentDeptSelect.addEventListener('change', () => {
     studentCourseSelect.value = '';
-    filterStudentCourses();
+    fetchStudentCourses();
 });
 
 // Toggle Filter Rows
