@@ -234,6 +234,122 @@ $rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 /* ────────────────────────────────────────────────────────────
    MODE 1: STREAM CSV / EXCEL
    ──────────────────────────────────────────────────────────── */
+if ($format === 'excel') {
+    $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.xls';
+    
+    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+
+    // Group rows by Degree Type (MSc, PGD, PhD)
+    $degreeSheets = [
+        'MSc' => [],
+        'PGD' => [],
+        'PhD' => []
+    ];
+
+    foreach ($rows as $row) {
+        $deg = trim((string)($row['Degree_Type'] ?? ''));
+        $normalizedKey = 'Other';
+        if (stripos($deg, 'msc') !== false || stripos($deg, 'master') !== false) {
+            $normalizedKey = 'MSc';
+        } elseif (stripos($deg, 'pgd') !== false || stripos($deg, 'diploma') !== false) {
+            $normalizedKey = 'PGD';
+        } elseif (stripos($deg, 'phd') !== false || stripos($deg, 'doctor') !== false || stripos($deg, 'phil') !== false) {
+            $normalizedKey = 'PhD';
+        } elseif ($deg !== '') {
+            $normalizedKey = $deg;
+        }
+        $degreeSheets[$normalizedKey][] = $row;
+    }
+
+    // Output Excel XML Spreadsheet format
+    echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+    echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
+    ?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
+  <Author>IPESS JOSTUM Portal</Author>
+  <Created><?php echo date('Y-m-d\TH:i:s\Z'); ?></Created>
+ </DocumentProperties>
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#000000"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="Header">
+   <Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#782D32" ss:Pattern="Solid"/>
+  </Style>
+ </Styles>
+ <?php foreach ($degreeSheets as $sheetName => $sheetRows): 
+    // Sanitize sheet name for Excel
+    $cleanSheetName = preg_replace('/[\\\\\/*?:\[\]]/', '', $sheetName);
+    $cleanSheetName = substr($cleanSheetName, 0, 31);
+    if (empty($cleanSheetName)) {
+        $cleanSheetName = "Sheet";
+    }
+ ?>
+ <Worksheet ss:Name="<?php echo htmlspecialchars($cleanSheetName); ?>">
+  <Table>
+   <Row ss:StyleID="Header">
+    <Cell><Data ss:Type="String">Application Number</Data></Cell>
+    <Cell><Data ss:Type="String">Surname</Data></Cell>
+    <Cell><Data ss:Type="String">First Name</Data></Cell>
+    <Cell><Data ss:Type="String">Other Names</Data></Cell>
+    <Cell><Data ss:Type="String">Gender</Data></Cell>
+    <Cell><Data ss:Type="String">Date of Birth</Data></Cell>
+    <Cell><Data ss:Type="String">Phone</Data></Cell>
+    <Cell><Data ss:Type="String">Email</Data></Cell>
+    <Cell><Data ss:Type="String">Programme</Data></Cell>
+    <Cell><Data ss:Type="String">Department</Data></Cell>
+    <Cell><Data ss:Type="String">Faculty</Data></Cell>
+    <Cell><Data ss:Type="String">Degree Type</Data></Cell>
+    <Cell><Data ss:Type="String">Status</Data></Cell>
+    <Cell><Data ss:Type="String">Submitted At</Data></Cell>
+   </Row>
+   <?php if (empty($sheetRows)): ?>
+   <Row>
+    <Cell ss:MergeAcross="13"><Data ss:Type="String">No records found for this degree type.</Data></Cell>
+   </Row>
+   <?php else: ?>
+   <?php foreach ($sheetRows as $row): ?>
+   <Row>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Application_Number'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Surname'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['First_Name'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Other_Names'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Gender'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Date_of_Birth'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Phone'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Email'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Programme'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Department'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Faculty'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Degree_Type'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Status'] ?? '')); ?></Data></Cell>
+    <Cell><Data ss:Type="String"><?php echo htmlspecialchars((string)($row['Submitted_At'] ?? '')); ?></Data></Cell>
+   </Row>
+   <?php endforeach; ?>
+   <?php endif; ?>
+  </Table>
+ </Worksheet>
+ <?php endforeach; ?>
+</Workbook>
+    <?php
+    exit();
+}
+
 if ($format === 'csv') {
     $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.csv';
     header('Content-Type: text/csv; charset=UTF-8');
@@ -388,8 +504,11 @@ require_once 'includes/dev_topbar.php';
     </div>
     <div class="hero-actions">
         <!-- Re-use existing query parameters for downloads -->
-        <a href="export-students.php?<?php echo http_build_query(array_merge($_GET, ['format' => 'csv'])); ?>" class="btn btn-success">
-            <i class="fas fa-file-excel me-1"></i>Download Excel / CSV
+        <a href="export-students.php?<?php echo http_build_query(array_merge($_GET, ['format' => 'excel'])); ?>" class="btn btn-success">
+            <i class="fas fa-file-excel me-1"></i>Download Excel (Multi-Sheet)
+        </a>
+        <a href="export-students.php?<?php echo http_build_query(array_merge($_GET, ['format' => 'csv'])); ?>" class="btn btn-secondary">
+            <i class="fas fa-file-csv me-1"></i>Download CSV
         </a>
         <a href="export-students.php?<?php echo http_build_query(array_merge($_GET, ['format' => 'pdf'])); ?>" class="btn btn-danger">
             <i class="fas fa-file-pdf me-1"></i>Download / Print PDF
