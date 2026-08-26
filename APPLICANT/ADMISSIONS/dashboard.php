@@ -2,7 +2,7 @@
 ob_start();
 require_once __DIR__ . '/../../app/bootstrap.php';
 require_once __DIR__ . '/../../includes/permissions.php';
-enforce_session_timeout(300, 'APPLICANT/ADMISSIONS/login.php');
+enforce_session_timeout(1800, 'APPLICANT/ADMISSIONS/login.php');
 
 require_role(['STUDENT'], 'APPLICANT/ADMISSIONS/login.php');
 
@@ -33,13 +33,6 @@ if (!isset($_SESSION['user_id'])) {
 }
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'STUDENT') {
     redirect_to('APPLICANT/ADMISSIONS/login.php');
-    exit();
-}
-$timeoutSeconds = 300;
-if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > $timeoutSeconds) {
-    session_unset();
-    session_destroy();
-    redirect_to('APPLICANT/ADMISSIONS/login.php?timeout=1');
     exit();
 }
 $_SESSION['last_activity'] = time();

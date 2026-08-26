@@ -2,6 +2,11 @@
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/../../config/urls.php';
 
+// Redirect already logged-in students to dashboard
+if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role'] === 'STUDENT') {
+    redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
+}
+
 // Check if admissions module is active
 $admissions_closed = false;
 try {

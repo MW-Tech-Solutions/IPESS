@@ -35,13 +35,15 @@ $heroImages = [
     app_url('asset/homepage/library.png')
 ];
 
+$isLoggedInStudent = isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role'] === 'STUDENT';
+
 $heroContent = [
     'title' => 'Center of Excellence in Sustainable Procurement, Environmental & Social Standards',
     'text' => 'Empowering professionals with international standards in Procurement, Environmental, and Social Standards Enhancement (SPESSE) at Joseph Sarwuan Tarka University Makurdi (JOSTUM).',
-    'primary_label' => 'Start Application',
-    'primary_url' => 'register.php',
-    'secondary_label' => 'Student Login',
-    'secondary_url' => 'login.php',
+    'primary_label' => $isLoggedInStudent ? 'Go to Dashboard' : 'Start Application',
+    'primary_url' => $isLoggedInStudent ? 'dashboard.php' : 'register.php',
+    'secondary_label' => $isLoggedInStudent ? 'Go to Dashboard' : 'Student Login',
+    'secondary_url' => $isLoggedInStudent ? 'dashboard.php' : 'login.php',
     'images' => $heroImages,
 ];
 
@@ -76,10 +78,16 @@ $processContent = [
 
 $officialLogo = app_url('asset/homepage/ipess_logo.png');
 
-$portalLinks = [
-    ['label' => 'Login', 'url' => 'login.php', 'variant' => 'primary'],
-    ['label' => 'Register', 'url' => 'register.php', 'variant' => 'secondary'],
-];
+if ($isLoggedInStudent) {
+    $portalLinks = [
+        ['label' => 'Dashboard', 'url' => 'dashboard.php', 'variant' => 'primary'],
+    ];
+} else {
+    $portalLinks = [
+        ['label' => 'Login', 'url' => 'login.php', 'variant' => 'primary'],
+        ['label' => 'Register', 'url' => 'register.php', 'variant' => 'secondary'],
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -5,6 +5,11 @@ ini_set('display_startup_errors', 0);
 error_reporting(0);
 require 'db.php';
 
+// Redirect already logged-in students to dashboard
+if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role'] === 'STUDENT') {
+    redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
+}
+
 // Load module check helper
 $admissions_closed = false;
 $restrict_unsubmitted = false;

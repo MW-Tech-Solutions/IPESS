@@ -48,7 +48,7 @@ $reference_number = $_SESSION['last_ref'];
 
     <p>Please keep this reference number for your records. An acknowledgement email has been sent to your registered address.</p>
 
-    <a href="index.php" class="btn-home">Return to Homepage</a>
+    <a href="../dashboard.php" class="btn-home">Return to Dashboard</a>
     
     <a href="javascript:window.print()" class="print-link">🖨️ Print Confirmation</a>
 </div>
