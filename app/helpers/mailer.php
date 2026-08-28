@@ -146,7 +146,11 @@ function portal_send_mail(
     $config = portal_mail_config();
 
     if ($config['host'] === '' || $config['user'] === '' || $config['pass'] === '') {
-        return ['success' => false, 'message' => 'Mail settings are missing in environment variables (.env).'];
+        $msg = 'Mail settings are missing in environment variables (.env).';
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION['last_mail_error'] = $msg;
+        }
+        return ['success' => false, 'message' => $msg];
     }
 
     $mail = new PHPMailer(true);
@@ -154,9 +158,13 @@ function portal_send_mail(
     try {
         $connectivity = portal_test_smtp_connection();
         if (!$connectivity['success']) {
+            $msg = 'Checking network: please check your internet connection and try again. Detailed: ' . $connectivity['message'];
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                $_SESSION['last_mail_error'] = $msg;
+            }
             return [
                 'success' => false,
-                'message' => 'Checking network: please check your internet connection and try again.'
+                'message' => $msg
             ];
         }
 
@@ -249,14 +257,23 @@ function portal_send_mail(
         $exceptionError = strtolower(trim($e->getMessage()));
         $combined = $mailError . ' ' . $exceptionError;
 
+        $msg = 'Mail error: ' . ($mail->ErrorInfo ?: $e->getMessage());
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION['last_mail_error'] = $msg;
+        }
+
         if (portal_is_network_mail_error($combined)) {
+            $msg = 'Checking network: please check your internet connection and try again.';
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                $_SESSION['last_mail_error'] = $msg;
+            }
             return [
                 'success' => false,
-                'message' => 'Checking network: please check your internet connection and try again.'
+                'message' => $msg
             ];
         }
 
-        return ['success' => false, 'message' => 'Mail error: ' . ($mail->ErrorInfo ?: $e->getMessage())];
+        return ['success' => false, 'message' => $msg];
     }
 }
 

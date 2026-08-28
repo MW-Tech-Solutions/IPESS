@@ -525,7 +525,8 @@ try {
         if ($sent) {
             echo json_encode(['success' => true, 'message' => 'Verification email sent to the referee successfully.']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Failed to send email. Please check your mail configuration.']);
+            $err = isset($_SESSION['last_mail_error']) && !empty($_SESSION['last_mail_error']) ? " Details: " . $_SESSION['last_mail_error'] : " Please check your mail configuration.";
+            echo json_encode(['success' => false, 'message' => 'Failed to send email.' . $err]);
         }
         exit;
     }
@@ -570,7 +571,10 @@ try {
         }
 
         $msg = "Emails sent: {$sentCount}";
-        if ($failCount > 0) $msg .= ", Failed: {$failCount}. Check mail configuration.";
+        if ($failCount > 0) {
+            $err = isset($_SESSION['last_mail_error']) && !empty($_SESSION['last_mail_error']) ? " Details: " . $_SESSION['last_mail_error'] : " Check mail configuration.";
+            $msg .= ", Failed: {$failCount}.{$err}";
+        }
         echo json_encode(['success' => $sentCount > 0, 'message' => $msg]);
         exit;
     }
