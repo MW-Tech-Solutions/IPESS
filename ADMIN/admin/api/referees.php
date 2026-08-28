@@ -36,7 +36,7 @@ function send_referee_request_for_row(PDO $pdo, array $data): array {
     }
 
     $token = bin2hex(random_bytes(20));
-    $expires = (new DateTime('+7 days'))->format('Y-m-d H:i:s');
+    $expires = null; // Referee response link never expires
 
     $pdo->prepare("
         INSERT INTO referee_requests (referee_id, application_id, token, status, requested_by, requested_at, expires_at)
@@ -559,7 +559,7 @@ try {
 
         foreach ($refRows as $data) {
             $token = bin2hex(random_bytes(20));
-            $expires = (new DateTime('+7 days'))->format('Y-m-d H:i:s');
+            $expires = null; // Link does not expire
 
             $pdo->prepare("
                 INSERT INTO referee_requests (referee_id, application_id, token, status, requested_by, requested_at, expires_at)
