@@ -222,6 +222,7 @@ if ($filterYear) {
 // Main query
 $sql = "
     SELECT
+        a.application_id                        AS application_id,
         a.application_number                    AS Application_Number,
         p.surname                               AS Surname,
         p.first_name                            AS First_Name,
@@ -250,6 +251,104 @@ $sql = "
 ";
 
 $rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+
+// O-Level Pre-fetching & Mapping
+$examsByApp = [];
+$resultsByExam = [];
+if (!empty($rows)) {
+    $appIds = array_column($rows, 'application_id');
+    $placeholders = implode(',', array_fill(0, count($appIds), '?'));
+    
+    $stmtExams = $pdo->prepare("SELECT * FROM olevel_exams WHERE application_id IN ($placeholders) ORDER BY application_id ASC, sitting_number ASC");
+    $stmtExams->execute($appIds);
+    $allExams = $stmtExams->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($allExams as $exam) {
+        $examsByApp[$exam['application_id']][] = $exam;
+    }
+
+    if (!empty($allExams)) {
+        $examIds = array_column($allExams, 'id');
+        $examPlaceholders = implode(',', array_fill(0, count($examIds), '?'));
+        $stmtResults = $pdo->prepare("SELECT * FROM olevel_results WHERE exam_id IN ($examPlaceholders) ORDER BY exam_id ASC, id ASC");
+        $stmtResults->execute($examIds);
+        $allResults = $stmtResults->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($allResults as $res) {
+            $resultsByExam[$res['exam_id']][] = $res;
+        }
+    }
+}
+
+foreach ($rows as &$row) {
+    $appId = $row['application_id'];
+    $exams = $examsByApp[$appId] ?? [];
+    $numSittings = count($exams);
+
+    $sitting1Type = 'N/A';
+    $sitting1Subs = array_fill(0, 18, 'N/A');
+    $sitting2Type = 'N/A';
+    $sitting2Subs = array_fill(0, 18, 'N/A');
+
+    $exam1 = null;
+    $exam2 = null;
+    foreach ($exams as $ex) {
+        if ((int)$ex['sitting_number'] === 1) {
+            $exam1 = $ex;
+        } elseif ((int)$ex['sitting_number'] === 2) {
+            $exam2 = $ex;
+        }
+    }
+    
+    if (!$exam1 && isset($exams[0]) && (int)$exams[0]['sitting_number'] !== 2) {
+        $exam1 = $exams[0];
+    }
+    if (!$exam2 && isset($exams[1])) {
+        $exam2 = $exams[1];
+    } elseif (!$exam2 && isset($exams[0]) && (int)$exams[0]['sitting_number'] === 2) {
+        $exam2 = $exams[0];
+    }
+
+    if ($exam1) {
+        $sitting1Type = $exam1['exam_type'];
+        $res1 = $resultsByExam[$exam1['id']] ?? [];
+        for ($i = 0; $i < 9; $i++) {
+            if (isset($res1[$i])) {
+                $sitting1Subs[$i * 2] = $res1[$i]['subject_name'];
+                $sitting1Subs[$i * 2 + 1] = $res1[$i]['grade'];
+            }
+        }
+    }
+
+    if ($exam2) {
+        $sitting2Type = $exam2['exam_type'];
+        $res2 = $resultsByExam[$exam2['id']] ?? [];
+        for ($i = 0; $i < 9; $i++) {
+            if (isset($res2[$i])) {
+                $sitting2Subs[$i * 2] = $res2[$i]['subject_name'];
+                $sitting2Subs[$i * 2 + 1] = $res2[$i]['grade'];
+            }
+        }
+    }
+
+    // Remove application_id so it is not exported
+    unset($row['application_id']);
+
+    $row['O-Level Sittings'] = $numSittings;
+    $row['Sitting 1 Exam Type'] = $sitting1Type;
+    for ($i = 1; $i <= 9; $i++) {
+        $row["Sitting 1 Subject {$i}"] = $sitting1Subs[($i - 1) * 2];
+        $row["Sitting 1 Subject {$i} Grade"] = $sitting1Subs[($i - 1) * 2 + 1];
+    }
+    $row['Sitting 2 Exam Type'] = $sitting2Type;
+    for ($i = 1; $i <= 9; $i++) {
+        $row["Sitting 2 Subject {$i}"] = $sitting2Subs[($i - 1) * 2];
+        $row["Sitting 2 Subject {$i} Grade"] = $sitting2Subs[($i - 1) * 2 + 1];
+    }
+}
+unset($row);
+
+
 
 /* ────────────────────────────────────────────────────────────
    MODE 1: STREAM CSV / EXCEL
@@ -284,6 +383,17 @@ if ($format === 'excel') {
         }
         $degreeSheets[$normalizedKey][] = $row;
     }
+    if (!function_exists('getExcelColLetter')) {
+        function getExcelColLetter($colIndex) {
+            $letter = '';
+            while ($colIndex > 0) {
+                $modulo = ($colIndex - 1) % 26;
+                $letter = chr(65 + $modulo) . $letter;
+                $colIndex = intval(($colIndex - $modulo) / 26);
+            }
+            return $letter;
+        }
+    }
 
     $xlsHeaders = [
         'Application Number', 'Surname', 'First Name', 'Other Names',
@@ -291,6 +401,18 @@ if ($format === 'excel') {
         'Programme', 'Department', 'Faculty', 'Degree Type',
         'Status', 'Submitted At'
     ];
+
+    $xlsHeaders[] = 'O-Level Sittings';
+    $xlsHeaders[] = 'Sitting 1 Exam Type';
+    for ($i = 1; $i <= 9; $i++) {
+        $xlsHeaders[] = "Sitting 1 Subject {$i}";
+        $xlsHeaders[] = "Sitting 1 Subject {$i} Grade";
+    }
+    $xlsHeaders[] = 'Sitting 2 Exam Type';
+    for ($i = 1; $i <= 9; $i++) {
+        $xlsHeaders[] = "Sitting 2 Subject {$i}";
+        $xlsHeaders[] = "Sitting 2 Subject {$i} Grade";
+    }
 
     if ($usePhpSpreadsheet) {
         /* ── Modern XLSX via PhpSpreadsheet ── */
@@ -312,7 +434,7 @@ if ($format === 'excel') {
                 $colChar++;
             }
 
-            $lastColChar = chr(ord('A') + count($xlsHeaders) - 1);
+            $lastColChar = getExcelColLetter(count($xlsHeaders));
             $worksheet->getStyle('A1:' . $lastColChar . '1')
                 ->getFont()->setBold(true)
                 ->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_WHITE));
@@ -326,20 +448,11 @@ if ($format === 'excel') {
                 $worksheet->mergeCells('A2:' . $lastColChar . '2');
             } else {
                 foreach ($sheetRows as $row) {
-                    $worksheet->setCellValue('A' . $rowNum, $row['Application_Number'] ?? '');
-                    $worksheet->setCellValue('B' . $rowNum, $row['Surname'] ?? '');
-                    $worksheet->setCellValue('C' . $rowNum, $row['First_Name'] ?? '');
-                    $worksheet->setCellValue('D' . $rowNum, $row['Other_Names'] ?? '');
-                    $worksheet->setCellValue('E' . $rowNum, $row['Gender'] ?? '');
-                    $worksheet->setCellValue('F' . $rowNum, $row['Date_of_Birth'] ?? '');
-                    $worksheet->setCellValue('G' . $rowNum, $row['Phone'] ?? '');
-                    $worksheet->setCellValue('H' . $rowNum, $row['Email'] ?? '');
-                    $worksheet->setCellValue('I' . $rowNum, $row['Programme'] ?? '');
-                    $worksheet->setCellValue('J' . $rowNum, $row['Department'] ?? '');
-                    $worksheet->setCellValue('K' . $rowNum, $row['Faculty'] ?? '');
-                    $worksheet->setCellValue('L' . $rowNum, $row['Degree_Type'] ?? '');
-                    $worksheet->setCellValue('M' . $rowNum, $row['Status'] ?? '');
-                    $worksheet->setCellValue('N' . $rowNum, $row['Submitted_At'] ?? '');
+                    $colChar = 'A';
+                    foreach ($row as $val) {
+                        $worksheet->setCellValue($colChar . $rowNum, $val ?? '');
+                        $colChar++;
+                    }
                     $rowNum++;
                 }
             }
@@ -390,19 +503,13 @@ if ($format === 'excel') {
             } else {
                 foreach ($sheetRows as $row) {
                     echo '<Row>';
-                    $vals = [
-                        $row['Application_Number'] ?? '', $row['Surname'] ?? '', $row['First_Name'] ?? '',
-                        $row['Other_Names'] ?? '', $row['Gender'] ?? '', $row['Date_of_Birth'] ?? '',
-                        $row['Phone'] ?? '', $row['Email'] ?? '', $row['Programme'] ?? '',
-                        $row['Department'] ?? '', $row['Faculty'] ?? '', $row['Degree_Type'] ?? '',
-                        $row['Status'] ?? '', $row['Submitted_At'] ?? ''
-                    ];
-                    foreach ($vals as $v) {
-                        echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string)$v) . '</Data></Cell>';
+                    foreach ($row as $v) {
+                        echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string)($v ?? '')) . '</Data></Cell>';
                     }
                     echo '</Row>' . "\n";
                 }
             }
+
             echo '</Table></Worksheet>' . "\n";
         }
         echo '</Workbook>';
@@ -428,6 +535,19 @@ if ($format === 'csv') {
         'Programme', 'Department', 'Faculty', 'Degree Type',
         'Status', 'Submitted At'
     ];
+
+    $headers[] = 'O-Level Sittings';
+    $headers[] = 'Sitting 1 Exam Type';
+    for ($i = 1; $i <= 9; $i++) {
+        $headers[] = "Sitting 1 Subject {$i}";
+        $headers[] = "Sitting 1 Subject {$i} Grade";
+    }
+    $headers[] = 'Sitting 2 Exam Type';
+    for ($i = 1; $i <= 9; $i++) {
+        $headers[] = "Sitting 2 Subject {$i}";
+        $headers[] = "Sitting 2 Subject {$i} Grade";
+    }
+
     fputcsv($out, $headers);
     foreach ($rows as $row) {
         fputcsv($out, array_values($row));
