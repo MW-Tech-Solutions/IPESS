@@ -167,9 +167,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$hasSubmittedApp && !$allow_unsubmitted_login) {
                     session_destroy();
                     $error = "<strong>Login Restricted for Unsubmitted Applications.</strong><br>The login window for completing unsubmitted applications is currently closed. Only candidates who have submitted their application can log in to check their admission status.";
-                } elseif (!$hasSubmittedApp && $admissions_closed) {
-                    session_destroy();
-                    $error = "<strong>Admissions Exercise Closed.</strong><br>Access to the admissions portal for new or unsubmitted applications is currently disabled.";
                 } else {
                     redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
                 }
