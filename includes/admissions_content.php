@@ -37,7 +37,7 @@ function admissions_content_defaults(): array
         'important_dates' => [
             ['title' => 'Applications Open', 'event_date' => '2026-07-19', 'sort_order' => 1],
             ['title' => 'Early Submission Deadline', 'event_date' => '2026-08-22', 'sort_order' => 2],
-            ['title' => 'Final Submission Deadline', 'event_date' => '2026-08-31', 'sort_order' => 3],
+            ['title' => 'Final Submission Deadline', 'event_date' => '2026-09-03', 'sort_order' => 3],
             // ['title' => 'Admission Decisions', 'event_date' => '2026-09-20', 'sort_order' => 4],
         ],
         'faqs' => [
@@ -47,7 +47,7 @@ function admissions_content_defaults(): array
         ],
         'notice' => [
             'title' => 'Important Notice',
-            'message' => 'All applicants who have not yet submitted their application should do so on or before 31st August, 2026.',
+            'message' => 'Applicants who have not finished their applications should do so before 3rd of September, 2026. New application or new account creation is closed.',
             'button_label' => '',
             'button_url' => '',
         ],

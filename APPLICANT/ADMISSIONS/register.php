@@ -7,15 +7,18 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
     redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
 }
 
-// Check if admissions module is active
-$admissions_closed = false;
+// Check if admissions module is active or closed
+$admissions_closed = true;
 try {
     $modStmt = $pdo->prepare("SELECT is_active FROM system_modules WHERE module_key = 'admissions'");
     $modStmt->execute();
     $modVal = $modStmt->fetchColumn();
-    $admissions_closed = ($modVal !== false && (int)$modVal === 0);
+    if ($modVal !== false && (int)$modVal === 1) {
+        // If explicitly set to active, check system settings
+        $admissions_closed = false;
+    }
 } catch (Throwable $e) {
-    $admissions_closed = false;
+    $admissions_closed = true;
 }
 
 if ($admissions_closed) {
@@ -24,22 +27,22 @@ if ($admissions_closed) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admissions Closed - IPESS JOSTUM</title>
+    <title>New Account Creation Closed - IPESS JOSTUM</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: 'Segoe UI', sans-serif; }
-        .card { background: rgba(255,255,255,0.95); border-radius: 16px; padding: 3rem; max-width: 520px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+        .card { background: rgba(255,255,255,0.95); border-radius: 16px; padding: 3rem; max-width: 540px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
         .icon-circle { width: 80px; height: 80px; background: linear-gradient(135deg, #782D32, #a04050); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 2rem; color: white; }
     </style>
 </head>
 <body>
 <div class="card">
     <div class="icon-circle">🔒</div>
-    <h2 class="fw-bold text-danger mb-2">Admissions Closed</h2>
-    <p class="text-muted mb-3">The Admissions Exercise is currently <strong>not accepting new registrations</strong>. Please check back later or contact the admissions office for more information.</p>
-    <a href="<?= htmlspecialchars(app_url('APPLICANT/ADMISSIONS/login.php'), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-outline-secondary mt-2">
-        Back to Login
+    <h2 class="fw-bold text-danger mb-2">New Account Creation Closed</h2>
+    <p class="text-muted mb-3">New application or new account creation is currently <strong>closed</strong>.<br><br>Applicants who have not finished their applications should log in to complete their application before <strong>3rd of September, 2026</strong>.</p>
+    <a href="<?= htmlspecialchars(app_url('APPLICANT/ADMISSIONS/login.php'), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-primary mt-2">
+        Log In to Complete Application
     </a>
 </div>
 </body>
@@ -437,7 +440,7 @@ try {
                 <h3>Important Admission Notice</h3>
             </div>
             <div class="notice-modal-body">
-                All applicants who have not yet submitted their application should do so on or before 31st August, 2026.
+                Applicants who have not finished their applications should do so before 3rd of September, 2026. New application or new account creation is closed.
             </div>
             <div class="notice-modal-footer">
                 <button class="notice-modal-btn" onclick="closeNoticeModal()">Acknowledge & Close</button>

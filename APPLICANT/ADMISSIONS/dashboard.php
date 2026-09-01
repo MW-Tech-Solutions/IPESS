@@ -570,7 +570,7 @@ function render_notification_list($notifications) {
                 <h3>Important Admission Notice</h3>
             </div>
             <div class="notice-modal-body">
-                All applicants who have not yet submitted their application should do so on or before 31st August, 2026.
+                Applicants who have not finished their applications should do so before 3rd of September, 2026. New application or new account creation is closed.
             </div>
             <div class="notice-modal-footer">
                 <button class="notice-modal-btn" onclick="closeNoticeModal()">Acknowledge & Close</button>

@@ -239,7 +239,10 @@ if (!function_exists('generate_all_missing_tables')) {
             // Seed modules configuration
             $pdo->exec("
                 INSERT IGNORE INTO system_modules (module_key, module_name, is_active) 
-                VALUES ('admissions', 'Admissions Exercise', 1)
+                VALUES 
+                ('admissions', 'Admissions Exercise', 1),
+                ('student_verification', 'Applicant Account Verification', 1),
+                ('allow_unsubmitted_login', 'Allow Login for Unsubmitted Applicants', 1)
             ");
 
             // Re-enable foreign key checks

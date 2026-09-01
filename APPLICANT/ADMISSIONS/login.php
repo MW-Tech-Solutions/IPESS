@@ -12,31 +12,41 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role']
 
 // Load module check helper
 $admissions_closed = false;
-$restrict_unsubmitted = false;
+$allow_unsubmitted_login = true;
 try {
-    if (!function_exists('is_module_active')) {
+    if (!function_exists('is_module_active_local')) {
         function is_module_active_local(string $module_key, $pdo): bool {
             try {
                 $stmt = $pdo->prepare("SELECT is_active FROM system_modules WHERE module_key = ?");
                 $stmt->execute([$module_key]);
                 $val = $stmt->fetchColumn();
                 if ($val === false) {
-                    return ($module_key !== 'restrict_unsubmitted_login');
+                    if ($module_key === 'restrict_unsubmitted_login') return false;
+                    return true;
                 }
                 return (int)$val === 1;
             } catch (Throwable $e) {
-                return false;
+                return true;
             }
         }
-        $admissions_closed = !is_module_active_local('admissions', $pdo);
-        $restrict_unsubmitted = is_module_active_local('restrict_unsubmitted_login', $pdo);
-    } else {
+    }
+
+    if (function_exists('is_module_active')) {
         $admissions_closed = !is_module_active('admissions');
-        $restrict_unsubmitted = is_module_active('restrict_unsubmitted_login');
+        $allow_unsubmitted_login = is_module_active('allow_unsubmitted_login');
+        if (is_module_active('restrict_unsubmitted_login')) {
+            $allow_unsubmitted_login = false;
+        }
+    } else {
+        $admissions_closed = !is_module_active_local('admissions', $pdo);
+        $allow_unsubmitted_login = is_module_active_local('allow_unsubmitted_login', $pdo);
+        if (is_module_active_local('restrict_unsubmitted_login', $pdo)) {
+            $allow_unsubmitted_login = false;
+        }
     }
 } catch (Throwable $e) {
     $admissions_closed = false;
-    $restrict_unsubmitted = false;
+    $allow_unsubmitted_login = true;
 }
 
 $error = '';
@@ -126,6 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $isAdmitted = false;
                 $appStatus = 'Draft';
+                $hasSubmittedApp = false;
                 try {
                     $hasCurrentStatus = (bool) $pdo->query("SHOW COLUMNS FROM applications LIKE 'current_status'")->fetch(PDO::FETCH_ASSOC);
                     $statusCols = $hasCurrentStatus ? "status, current_status" : "status";
@@ -137,27 +148,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $status = strtolower((string) ($app['status'] ?? ''));
                         $current = strtolower((string) ($app['current_status'] ?? ''));
                         $isAdmitted = ($status === 'admitted' || $current === 'admission_approved');
+                        if ($status !== 'draft' && !empty($status)) {
+                            $hasSubmittedApp = true;
+                        }
                     }
                 } catch (Throwable $e) {
                     $isAdmitted = false;
+                    $hasSubmittedApp = false;
                 }
 
                 if ($isAdmitted) {
                     redirect_to('APPLICANT/ACADEMICS/student-portal/index.php#dashboard');
                 }
 
-                // Block draft applications if restrict_unsubmitted_login module is active
-                if ($restrict_unsubmitted && $appStatus === 'Draft') {
+                // Unsubmitted applicants login control:
+                // Active (1): Unsubmitted/draft applicants CAN log in to finish application.
+                // Inactive (0): Unsubmitted/draft applicants CANNOT log in (Only submitted applicants can log in to check status).
+                if (!$hasSubmittedApp && !$allow_unsubmitted_login) {
                     session_destroy();
-                    $error = "<strong>Application Closed.</strong><br>The submission window for new or draft applications has closed. Only submitted applications can log in to track status.";
-                } elseif ($appStatus === 'Draft') {
-                    // If restrict_unsubmitted is NOT active, allow drafts to log in and finish their application
-                    redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
-                } elseif ($admissions_closed) {
-                    // Block non-admitted users if admissions module is closed
-                    // Destroy session for non-admitted users so they can't access the dashboard
+                    $error = "<strong>Login Restricted for Unsubmitted Applications.</strong><br>The login window for completing unsubmitted applications is currently closed. Only candidates who have submitted their application can log in to check their admission status.";
+                } elseif (!$hasSubmittedApp && $admissions_closed) {
                     session_destroy();
-                    $error = "<strong>Admissions Exercise is Closed.</strong><br>Access to the admissions portal is currently disabled. Please check back later or contact the admissions office.";
+                    $error = "<strong>Admissions Exercise Closed.</strong><br>Access to the admissions portal for new or unsubmitted applications is currently disabled.";
                 } else {
                     redirect_to('APPLICANT/ADMISSIONS/dashboard.php');
                 }
@@ -410,7 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <h3>Important Admission Notice</h3>
             </div>
             <div class="notice-modal-body">
-                All applicants who have not yet submitted their application should do so on or before 31st August, 2026.
+                Applicants who have not finished their applications should do so before 3rd of September, 2026. New application or new account creation is closed.
             </div>
             <div class="notice-modal-footer">
                 <button class="notice-modal-btn" onclick="closeNoticeModal()">Acknowledge & Close</button>

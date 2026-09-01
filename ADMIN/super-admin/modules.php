@@ -84,7 +84,7 @@ $faHref     = $localFa    ? $faUrl  : $faUrlFallback;
 
 $pdo = db();
 
-// Self-healing: Ensure student_verification and restrict_unsubmitted_login modules are in the system_modules table
+// Self-healing: Ensure student_verification and allow_unsubmitted_login modules are in the system_modules table
 try {
     $checkMod1 = $pdo->prepare("SELECT COUNT(*) FROM system_modules WHERE module_key = 'student_verification'");
     $checkMod1->execute();
@@ -92,10 +92,10 @@ try {
         $pdo->prepare("INSERT INTO system_modules (module_key, module_name, is_active) VALUES ('student_verification', 'Applicant Account Verification', 1)")->execute();
     }
 
-    $checkMod2 = $pdo->prepare("SELECT COUNT(*) FROM system_modules WHERE module_key = 'restrict_unsubmitted_login'");
+    $checkMod2 = $pdo->prepare("SELECT COUNT(*) FROM system_modules WHERE module_key = 'allow_unsubmitted_login'");
     $checkMod2->execute();
     if ((int)$checkMod2->fetchColumn() === 0) {
-        $pdo->prepare("INSERT INTO system_modules (module_key, module_name, is_active) VALUES ('restrict_unsubmitted_login', 'Restrict Login for Unsubmitted Applicants', 0)")->execute();
+        $pdo->prepare("INSERT INTO system_modules (module_key, module_name, is_active) VALUES ('allow_unsubmitted_login', 'Allow Login for Unsubmitted Applicants', 1)")->execute();
     }
 } catch (Throwable $e) {
     error_log("Failed to insert system modules: " . $e->getMessage());
