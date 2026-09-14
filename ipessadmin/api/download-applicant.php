@@ -487,6 +487,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'finalize_bulk') {
     $filterYear   = (int)($_GET['year'] ?? 0);
     $filterDegree = (int)($_GET['degree'] ?? ($_GET['degree_id'] ?? 0));
     $filterCourse = (int)($_GET['course'] ?? ($_GET['course_id'] ?? 0));
+    $rangeLabel   = trim((string)($_GET['range'] ?? ''));
 
     $nameParts = [];
     if ($filterDegree > 0) {
@@ -515,6 +516,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'finalize_bulk') {
     }
     if ($q !== '') $nameParts[] = $q;
     if ($filterYear > 0) $nameParts[] = $filterYear;
+    if ($rangeLabel !== '') $nameParts[] = 'records_' . $rangeLabel;
 
     if (!empty($nameParts)) {
         $rawLabel = implode('_', $nameParts);

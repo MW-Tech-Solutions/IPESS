@@ -319,30 +319,86 @@ require_once 'includes/dev_topbar.php';
 
 <!-- Bulk Download Progress Modal -->
 <div class="modal fade" id="bulkProgressModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content shadow-lg border-0">
-            <div class="modal-header bg-dark text-white">
-                <h5 class="modal-title" id="bulkModalTitle">
-                    <i class="fas fa-cog fa-spin me-2 text-warning" id="bulkModalIcon"></i>Preparing Dossier Download...
+            <!-- High Contrast Primary Header -->
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold text-white d-flex align-items-center mb-0" id="bulkModalTitle">
+                    <i class="fas fa-file-archive me-2 text-warning fs-4" id="bulkModalIcon"></i>
+                    <span>Bulk Dossier PDF Generator</span>
                 </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" id="bulkModalCloseX"></button>
             </div>
+            
             <div class="modal-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <span class="fw-semibold text-secondary" id="bulkProgressLabel">Initializing session...</span>
-                    <span class="badge bg-primary fs-6" id="bulkProgressCounter">0 of 0</span>
+                <!-- STEP 1: Range Setup Step -->
+                <div id="bulkSetupStep">
+                    <div class="alert alert-primary border-0 bg-primary-subtle text-primary-emphasis mb-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle fa-2x me-3 text-primary"></i>
+                            <div>
+                                <h6 class="fw-bold mb-1"><span id="bulkTotalFoundBadge" class="badge bg-primary fs-6">0</span> matching candidate records found</h6>
+                                <div class="small">Select a record range to process into a downloadable ZIP archive (recommended: 100 to 200 per batch).</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 bg-light p-3 mb-3">
+                        <label class="form-label fw-bold text-dark mb-2">Record Range Selection</label>
+                        <div class="row g-3 align-items-center mb-3">
+                            <div class="col-md-5">
+                                <label class="form-label small text-muted fw-semibold mb-1">Start Record</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white"><i class="fas fa-play text-muted"></i></span>
+                                    <input type="number" id="bulkStartRange" class="form-control fw-bold" value="1" min="1" onchange="validateBulkRangeInput()">
+                                </div>
+                            </div>
+                            <div class="col-md-2 text-center pt-3 fw-bold text-muted">&mdash; TO &mdash;</div>
+                            <div class="col-md-5">
+                                <label class="form-label small text-muted fw-semibold mb-1">End Record</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white"><i class="fas fa-stop text-muted"></i></span>
+                                    <input type="number" id="bulkEndRange" class="form-control fw-bold" value="100" min="1" onchange="validateBulkRangeInput()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <label class="form-label small text-muted fw-semibold mb-1">Quick Range Presets</label>
+                        <div class="d-flex flex-wrap gap-2" id="bulkPresetButtons">
+                            <!-- Preset pills injected dynamically -->
+                        </div>
+                    </div>
                 </div>
-                <div class="progress mb-3" style="height: 24px; border-radius: 12px; background-color: #e9ecef;">
-                    <div id="bulkProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning text-dark fw-bold" 
-                         role="progressbar" style="width: 0%; transition: width 0.3s ease; font-size: 0.85rem;">0%</div>
-                </div>
-                <div class="alert alert-light border small text-muted mb-0 d-flex align-items-center" id="bulkCurrentItemBox">
-                    <i class="fas fa-file-pdf me-2 text-warning fs-5"></i>
-                    <span id="bulkCurrentItemText" class="text-truncate">Connecting to server...</span>
+
+                <!-- STEP 2: Progress Execution Step -->
+                <div id="bulkProgressStep" class="d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold text-dark fs-6" id="bulkProgressLabel">Processing candidates...</span>
+                        <span class="badge bg-primary fs-6 px-3 py-2" id="bulkProgressCounter">0 of 0</span>
+                    </div>
+                    <div class="progress mb-3" style="height: 26px; border-radius: 13px; background-color: #e9ecef;">
+                        <div id="bulkProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning text-dark fw-bold" 
+                             role="progressbar" style="width: 0%; transition: width 0.3s ease; font-size: 0.9rem;">0%</div>
+                    </div>
+                    <div class="alert alert-light border shadow-sm p-3 mb-0 d-flex align-items-center" id="bulkCurrentItemBox">
+                        <i class="fas fa-file-pdf me-3 text-warning fs-3" id="bulkCurrentItemIcon"></i>
+                        <div class="overflow-hidden">
+                            <div class="fw-bold text-dark small" id="bulkCurrentItemText">Connecting to server...</div>
+                            <div class="text-muted extra-small" id="bulkSubStatus">Generating application slips & uploaded documents...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer bg-light">
-                <button type="button" class="btn btn-secondary" id="bulkCancelBtn" onclick="cancelBulkProgress()">Cancel</button>
-                <a href="#" id="bulkDirectDownloadLink" class="btn btn-success d-none"><i class="fas fa-download me-1"></i>Save ZIP File</a>
+
+            <!-- Footer Actions -->
+            <div class="modal-footer bg-light px-4 py-3">
+                <button type="button" class="btn btn-outline-secondary px-4" id="bulkCancelBtn" onclick="cancelBulkProgress()">Cancel</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="bulkStartProcessBtn" onclick="confirmStartBulkProcess()">
+                    <i class="fas fa-rocket me-1"></i>Start Processing Range
+                </button>
+                <a href="#" id="bulkDirectDownloadLink" class="btn btn-success btn-lg px-4 fw-bold d-none" target="_blank">
+                    <i class="fas fa-file-download me-2"></i>Download ZIP Archive
+                </a>
             </div>
         </div>
     </div>
@@ -350,29 +406,33 @@ require_once 'includes/dev_topbar.php';
 
 <script>
 var bulkCancelRequested = false;
+var bulkSessionId = '';
+var bulkAllMatchingItems = [];
+var bulkTotalFound = 0;
 
 function startBulkProgressDownload() {
     bulkCancelRequested = false;
-    
+    bulkSessionId = '';
+    bulkAllMatchingItems = [];
+    bulkTotalFound = 0;
+
     var modalEl = document.getElementById('bulkProgressModal');
     var bsModal = new bootstrap.Modal(modalEl);
-    
-    // Reset UI
-    document.getElementById('bulkModalIcon').className = 'fas fa-cog fa-spin me-2 text-warning';
-    document.getElementById('bulkModalTitle').innerText = 'Preparing Dossier Download...';
-    document.getElementById('bulkProgressLabel').innerText = 'Initializing session...';
-    document.getElementById('bulkProgressCounter').innerText = '0 of 0';
-    document.getElementById('bulkProgressBar').style.width = '0%';
-    document.getElementById('bulkProgressBar').innerText = '0%';
-    document.getElementById('bulkProgressBar').className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning text-dark fw-bold';
-    document.getElementById('bulkCurrentItemText').innerText = 'Fetching applicant list from server...';
-    document.getElementById('bulkCancelBtn').innerText = 'Cancel';
-    document.getElementById('bulkCancelBtn').classList.remove('d-none');
+
+    // Reset UI to Setup Step
+    document.getElementById('bulkModalIcon').className = 'fas fa-file-archive me-2 text-warning fs-4';
+    document.getElementById('bulkModalTitle').innerHTML = '<i class="fas fa-file-archive me-2 text-warning fs-4"></i><span>Bulk Dossier PDF Generator</span>';
+    document.getElementById('bulkSetupStep').classList.remove('d-none');
+    document.getElementById('bulkProgressStep').classList.add('d-none');
+    document.getElementById('bulkStartProcessBtn').classList.remove('d-none');
+    document.getElementById('bulkStartProcessBtn').disabled = true;
+    document.getElementById('bulkStartProcessBtn').innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Loading...';
     document.getElementById('bulkDirectDownloadLink').classList.add('d-none');
+    document.getElementById('bulkCancelBtn').innerText = 'Cancel';
 
     bsModal.show();
 
-    // 1. Send init request with current page query params
+    // Fetch init details
     var currentQuery = window.location.search;
     var initUrl = 'api/download-applicant.php' + (currentQuery ? currentQuery + '&' : '?') + 'action=init_bulk';
 
@@ -385,67 +445,153 @@ function startBulkProgressDownload() {
                 return;
             }
 
-            var sessionId = data.session_id;
-            var items = data.items;
-            var total = items.length;
+            bulkSessionId = data.session_id;
+            bulkAllMatchingItems = data.items;
+            bulkTotalFound = data.total;
 
-            document.getElementById('bulkProgressCounter').innerText = '0 of ' + total;
-            document.getElementById('bulkProgressLabel').innerText = 'Downloading dossiers...';
+            document.getElementById('bulkTotalFoundBadge').innerText = bulkTotalFound.toLocaleString();
+            document.getElementById('bulkStartRange').value = 1;
+            document.getElementById('bulkStartRange').max = bulkTotalFound;
+            document.getElementById('bulkEndRange').value = Math.min(100, bulkTotalFound);
+            document.getElementById('bulkEndRange').max = bulkTotalFound;
 
-            var index = 0;
+            // Generate presets
+            var presetContainer = document.getElementById('bulkPresetButtons');
+            presetContainer.innerHTML = '';
 
-            function processNext() {
-                if (bulkCancelRequested) {
-                    document.getElementById('bulkCurrentItemText').innerText = 'Download cancelled by user.';
-                    return;
-                }
-
-                if (index >= total) {
-                    // All items processed!
-                    document.getElementById('bulkModalIcon').className = 'fas fa-check-circle me-2 text-success';
-                    document.getElementById('bulkModalTitle').innerText = 'Dossiers Prepared Successfully!';
-                    document.getElementById('bulkProgressLabel').innerText = 'Compiling ZIP archive...';
-                    document.getElementById('bulkProgressBar').style.width = '100%';
-                    document.getElementById('bulkProgressBar').innerText = '100%';
-                    document.getElementById('bulkProgressBar').className = 'progress-bar bg-success text-white fw-bold';
-                    document.getElementById('bulkCurrentItemText').innerText = 'ZIP file compiled! Downloading automatically...';
-                    document.getElementById('bulkCancelBtn').innerText = 'Close';
-
-                    var finalUrl = 'api/download-applicant.php' + (currentQuery ? currentQuery + '&' : '?') + 'action=finalize_bulk&session_id=' + encodeURIComponent(sessionId);
-                    document.getElementById('bulkDirectDownloadLink').href = finalUrl;
-                    document.getElementById('bulkDirectDownloadLink').classList.remove('d-none');
-
-                    // Trigger browser download
-                    window.location.href = finalUrl;
-                    return;
-                }
-
-                var item = items[index];
-                var currentNum = index + 1;
-                var pct = Math.round((currentNum / total) * 100);
-
-                document.getElementById('bulkProgressCounter').innerText = currentNum + ' of ' + total;
-                document.getElementById('bulkProgressBar').style.width = pct + '%';
-                document.getElementById('bulkProgressBar').innerText = pct + '%';
-                document.getElementById('bulkCurrentItemText').innerText = 'Processing candidate ' + currentNum + ' of ' + total + ': ' + item.name + ' (' + item.app_no + ')';
-
-                var processUrl = 'api/download-applicant.php?action=process_item&session_id=' + encodeURIComponent(sessionId) + '&app_id=' + item.id;
-
-                fetch(processUrl)
-                    .then(function(r) { return r.json(); })
-                    .catch(function(e) { /* continue on error */ })
-                    .then(function() {
-                        index++;
-                        processNext();
-                    });
+            var step = 100;
+            for (var start = 1; start <= bulkTotalFound; start += step) {
+                var end = Math.min(bulkTotalFound, start + step - 1);
+                var pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = 'btn btn-sm btn-outline-primary fw-semibold';
+                pill.innerText = start + ' - ' + end;
+                (function(s, e) {
+                    pill.onclick = function() {
+                        document.getElementById('bulkStartRange').value = s;
+                        document.getElementById('bulkEndRange').value = e;
+                        validateBulkRangeInput();
+                    };
+                })(start, end);
+                presetContainer.appendChild(pill);
             }
 
-            processNext();
+            if (bulkTotalFound > 0) {
+                var allPill = document.createElement('button');
+                allPill.type = 'button';
+                allPill.className = 'btn btn-sm btn-outline-secondary fw-semibold';
+                allPill.innerText = '1 - ' + bulkTotalFound + ' (All)';
+                allPill.onclick = function() {
+                    document.getElementById('bulkStartRange').value = 1;
+                    document.getElementById('bulkEndRange').value = bulkTotalFound;
+                    validateBulkRangeInput();
+                };
+                presetContainer.appendChild(allPill);
+            }
+
+            document.getElementById('bulkStartProcessBtn').disabled = false;
+            document.getElementById('bulkStartProcessBtn').innerHTML = '<i class="fas fa-rocket me-1"></i>Start Processing Range';
         })
         .catch(function(err) {
             alert('Failed to initialize bulk download session.');
             bsModal.hide();
         });
+}
+
+function validateBulkRangeInput() {
+    var start = parseInt(document.getElementById('bulkStartRange').value, 10) || 1;
+    var end = parseInt(document.getElementById('bulkEndRange').value, 10) || 1;
+
+    if (start < 1) start = 1;
+    if (start > bulkTotalFound) start = bulkTotalFound;
+    if (end < start) end = start;
+    if (end > bulkTotalFound) end = bulkTotalFound;
+
+    document.getElementById('bulkStartRange').value = start;
+    document.getElementById('bulkEndRange').value = end;
+}
+
+function confirmStartBulkProcess() {
+    validateBulkRangeInput();
+
+    var start = parseInt(document.getElementById('bulkStartRange').value, 10);
+    var end = parseInt(document.getElementById('bulkEndRange').value, 10);
+
+    var activeItems = bulkAllMatchingItems.slice(start - 1, end);
+    var totalRange = activeItems.length;
+
+    if (totalRange === 0) {
+        alert('Selected range has no records.');
+        return;
+    }
+
+    // Switch UI to Progress Step
+    document.getElementById('bulkSetupStep').classList.add('d-none');
+    document.getElementById('bulkProgressStep').classList.remove('d-none');
+    document.getElementById('bulkStartProcessBtn').classList.add('d-none');
+
+    document.getElementById('bulkModalTitle').innerHTML = '<i class="fas fa-cog fa-spin me-2 text-warning fs-4"></i><span>Generating Dossier PDFs...</span>';
+    document.getElementById('bulkProgressLabel').innerText = 'Processing candidates...';
+    document.getElementById('bulkProgressCounter').innerText = '0 of ' + totalRange;
+    document.getElementById('bulkProgressBar').style.width = '0%';
+    document.getElementById('bulkProgressBar').innerText = '0%';
+    document.getElementById('bulkProgressBar').className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning text-dark fw-bold';
+
+    var index = 0;
+
+    function processNextItem() {
+        if (bulkCancelRequested) {
+            document.getElementById('bulkCurrentItemText').innerText = 'Download process cancelled by user.';
+            document.getElementById('bulkSubStatus').innerText = 'Partial session saved.';
+            return;
+        }
+
+        if (index >= totalRange) {
+            // Range Processed Completely!
+            var currentQuery = window.location.search;
+            var rangeStr = start + '-' + end;
+            var finalUrl = 'api/download-applicant.php' + (currentQuery ? currentQuery + '&' : '?') + 'action=finalize_bulk&session_id=' + encodeURIComponent(bulkSessionId) + '&range=' + encodeURIComponent(rangeStr);
+
+            document.getElementById('bulkModalTitle').innerHTML = '<i class="fas fa-check-circle me-2 text-warning fs-4"></i><span>Dossier Range Prepared Successfully!</span>';
+            document.getElementById('bulkProgressLabel').innerText = 'ZIP Archive Ready!';
+            document.getElementById('bulkProgressCounter').innerText = totalRange + ' of ' + totalRange;
+            document.getElementById('bulkProgressBar').style.width = '100%';
+            document.getElementById('bulkProgressBar').innerText = '100%';
+            document.getElementById('bulkProgressBar').className = 'progress-bar bg-success text-white fw-bold';
+            document.getElementById('bulkCurrentItemText').innerText = 'ZIP file compiled! Click below to download.';
+            document.getElementById('bulkSubStatus').innerText = 'Records ' + start + ' to ' + end + ' archived.';
+            document.getElementById('bulkCancelBtn').innerText = 'Close';
+
+            document.getElementById('bulkDirectDownloadLink').href = finalUrl;
+            document.getElementById('bulkDirectDownloadLink').classList.remove('d-none');
+
+            // Trigger browser download
+            window.location.href = finalUrl;
+            return;
+        }
+
+        var item = activeItems[index];
+        var currentNum = index + 1;
+        var pct = Math.round((currentNum / totalRange) * 100);
+
+        document.getElementById('bulkProgressCounter').innerText = currentNum + ' of ' + totalRange;
+        document.getElementById('bulkProgressBar').style.width = pct + '%';
+        document.getElementById('bulkProgressBar').innerText = pct + '%';
+        document.getElementById('bulkCurrentItemText').innerText = 'Processing Record ' + (start + index) + ' (' + currentNum + ' of ' + totalRange + '): ' + item.name;
+        document.getElementById('bulkSubStatus').innerText = 'Application #' + item.app_no;
+
+        var processUrl = 'api/download-applicant.php?action=process_item&session_id=' + encodeURIComponent(bulkSessionId) + '&app_id=' + item.id;
+
+        fetch(processUrl)
+            .then(function(r) { return r.json(); })
+            .catch(function(e) { /* continue */ })
+            .then(function() {
+                index++;
+                processNextItem();
+            });
+    }
+
+    processNextItem();
 }
 
 function cancelBulkProgress() {
