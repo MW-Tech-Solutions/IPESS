@@ -107,43 +107,13 @@ require_once 'includes/dev_topbar.php';
         <p class="panel-muted">Official record of all student applications. Search, filter, and view individual applications.</p>
     </div>
     <div class="hero-actions">
-        <?php
-        $downloadParams = $_GET;
-        unset($downloadParams['page'], $downloadParams['limit'], $downloadParams['action']);
-        $downloadParams['action'] = 'bulk_zip';
-        $downloadUrl = 'api/download-applicant.php?' . http_build_query($downloadParams);
-        $batchCount  = (int)ceil($totalRecords / 100);
-        ?>
         <a href="records.php" class="btn btn-outline-secondary"><i class="fas fa-times me-1"></i>Clear Filters</a>
         <a href="export-students.php<?php echo $_SERVER['QUERY_STRING'] ? '?' . htmlspecialchars($_SERVER['QUERY_STRING']) : ''; ?>" class="btn btn-success">
             <i class="fas fa-file-excel me-1"></i>Export
         </a>
-        <?php if ($batchCount <= 1): ?>
-            <a href="<?php echo htmlspecialchars($downloadUrl); ?>" class="btn btn-warning text-white">
-                <i class="fas fa-file-archive me-1"></i>Download PDFs (ZIP)
-            </a>
-        <?php else: ?>
-            <div class="dropdown d-inline-block">
-                <button class="btn btn-warning text-white dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-file-archive me-1"></i>Download PDFs (ZIP - <?php echo number_format($totalRecords); ?> records)
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow">
-                    <?php for ($b = 1; $b <= $batchCount; $b++):
-                        $startRec = (($b - 1) * 100) + 1;
-                        $endRec   = min($totalRecords, $b * 100);
-                        $bParams  = $downloadParams;
-                        $bParams['batch_page'] = $b;
-                        $bUrl     = 'api/download-applicant.php?' . http_build_query($bParams);
-                    ?>
-                        <li>
-                            <a class="dropdown-item" href="<?php echo htmlspecialchars($bUrl); ?>">
-                                <i class="fas fa-file-pdf me-2 text-warning"></i>Batch <?php echo $b; ?> (Records <?php echo number_format($startRec); ?> &ndash; <?php echo number_format($endRec); ?>)
-                            </a>
-                        </li>
-                    <?php endfor; ?>
-                </ul>
-            </div>
-        <?php endif; ?>
+        <button type="button" class="btn btn-warning text-white fw-semibold" onclick="startBulkProgressDownload()">
+            <i class="fas fa-file-archive me-1"></i>Download PDFs (ZIP)
+        </button>
     </div>
 </section>
 
@@ -251,21 +221,21 @@ require_once 'includes/dev_topbar.php';
             <table class="table align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>#</th>
+                        <th style="width: 40px">#</th>
                         <th>Student</th>
-                        <th>Application No</th>
+                        <th>App No</th>
                         <th>Phone</th>
-                        <th>Programme</th>
+                        <th>Programme / Dept</th>
                         <th>Status</th>
                         <th>Submitted</th>
-                        <th class="text-end">Action</th>
+                        <th class="text-end" style="width: 170px">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (!empty($records)): ?>
                         <?php foreach ($records as $i => $student): ?>
                             <?php
-                            $studentName = trim((string)($student['full_name'] ?? ''));
+                            $studentName = trim(($student['full_name'] ?? ''));
                             if ($studentName === '') {
                                 $studentName = trim(($student['surname'] ?? '') . ' ' . ($student['first_name'] ?? '') . ' ' . ($student['other_name'] ?? ''));
                             }
@@ -346,5 +316,141 @@ require_once 'includes/dev_topbar.php';
         </div>
     </div>
 </section>
+
+<!-- Bulk Download Progress Modal -->
+<div class="modal fade" id="bulkProgressModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" id="bulkModalTitle">
+                    <i class="fas fa-cog fa-spin me-2 text-warning" id="bulkModalIcon"></i>Preparing Dossier Download...
+                </h5>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fw-semibold text-secondary" id="bulkProgressLabel">Initializing session...</span>
+                    <span class="badge bg-primary fs-6" id="bulkProgressCounter">0 of 0</span>
+                </div>
+                <div class="progress mb-3" style="height: 24px; border-radius: 12px; background-color: #e9ecef;">
+                    <div id="bulkProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-warning text-dark fw-bold" 
+                         role="progressbar" style="width: 0%; transition: width 0.3s ease; font-size: 0.85rem;">0%</div>
+                </div>
+                <div class="alert alert-light border small text-muted mb-0 d-flex align-items-center" id="bulkCurrentItemBox">
+                    <i class="fas fa-file-pdf me-2 text-warning fs-5"></i>
+                    <span id="bulkCurrentItemText" class="text-truncate">Connecting to server...</span>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" id="bulkCancelBtn" onclick="cancelBulkProgress()">Cancel</button>
+                <a href="#" id="bulkDirectDownloadLink" class="btn btn-success d-none"><i class="fas fa-download me-1"></i>Save ZIP File</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+var bulkCancelRequested = false;
+
+function startBulkProgressDownload() {
+    bulkCancelRequested = false;
+    
+    var modalEl = document.getElementById('bulkProgressModal');
+    var bsModal = new bootstrap.Modal(modalEl);
+    
+    // Reset UI
+    document.getElementById('bulkModalIcon').className = 'fas fa-cog fa-spin me-2 text-warning';
+    document.getElementById('bulkModalTitle').innerText = 'Preparing Dossier Download...';
+    document.getElementById('bulkProgressLabel').innerText = 'Initializing session...';
+    document.getElementById('bulkProgressCounter').innerText = '0 of 0';
+    document.getElementById('bulkProgressBar').style.width = '0%';
+    document.getElementById('bulkProgressBar').innerText = '0%';
+    document.getElementById('bulkProgressBar').className = 'progress-bar progress-bar-striped progress-bar-animated bg-warning text-dark fw-bold';
+    document.getElementById('bulkCurrentItemText').innerText = 'Fetching applicant list from server...';
+    document.getElementById('bulkCancelBtn').innerText = 'Cancel';
+    document.getElementById('bulkCancelBtn').classList.remove('d-none');
+    document.getElementById('bulkDirectDownloadLink').classList.add('d-none');
+
+    bsModal.show();
+
+    // 1. Send init request with current page query params
+    var currentQuery = window.location.search;
+    var initUrl = 'api/download-applicant.php' + (currentQuery ? currentQuery + '&' : '?') + 'action=init_bulk';
+
+    fetch(initUrl)
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.status !== 'success' || !data.items || data.items.length === 0) {
+                alert(data.message || 'No applicants found matching active filters.');
+                bsModal.hide();
+                return;
+            }
+
+            var sessionId = data.session_id;
+            var items = data.items;
+            var total = items.length;
+
+            document.getElementById('bulkProgressCounter').innerText = '0 of ' + total;
+            document.getElementById('bulkProgressLabel').innerText = 'Downloading dossiers...';
+
+            var index = 0;
+
+            function processNext() {
+                if (bulkCancelRequested) {
+                    document.getElementById('bulkCurrentItemText').innerText = 'Download cancelled by user.';
+                    return;
+                }
+
+                if (index >= total) {
+                    // All items processed!
+                    document.getElementById('bulkModalIcon').className = 'fas fa-check-circle me-2 text-success';
+                    document.getElementById('bulkModalTitle').innerText = 'Dossiers Prepared Successfully!';
+                    document.getElementById('bulkProgressLabel').innerText = 'Compiling ZIP archive...';
+                    document.getElementById('bulkProgressBar').style.width = '100%';
+                    document.getElementById('bulkProgressBar').innerText = '100%';
+                    document.getElementById('bulkProgressBar').className = 'progress-bar bg-success text-white fw-bold';
+                    document.getElementById('bulkCurrentItemText').innerText = 'ZIP file compiled! Downloading automatically...';
+                    document.getElementById('bulkCancelBtn').innerText = 'Close';
+
+                    var finalUrl = 'api/download-applicant.php' + (currentQuery ? currentQuery + '&' : '?') + 'action=finalize_bulk&session_id=' + encodeURIComponent(sessionId);
+                    document.getElementById('bulkDirectDownloadLink').href = finalUrl;
+                    document.getElementById('bulkDirectDownloadLink').classList.remove('d-none');
+
+                    // Trigger browser download
+                    window.location.href = finalUrl;
+                    return;
+                }
+
+                var item = items[index];
+                var currentNum = index + 1;
+                var pct = Math.round((currentNum / total) * 100);
+
+                document.getElementById('bulkProgressCounter').innerText = currentNum + ' of ' + total;
+                document.getElementById('bulkProgressBar').style.width = pct + '%';
+                document.getElementById('bulkProgressBar').innerText = pct + '%';
+                document.getElementById('bulkCurrentItemText').innerText = 'Processing candidate ' + currentNum + ' of ' + total + ': ' + item.name + ' (' + item.app_no + ')';
+
+                var processUrl = 'api/download-applicant.php?action=process_item&session_id=' + encodeURIComponent(sessionId) + '&app_id=' + item.id;
+
+                fetch(processUrl)
+                    .then(function(r) { return r.json(); })
+                    .catch(function(e) { /* continue on error */ })
+                    .then(function() {
+                        index++;
+                        processNext();
+                    });
+            }
+
+            processNext();
+        })
+        .catch(function(err) {
+            alert('Failed to initialize bulk download session.');
+            bsModal.hide();
+        });
+}
+
+function cancelBulkProgress() {
+    bulkCancelRequested = true;
+}
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

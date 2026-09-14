@@ -350,6 +350,218 @@ function buildApplicantPdf(PDO $pdo, int $appId): string {
 // ROUTING
 // ===========================================================================
 
+// --- 1. Init AJAX Bulk Session ---
+if (isset($_GET['action']) && $_GET['action'] === 'init_bulk') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $q            = trim((string)($_GET['q'] ?? ''));
+    $filterStatus = trim($_GET['status'] ?? '');
+    $filterFaculty = (int)($_GET['faculty'] ?? 0);
+    $filterDept   = (int)($_GET['department'] ?? 0);
+    $filterYear   = (int)($_GET['year'] ?? 0);
+    $filterDegree = (int)($_GET['degree'] ?? ($_GET['degree_id'] ?? 0));
+    $filterCourse = (int)($_GET['course'] ?? ($_GET['course_id'] ?? 0));
+
+    $allowedStatus = ['Draft', 'Submitted', 'Admitted', 'Rejected'];
+    if (!in_array($filterStatus, $allowedStatus, true)) $filterStatus = '';
+
+    $where  = ["NOT EXISTS (SELECT 1 FROM applications nx WHERE nx.user_id = a.user_id AND nx.application_id > a.application_id)"];
+    $params = [];
+
+    if ($q !== '') {
+        $like = '%' . $q . '%';
+        $where[]  = "(u.email LIKE ? OR COALESCE(pd.first_name,'') LIKE ? OR COALESCE(pd.surname,'') LIKE ? OR COALESCE(a.application_number,'') LIKE ? OR COALESCE(pd.phone,'') LIKE ?)";
+        $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
+    }
+    if ($filterStatus)  { $where[] = 'a.status = ?';          $params[] = $filterStatus; }
+    if ($filterFaculty) { $where[] = 'pc.faculty = ?';         $params[] = $filterFaculty; }
+    if ($filterDept)    { $where[] = 'pc.department = ?';      $params[] = $filterDept; }
+    if ($filterYear)    { $where[] = 'YEAR(a.submitted_at) = ?'; $params[] = $filterYear; }
+    if ($filterDegree)  { $where[] = 'pc.degree_type = ?';     $params[] = $filterDegree; }
+    if ($filterCourse)  { $where[] = 'pc.course = ?';          $params[] = $filterCourse; }
+
+    $joinSql = "
+        FROM applications a
+        INNER JOIN users u ON u.user_id = a.user_id
+        LEFT JOIN personal_details pd ON pd.application_id = a.application_id
+        LEFT JOIN programme_choices pc ON pc.application_id = a.application_id
+        LEFT JOIN faculties f ON f.faculty_id = COALESCE(pc.faculty, 0)
+        LEFT JOIN departments d ON d.dept_id = COALESCE(pc.department, a.department_id)
+        LEFT JOIN courses c ON c.course_id = pc.course
+        LEFT JOIN degree_types dt ON dt.degree_id = pc.degree_type
+        WHERE " . implode(' AND ', $where);
+
+    $selStmt = $pdo->prepare("
+        SELECT a.application_id, a.application_number, COALESCE(pd.first_name, u.full_name) AS first_name, COALESCE(pd.surname, '') AS surname
+        $joinSql
+        GROUP BY a.application_id
+        ORDER BY a.updated_at DESC, a.application_id DESC
+    ");
+    $selStmt->execute($params);
+    $records = $selStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (empty($records)) {
+        echo json_encode(['status' => 'error', 'message' => 'No applicants found matching active filters.']);
+        exit;
+    }
+
+    $sessionId = 'ipess_bulk_' . uniqid('', true);
+    $sessionDir = sys_get_temp_dir() . '/' . $sessionId;
+    if (!is_dir($sessionDir)) {
+        @mkdir($sessionDir, 0777, true);
+    }
+
+    $items = [];
+    foreach ($records as $r) {
+        $name = trim(($r['surname'] ?? '') . ' ' . ($r['first_name'] ?? ''));
+        $items[] = [
+            'id'     => (int)$r['application_id'],
+            'app_no' => $r['application_number'] ?: ('APP-' . $r['application_id']),
+            'name'   => $name ?: 'Applicant'
+        ];
+    }
+
+    echo json_encode([
+        'status'     => 'success',
+        'session_id' => $sessionId,
+        'total'      => count($items),
+        'items'      => $items
+    ]);
+    exit;
+}
+
+// --- 2. Process Individual Candidate PDF ---
+if (isset($_GET['action']) && $_GET['action'] === 'process_item') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $sessionId = preg_replace('/[^A-Za-z0-9_\-]/', '', $_GET['session_id'] ?? '');
+    $appId     = (int)($_GET['app_id'] ?? 0);
+
+    if (!$sessionId || !$appId) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid session or application ID.']);
+        exit;
+    }
+
+    $sessionDir = sys_get_temp_dir() . '/' . $sessionId;
+    if (!is_dir($sessionDir)) {
+        @mkdir($sessionDir, 0777, true);
+    }
+
+    try {
+        $app = fetchApplicant($pdo, $appId);
+        if ($app) {
+            $pdfBytes = buildApplicantPdf($pdo, $appId);
+            $appNo = preg_replace('/[^A-Za-z0-9\-]/', '-', $app['application_number'] ?? (string)$appId);
+            if ($pdfBytes) {
+                file_put_contents($sessionDir . '/application-' . $appNo . '.pdf', $pdfBytes);
+            } else {
+                file_put_contents($sessionDir . '/application-' . $appNo . '_notice.txt', "Notice: Could not generate PDF slip for candidate {$appId}.");
+            }
+        }
+        echo json_encode(['status' => 'success', 'app_id' => $appId]);
+    } catch (Throwable $e) {
+        file_put_contents($sessionDir . '/application-' . $appId . '_error.txt', "Notice: Error generating PDF: " . $e->getMessage());
+        echo json_encode(['status' => 'success', 'app_id' => $appId, 'warning' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// --- 3. Finalize and Stream ZIP Download ---
+if (isset($_GET['action']) && $_GET['action'] === 'finalize_bulk') {
+    $sessionId = preg_replace('/[^A-Za-z0-9_\-]/', '', $_GET['session_id'] ?? '');
+    if (!$sessionId) {
+        http_response_code(400);
+        die('Invalid session ID.');
+    }
+
+    $sessionDir = sys_get_temp_dir() . '/' . $sessionId;
+    if (!is_dir($sessionDir)) {
+        http_response_code(404);
+        die('Bulk session expired or invalid.');
+    }
+
+    $q            = trim((string)($_GET['q'] ?? ''));
+    $filterStatus = trim($_GET['status'] ?? '');
+    $filterFaculty = (int)($_GET['faculty'] ?? 0);
+    $filterDept   = (int)($_GET['department'] ?? 0);
+    $filterYear   = (int)($_GET['year'] ?? 0);
+    $filterDegree = (int)($_GET['degree'] ?? ($_GET['degree_id'] ?? 0));
+    $filterCourse = (int)($_GET['course'] ?? ($_GET['course_id'] ?? 0));
+
+    $nameParts = [];
+    if ($filterDegree > 0) {
+        $st = $pdo->prepare("SELECT degree_name FROM degree_types WHERE degree_id = ?");
+        $st->execute([$filterDegree]);
+        $degreeName = $st->fetchColumn();
+        if ($degreeName) $nameParts[] = $degreeName;
+    }
+    if ($filterStatus !== '') $nameParts[] = $filterStatus;
+    if ($filterDept > 0) {
+        $st = $pdo->prepare("SELECT dept_name FROM departments WHERE dept_id = ?");
+        $st->execute([$filterDept]);
+        $deptName = $st->fetchColumn();
+        if ($deptName) $nameParts[] = $deptName;
+    } elseif ($filterFaculty > 0) {
+        $st = $pdo->prepare("SELECT faculty_name FROM faculties WHERE faculty_id = ?");
+        $st->execute([$filterFaculty]);
+        $facName = $st->fetchColumn();
+        if ($facName) $nameParts[] = $facName;
+    }
+    if ($filterCourse > 0) {
+        $st = $pdo->prepare("SELECT course_title FROM courses WHERE course_id = ?");
+        $st->execute([$filterCourse]);
+        $courseTitle = $st->fetchColumn();
+        if ($courseTitle) $nameParts[] = $courseTitle;
+    }
+    if ($q !== '') $nameParts[] = $q;
+    if ($filterYear > 0) $nameParts[] = $filterYear;
+
+    if (!empty($nameParts)) {
+        $rawLabel = implode('_', $nameParts);
+        $safeLabel = preg_replace('/[^A-Za-z0-9_\-]/', '_', $rawLabel);
+        $safeLabel = preg_replace('/_+/', '_', trim($safeLabel, '_'));
+        $zipDownloadName = 'applicants_' . $safeLabel . '_' . date('Y-m-d') . '.zip';
+    } else {
+        $zipDownloadName = 'applicants_all_dossiers_' . date('Y-m-d') . '.zip';
+    }
+
+    $zipPath = sys_get_temp_dir() . '/' . $sessionId . '_final.zip';
+    $zip = new ZipArchive();
+    if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        http_response_code(500);
+        die('Could not create ZIP file.');
+    }
+
+    $files = scandir($sessionDir);
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $filePath = $sessionDir . '/' . $file;
+        if (is_file($filePath)) {
+            $zip->addFile($filePath, $file);
+        }
+    }
+    $zip->close();
+
+    // Cleanup session dir
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        @unlink($sessionDir . '/' . $file);
+    }
+    @rmdir($sessionDir);
+
+    while (ob_get_level()) { ob_end_clean(); }
+
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="' . $zipDownloadName . '"');
+    header('Content-Length: ' . filesize($zipPath));
+    header('Cache-Control: private, no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    readfile($zipPath);
+    @unlink($zipPath);
+    exit;
+}
+
 // --- Bulk download based on filters ---
 if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
     $q            = trim((string)($_GET['q'] ?? ''));
