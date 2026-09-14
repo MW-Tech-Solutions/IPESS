@@ -107,11 +107,17 @@ require_once 'includes/dev_topbar.php';
         <p class="panel-muted">Official record of all student applications. Search, filter, and view individual applications.</p>
     </div>
     <div class="hero-actions">
+        <?php
+        $downloadParams = $_GET;
+        unset($downloadParams['page'], $downloadParams['limit'], $downloadParams['action']);
+        $downloadParams['action'] = 'bulk_zip';
+        $downloadUrl = 'api/download-applicant.php?' . http_build_query($downloadParams);
+        ?>
         <a href="records.php" class="btn btn-outline-secondary"><i class="fas fa-times me-1"></i>Clear Filters</a>
         <a href="export-students.php<?php echo $_SERVER['QUERY_STRING'] ? '?' . htmlspecialchars($_SERVER['QUERY_STRING']) : ''; ?>" class="btn btn-success">
             <i class="fas fa-file-excel me-1"></i>Export
         </a>
-        <a href="api/download-applicant.php?action=bulk_zip<?php echo $_SERVER['QUERY_STRING'] ? '&' . htmlspecialchars($_SERVER['QUERY_STRING']) : ''; ?>" class="btn btn-warning text-white">
+        <a href="<?php echo htmlspecialchars($downloadUrl); ?>" class="btn btn-warning text-white">
             <i class="fas fa-file-archive me-1"></i>Download PDFs (ZIP)
         </a>
     </div>
@@ -147,7 +153,7 @@ require_once 'includes/dev_topbar.php';
     </div>
     <div class="panel-body">
         <form method="get" class="row g-2 mb-3 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label small fw-semibold text-muted">Search</label>
                 <input type="text" class="form-control" name="q" value="<?php echo htmlspecialchars($q, ENT_QUOTES, 'UTF-8'); ?>"
                     placeholder="Student name, email, app number, phone...">
@@ -172,6 +178,17 @@ require_once 'includes/dev_topbar.php';
                     <?php endforeach; ?>
                 </select>
             </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold text-muted">Department</label>
+                <select class="form-select" name="department">
+                    <option value="">All Departments</option>
+                    <?php foreach ($departments as $dept): ?>
+                        <option value="<?php echo $dept['dept_id']; ?>" <?php echo $filterDept == $dept['dept_id'] ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($dept['dept_name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             <div class="col-md-1">
                 <label class="form-label small fw-semibold text-muted">Year</label>
                 <select class="form-select" name="year">
@@ -189,9 +206,9 @@ require_once 'includes/dev_topbar.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-2 d-grid">
+            <div class="col-md-1 d-grid">
                 <label class="form-label small fw-semibold text-muted">&nbsp;</label>
-                <button class="btn btn-primary" type="submit"><i class="fas fa-search me-1"></i>Search</button>
+                <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
             </div>
         </form>
 

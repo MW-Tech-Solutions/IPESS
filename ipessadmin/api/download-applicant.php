@@ -357,17 +357,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
     $filterFaculty = (int)($_GET['faculty'] ?? 0);
     $filterDept   = (int)($_GET['department'] ?? 0);
     $filterYear   = (int)($_GET['year'] ?? 0);
+    $filterDegree = (int)($_GET['degree'] ?? ($_GET['degree_id'] ?? 0));
+    $filterCourse = (int)($_GET['course'] ?? ($_GET['course_id'] ?? 0));
 
     $allowedStatus = ['Draft', 'Submitted', 'Admitted', 'Rejected'];
     if (!in_array($filterStatus, $allowedStatus, true)) $filterStatus = '';
-
-    // Pagination/limits to prevent memory exhaustion on the server
-    $page  = max(1, (int)($_GET['page'] ?? 1));
-    $limit = (int)($_GET['limit'] ?? 50);
-    if ($limit <= 0 || $limit > 50) {
-        $limit = 50; // Cap at 50 to avoid 500 out-of-memory errors
-    }
-    $offset = ($page - 1) * $limit;
 
     $where  = ["NOT EXISTS (SELECT 1 FROM applications nx WHERE nx.user_id = a.user_id AND nx.application_id > a.application_id)"];
     $params = [];
@@ -381,6 +375,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
     if ($filterFaculty) { $where[] = 'pc.faculty = ?';         $params[] = $filterFaculty; }
     if ($filterDept)    { $where[] = 'pc.department = ?';      $params[] = $filterDept; }
     if ($filterYear)    { $where[] = 'YEAR(a.submitted_at) = ?'; $params[] = $filterYear; }
+    if ($filterDegree)  { $where[] = 'pc.degree_type = ?';     $params[] = $filterDegree; }
+    if ($filterCourse)  { $where[] = 'pc.course = ?';          $params[] = $filterCourse; }
 
     $joinSql = "
         FROM applications a
@@ -393,12 +389,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
         LEFT JOIN degree_types dt ON dt.degree_id = pc.degree_type
         WHERE " . implode(' AND ', $where);
 
+    // Fetch all matching applicant IDs for active filters (no pagination limit)
     $selStmt = $pdo->prepare("
         SELECT a.application_id
         $joinSql
         GROUP BY a.application_id
         ORDER BY a.updated_at DESC, a.application_id DESC
-        LIMIT {$limit} OFFSET {$offset}
     ");
     $selStmt->execute($params);
     $ids = $selStmt->fetchAll(PDO::FETCH_COLUMN);
@@ -408,8 +404,60 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
         die('No applicants found matching the filters.');
     }
 
-    // ZIP format: one PDF per candidate
-    set_time_limit(300); // Allow up to 5 minutes for generation
+    // Build human-readable filter names for ZIP filename
+    $nameParts = [];
+
+    if ($filterDegree > 0) {
+        $st = $pdo->prepare("SELECT degree_name FROM degree_types WHERE degree_id = ?");
+        $st->execute([$filterDegree]);
+        $degreeName = $st->fetchColumn();
+        if ($degreeName) $nameParts[] = $degreeName;
+    }
+
+    if ($filterStatus !== '') {
+        $nameParts[] = $filterStatus;
+    }
+
+    if ($filterDept > 0) {
+        $st = $pdo->prepare("SELECT dept_name FROM departments WHERE dept_id = ?");
+        $st->execute([$filterDept]);
+        $deptName = $st->fetchColumn();
+        if ($deptName) $nameParts[] = $deptName;
+    } elseif ($filterFaculty > 0) {
+        $st = $pdo->prepare("SELECT faculty_name FROM faculties WHERE faculty_id = ?");
+        $st->execute([$filterFaculty]);
+        $facName = $st->fetchColumn();
+        if ($facName) $nameParts[] = $facName;
+    }
+
+    if ($filterCourse > 0) {
+        $st = $pdo->prepare("SELECT course_title FROM courses WHERE course_id = ?");
+        $st->execute([$filterCourse]);
+        $courseTitle = $st->fetchColumn();
+        if ($courseTitle) $nameParts[] = $courseTitle;
+    }
+
+    if ($q !== '') {
+        $nameParts[] = $q;
+    }
+
+    if ($filterYear > 0) {
+        $nameParts[] = $filterYear;
+    }
+
+    if (!empty($nameParts)) {
+        $rawLabel = implode('_', $nameParts);
+        $safeLabel = preg_replace('/[^A-Za-z0-9_\-]/', '_', $rawLabel);
+        $safeLabel = preg_replace('/_+/', '_', trim($safeLabel, '_'));
+        $zipDownloadName = 'applicants_' . $safeLabel . '_' . date('Y-m-d') . '.zip';
+    } else {
+        $zipDownloadName = 'applicants_all_dossiers_' . date('Y-m-d') . '.zip';
+    }
+
+    // ZIP format generation
+    @ini_set('memory_limit', '512M');
+    @set_time_limit(0); // Unlimited execution time for generating large dossier batches
+
     $zipPath = sys_get_temp_dir() . '/ipess_bulk_' . uniqid() . '.zip';
     $zip = new ZipArchive();
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
@@ -433,7 +481,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
 
     $zipSize = filesize($zipPath);
     header('Content-Type: application/zip');
-    header('Content-Disposition: attachment; filename="applicants-filtered-' . date('Y-m-d') . '.zip"');
+    header('Content-Disposition: attachment; filename="' . $zipDownloadName . '"');
     header('Content-Length: ' . $zipSize);
     header('Cache-Control: private, no-cache');
     readfile($zipPath);
