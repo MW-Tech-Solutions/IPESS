@@ -112,14 +112,38 @@ require_once 'includes/dev_topbar.php';
         unset($downloadParams['page'], $downloadParams['limit'], $downloadParams['action']);
         $downloadParams['action'] = 'bulk_zip';
         $downloadUrl = 'api/download-applicant.php?' . http_build_query($downloadParams);
+        $batchCount  = (int)ceil($totalRecords / 100);
         ?>
         <a href="records.php" class="btn btn-outline-secondary"><i class="fas fa-times me-1"></i>Clear Filters</a>
         <a href="export-students.php<?php echo $_SERVER['QUERY_STRING'] ? '?' . htmlspecialchars($_SERVER['QUERY_STRING']) : ''; ?>" class="btn btn-success">
             <i class="fas fa-file-excel me-1"></i>Export
         </a>
-        <a href="<?php echo htmlspecialchars($downloadUrl); ?>" class="btn btn-warning text-white">
-            <i class="fas fa-file-archive me-1"></i>Download PDFs (ZIP)
-        </a>
+        <?php if ($batchCount <= 1): ?>
+            <a href="<?php echo htmlspecialchars($downloadUrl); ?>" class="btn btn-warning text-white">
+                <i class="fas fa-file-archive me-1"></i>Download PDFs (ZIP)
+            </a>
+        <?php else: ?>
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-warning text-white dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-file-archive me-1"></i>Download PDFs (ZIP - <?php echo number_format($totalRecords); ?> records)
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow">
+                    <?php for ($b = 1; $b <= $batchCount; $b++):
+                        $startRec = (($b - 1) * 100) + 1;
+                        $endRec   = min($totalRecords, $b * 100);
+                        $bParams  = $downloadParams;
+                        $bParams['batch_page'] = $b;
+                        $bUrl     = 'api/download-applicant.php?' . http_build_query($bParams);
+                    ?>
+                        <li>
+                            <a class="dropdown-item" href="<?php echo htmlspecialchars($bUrl); ?>">
+                                <i class="fas fa-file-pdf me-2 text-warning"></i>Batch <?php echo $b; ?> (Records <?php echo number_format($startRec); ?> &ndash; <?php echo number_format($endRec); ?>)
+                            </a>
+                        </li>
+                    <?php endfor; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
     </div>
 </section>
 

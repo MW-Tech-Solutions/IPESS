@@ -389,7 +389,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
         LEFT JOIN degree_types dt ON dt.degree_id = pc.degree_type
         WHERE " . implode(' AND ', $where);
 
-    // Fetch all matching applicant IDs for active filters (no pagination limit)
+    // Fetch matching applicant IDs for active filters
     $selStmt = $pdo->prepare("
         SELECT a.application_id
         $joinSql
@@ -397,11 +397,22 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
         ORDER BY a.updated_at DESC, a.application_id DESC
     ");
     $selStmt->execute($params);
-    $ids = $selStmt->fetchAll(PDO::FETCH_COLUMN);
+    $allIds = $selStmt->fetchAll(PDO::FETCH_COLUMN);
+
+    if (empty($allIds)) {
+        http_response_code(404);
+        die('No applicants found matching the filters.');
+    }
+
+    $totalCount = count($allIds);
+    $batchSize  = min(100, max(1, (int)($_GET['batch_size'] ?? 100))); // Safe cap at 100 applicants per ZIP
+    $batchPage  = max(1, (int)($_GET['batch_page'] ?? ($_GET['page'] ?? 1)));
+    $offset     = ($batchPage - 1) * $batchSize;
+    $ids        = array_slice($allIds, $offset, $batchSize);
 
     if (empty($ids)) {
         http_response_code(404);
-        die('No applicants found matching the filters.');
+        die('No applicants found for this batch range.');
     }
 
     // Build human-readable filter names for ZIP filename
@@ -445,45 +456,64 @@ if (isset($_GET['action']) && $_GET['action'] === 'bulk_zip') {
         $nameParts[] = $filterYear;
     }
 
+    $partSuffix = ($totalCount > $batchSize) ? '_part' . $batchPage : '';
+
     if (!empty($nameParts)) {
         $rawLabel = implode('_', $nameParts);
         $safeLabel = preg_replace('/[^A-Za-z0-9_\-]/', '_', $rawLabel);
         $safeLabel = preg_replace('/_+/', '_', trim($safeLabel, '_'));
-        $zipDownloadName = 'applicants_' . $safeLabel . '_' . date('Y-m-d') . '.zip';
+        $zipDownloadName = 'applicants_' . $safeLabel . $partSuffix . '_' . date('Y-m-d') . '.zip';
     } else {
-        $zipDownloadName = 'applicants_all_dossiers_' . date('Y-m-d') . '.zip';
+        $zipDownloadName = 'applicants_all_dossiers' . $partSuffix . '_' . date('Y-m-d') . '.zip';
     }
 
-    // ZIP format generation
+    // ZIP format generation settings
     @ini_set('memory_limit', '512M');
-    @set_time_limit(0); // Unlimited execution time for generating large dossier batches
+    @set_time_limit(0); // Unlimited execution time for generating batch
 
     $zipPath = sys_get_temp_dir() . '/ipess_bulk_' . uniqid() . '.zip';
     $zip = new ZipArchive();
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
         http_response_code(500);
-        die('Could not create ZIP file.');
+        die('Could not create ZIP file on server.');
     }
 
     foreach ($ids as $appId) {
-        $app = fetchApplicant($pdo, (int)$appId);
-        if (!$app) continue;
-        $pdfBytes = buildApplicantPdf($pdo, (int)$appId);
-        if (!$pdfBytes) continue;
-        $filename = 'application-' . preg_replace('/[^A-Za-z0-9\-]/', '-', $app['application_number'] ?? (string)$appId) . '.pdf';
-        $zip->addFromString($filename, $pdfBytes);
-
-        // Explicitly clear memory within the loop to avoid memory growth crashes
-        unset($pdfBytes, $app);
-        gc_collect_cycles();
+        try {
+            $app = fetchApplicant($pdo, (int)$appId);
+            if (!$app) continue;
+            $pdfBytes = buildApplicantPdf($pdo, (int)$appId);
+            if (!$pdfBytes) {
+                $filename = 'application-' . preg_replace('/[^A-Za-z0-9\-]/', '-', $app['application_number'] ?? (string)$appId) . '_notice.txt';
+                $zip->addFromString($filename, "Notice: Application PDF slip could not be rendered for application ID {$appId}.");
+                continue;
+            }
+            $filename = 'application-' . preg_replace('/[^A-Za-z0-9\-]/', '-', $app['application_number'] ?? (string)$appId) . '.pdf';
+            $zip->addFromString($filename, $pdfBytes);
+        } catch (Throwable $e) {
+            $zip->addFromString("application-id-{$appId}-error.txt", "Notice: Error processing dossier: " . $e->getMessage());
+        } finally {
+            unset($pdfBytes, $app);
+            if (function_exists('gc_collect_cycles')) {
+                gc_collect_cycles();
+            }
+        }
     }
     $zip->close();
 
     $zipSize = filesize($zipPath);
+
+    // Clean output buffers to ensure binary stream integrity
+    while (ob_get_level()) {
+        ob_end_clean();
+    }
+
     header('Content-Type: application/zip');
     header('Content-Disposition: attachment; filename="' . $zipDownloadName . '"');
     header('Content-Length: ' . $zipSize);
-    header('Cache-Control: private, no-cache');
+    header('Cache-Control: private, no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
     readfile($zipPath);
     @unlink($zipPath);
     exit;
