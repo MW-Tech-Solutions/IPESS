@@ -396,7 +396,7 @@ require_once 'includes/dev_topbar.php';
                 <button type="button" class="btn btn-primary px-4 fw-bold" id="bulkStartProcessBtn" onclick="confirmStartBulkProcess()">
                     <i class="fas fa-rocket me-1"></i>Start Processing Range
                 </button>
-                <a href="#" id="bulkDirectDownloadLink" class="btn btn-success btn-lg px-4 fw-bold d-none" target="_blank">
+                <a href="#" id="bulkDirectDownloadLink" class="btn btn-success btn-lg px-4 fw-bold d-none" onclick="triggerIframeDownload(this.getAttribute('data-download-url')); return false;">
                     <i class="fas fa-file-download me-2"></i>Download ZIP Archive
                 </a>
             </div>
@@ -562,11 +562,11 @@ function confirmStartBulkProcess() {
             document.getElementById('bulkSubStatus').innerText = 'Records ' + start + ' to ' + end + ' archived.';
             document.getElementById('bulkCancelBtn').innerText = 'Close';
 
-            document.getElementById('bulkDirectDownloadLink').href = finalUrl;
+            document.getElementById('bulkDirectDownloadLink').setAttribute('data-download-url', finalUrl);
             document.getElementById('bulkDirectDownloadLink').classList.remove('d-none');
 
-            // Trigger browser download
-            window.location.href = finalUrl;
+            // Trigger non-disruptive file download in hidden iframe (keeps page intact)
+            triggerIframeDownload(finalUrl);
             return;
         }
 
@@ -592,6 +592,18 @@ function confirmStartBulkProcess() {
     }
 
     processNextItem();
+}
+
+function triggerIframeDownload(url) {
+    if (!url || url === '#') return;
+    var iframe = document.getElementById('hiddenDownloadIframe');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'hiddenDownloadIframe';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+    }
+    iframe.src = url;
 }
 
 function cancelBulkProgress() {
