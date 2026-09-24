@@ -235,18 +235,7 @@ if ($typeParam === 'summary') {
             'Email' => (string)($row['Email'] ?? 'N/A'),
             'O-Level Summary' => $olevelSummary,
             'Status' => (string)($row['Status'] ?? 'N/A'),
-            'Submitted At' => (string)($row['Submitted_At'] ?? 'N/A'),
-
-            'Application_Number' => (string)($row['Application_Number'] ?? ''),
-            'Surname' => $row['Surname'] ?? '',
-            'First_Name' => $row['First_Name'] ?? '',
-            'Other_Names' => $row['Other_Names'] ?? '',
-            'Gender' => (string)($row['Gender'] ?? 'N/A'),
-            'Date_of_Birth' => (string)($row['Date_of_Birth'] ?? 'N/A'),
-            'Phone' => (string)($row['Phone'] ?? 'N/A'),
-            'Programme' => (string)($row['Dept'] ?? 'N/A'),
-            'Degree_Type' => (string)($row['Degree_Type'] ?? 'N/A'),
-            'Submitted_At' => (string)($row['Submitted_At'] ?? 'N/A'),
+            'Submitted At' => (string)($row['Submitted_At'] ?? 'N/A')
         ];
 
         $row = $formattedRow;
@@ -309,11 +298,14 @@ if ($typeParam === 'summary') {
         $lastColLetter = getExcelColLetterAdmin(count($headers));
 
         $rowNum = 2;
+        $sheetSNo = 1;
         foreach ($rows as $r) {
+            $r['S/No'] = $sheetSNo++;
             $colIdx = 1;
-            foreach ($r as $key => $val) {
+            foreach ($headers as $headerKey) {
+                $val = $r[$headerKey] ?? '';
                 $colLetter = getExcelColLetterAdmin($colIdx);
-                if (in_array($key, ['Application Number', 'Phone Number'], true)) {
+                if (in_array($headerKey, ['Application Number', 'Phone Number'], true)) {
                     $worksheet->setCellValueExplicit($colLetter . $rowNum, (string)($val ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                 } else {
                     $worksheet->setCellValue($colLetter . $rowNum, $val ?? '');
@@ -372,9 +364,12 @@ if ($typeParam === 'summary') {
             echo '<Cell><Data ss:Type="String">' . htmlspecialchars($h) . '</Data></Cell>';
         }
         echo '</Row>' . "\n";
+        $sheetSNo = 1;
         foreach ($rows as $row) {
+            $row['S/No'] = $sheetSNo++;
             echo '<Row>';
-            foreach ($row as $v) {
+            foreach ($headers as $headerKey) {
+                $v = $row[$headerKey] ?? '';
                 echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string)($v ?? '')) . '</Data></Cell>';
             }
             echo '</Row>' . "\n";
