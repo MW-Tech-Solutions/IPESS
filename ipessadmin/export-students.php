@@ -690,23 +690,31 @@ if ($format === 'pdf') {
                     <?php if (!empty($rows)): ?>
                         <?php foreach ($rows as $i => $row): ?>
                             <?php
-                            $candidateName = trim(($row['Surname'] ?? '') . ' ' . ($row['First_Name'] ?? '') . ' ' . ($row['Other_Names'] ?? ''));
-                            if ($candidateName === '') $candidateName = 'N/A';
+                            $cName = $row['Names'] ?? trim(($row['Surname'] ?? '') . ' ' . ($row['First_Name'] ?? '') . ' ' . ($row['Other_Names'] ?? ''));
+                            if (empty($cName) || $cName === 'N/A') $cName = 'N/A';
+
+                            $appNum = $row['Application Number'] ?? $row['Application_Number'] ?? 'N/A';
+                            $emailVal = $row['Email'] ?? '';
+                            $phoneVal = $row['Phone Number'] ?? $row['Phone'] ?? '';
+                            $progVal = $row['Dept'] ?? $row['Programme'] ?? '';
+                            $degVal = $row['Degree Type'] ?? $row['Degree_Type'] ?? '';
+                            $statusVal = $row['Status'] ?? 'Unknown';
+                            $submittedVal = $row['Submitted At'] ?? $row['Submitted_At'] ?? null;
                             ?>
                             <tr>
                                 <td><?php echo $i + 1; ?></td>
-                                <td><code><?php echo htmlspecialchars((string)($row['Application_Number'] ?: 'N/A')); ?></code></td>
-                                <td><strong><?php echo htmlspecialchars($candidateName); ?></strong></td>
-                                <td><?php echo htmlspecialchars($row['Email'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($row['Phone'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($row['Programme'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($row['Degree_Type'] ?? ''); ?></td>
+                                <td><code><?php echo htmlspecialchars((string)$appNum); ?></code></td>
+                                <td><strong><?php echo htmlspecialchars($cName); ?></strong></td>
+                                <td><?php echo htmlspecialchars($emailVal); ?></td>
+                                <td><?php echo htmlspecialchars($phoneVal); ?></td>
+                                <td><?php echo htmlspecialchars($progVal); ?></td>
+                                <td><?php echo htmlspecialchars($degVal); ?></td>
                                 <td>
-                                    <span class="status-badge status-<?php echo htmlspecialchars($row['Status']); ?>">
-                                        <?php echo htmlspecialchars($row['Status']); ?>
+                                    <span class="status-badge status-<?php echo htmlspecialchars($statusVal); ?>">
+                                        <?php echo htmlspecialchars($statusVal); ?>
                                     </span>
                                 </td>
-                                <td><?php echo $row['Submitted_At'] ? date('M d, Y', strtotime($row['Submitted_At'])) : '—'; ?></td>
+                                <td><?php echo ($submittedVal && $submittedVal !== 'N/A') ? date('M d, Y', strtotime($submittedVal)) : '—'; ?></td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
@@ -843,30 +851,38 @@ require_once 'includes/dev_topbar.php';
                     <?php if (!empty($rows)): ?>
                         <?php foreach ($rows as $i => $row): ?>
                             <?php
-                            $candidateName = trim(($row['Surname'] ?? '') . ' ' . ($row['First_Name'] ?? '') . ' ' . ($row['Other_Names'] ?? ''));
-                            if ($candidateName === '') $candidateName = 'N/A';
+                            $cName = $row['Names'] ?? trim(($row['Surname'] ?? '') . ' ' . ($row['First_Name'] ?? '') . ' ' . ($row['Other_Names'] ?? ''));
+                            if (empty($cName) || $cName === 'N/A') $cName = 'N/A';
+
+                            $appNum = $row['Application Number'] ?? $row['Application_Number'] ?? 'N/A';
+                            $emailVal = $row['Email'] ?? '';
+                            $phoneVal = $row['Phone Number'] ?? $row['Phone'] ?? '';
+                            $genderVal = $row['Sex'] ?? $row['Gender'] ?? '';
+                            $dobVal = $row['Date of Birth'] ?? $row['Date_of_Birth'] ?? null;
+                            $progVal = $row['Dept'] ?? $row['Programme'] ?? '';
+                            $degVal = $row['Degree Type'] ?? $row['Degree_Type'] ?? '';
+                            $statusVal = $row['Status'] ?? 'Unknown';
+                            $submittedVal = $row['Submitted At'] ?? $row['Submitted_At'] ?? null;
 
                             $statusClass = 'status-muted';
-                            if (($row['Status'] ?? '') === 'Admitted')  $statusClass = 'status-success';
-                            elseif (($row['Status'] ?? '') === 'Rejected') $statusClass = 'status-danger';
-                            elseif (($row['Status'] ?? '') === 'Submitted') $statusClass = 'status-warning';
+                            if ($statusVal === 'Admitted')  $statusClass = 'status-success';
+                            elseif ($statusVal === 'Rejected') $statusClass = 'status-danger';
+                            elseif ($statusVal === 'Submitted') $statusClass = 'status-warning';
                             ?>
                             <tr>
                                 <td class="text-muted small"><?php echo $i + 1; ?></td>
                                 <td>
-                                    <div class="fw-semibold"><?php echo htmlspecialchars($candidateName); ?></div>
+                                    <div class="fw-semibold"><?php echo htmlspecialchars($cName); ?></div>
                                 </td>
-                                <td><code><?php echo htmlspecialchars((string)($row['Application_Number'] ?: 'N/A')); ?></code></td>
-                                <td><?php echo htmlspecialchars($row['Email'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($row['Phone'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($row['Gender'] ?? ''); ?></td>
-                                <td><?php echo $row['Date_of_Birth'] ? date('M d, Y', strtotime($row['Date_of_Birth'])) : '—'; ?></td>
-                                <td><?php echo htmlspecialchars($row['Programme'] ?? ''); ?></td>
-                                <td><?php echo htmlspecialchars($row['Degree_Type'] ?? ''); ?></td>
-                                <td><span class="status-chip <?php echo $statusClass; ?>"><?php echo htmlspecialchars((string)($row['Status'] ?: 'Unknown')); ?></span></td>
+                                <td><code><?php echo htmlspecialchars((string)$appNum); ?></code></td>
+                                <td><?php echo htmlspecialchars($emailVal); ?></td>
+                                <td><?php echo htmlspecialchars($phoneVal); ?></td>
+                                <td><?php echo htmlspecialchars($genderVal); ?></td>
+                                <td><?php echo ($dobVal && $dobVal !== 'N/A') ? date('M d, Y', strtotime($dobVal)) : '—'; ?></td>
+                                <td><?php echo htmlspecialchars($progVal); ?></td>
+                                <td><?php echo htmlspecialchars($degVal); ?></td>
+                                <td><span class="status-chip <?php echo $statusClass; ?>"><?php echo htmlspecialchars($statusVal); ?></span></td>
                                 <td class="small text-muted">
-                                    <?php echo $row['Submitted_At'] ? date('M d, Y', strtotime($row['Submitted_At'])) : '—'; ?>
-                                </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
