@@ -402,16 +402,16 @@ foreach ($rows as &$row) {
         'Submitted At' => (string)($row['Submitted_At'] ?? 'N/A'),
 
         // Retain original raw fields for preview templates
-        'Application_Number' => (string)($row['Application_Number'] ?? ''),
-        'Surname' => $row['Surname'] ?? '',
-        'First_Name' => $row['First_Name'] ?? '',
-        'Other_Names' => $row['Other_Names'] ?? '',
-        'Gender' => (string)($row['Gender'] ?? 'N/A'),
-        'Date_of_Birth' => (string)($row['Date_of_Birth'] ?? 'N/A'),
-        'Phone' => (string)($row['Phone'] ?? 'N/A'),
-        'Programme' => (string)($row['Dept'] ?? 'N/A'),
-        'Degree_Type' => (string)($row['Degree_Type'] ?? 'N/A'),
-        'Submitted_At' => (string)($row['Submitted_At'] ?? 'N/A'),
+        // 'Application_Number' => (string)($row['Application_Number'] ?? ''),
+        // 'Surname' => $row['Surname'] ?? '',
+        // 'First_Name' => $row['First_Name'] ?? '',
+        // 'Other_Names' => $row['Other_Names'] ?? '',
+        // 'Gender' => (string)($row['Gender'] ?? 'N/A'),
+        // 'Date_of_Birth' => (string)($row['Date_of_Birth'] ?? 'N/A'),
+        // 'Phone' => (string)($row['Phone'] ?? 'N/A'),
+        // 'Programme' => (string)($row['Dept'] ?? 'N/A'),
+        // 'Degree_Type' => (string)($row['Degree_Type'] ?? 'N/A'),
+        // 'Submitted_At' => (string)($row['Submitted_At'] ?? 'N/A'),
     ];
 
     $row = $formattedRow;
