@@ -424,11 +424,26 @@ unset($row);
    MODE 1: STREAM XLSX EXCEL (OFFICIAL EXCEL TABLE) / CSV
    ──────────────────────────────────────────────────────────── */
 if ($format === 'excel' || $format === 'xlsx') {
-    $autoloadPath = __DIR__ . '/../vendor/autoload.php';
-    if (!file_exists($autoloadPath)) {
-        $autoloadPath = __DIR__ . '/../../vendor/autoload.php';
+    $possibleAutoloads = [
+        __DIR__ . '/vendor/autoload.php',
+        __DIR__ . '/../vendor/autoload.php',
+        __DIR__ . '/../../vendor/autoload.php',
+        dirname(__DIR__) . '/vendor/autoload.php',
+        dirname(dirname(__DIR__)) . '/vendor/autoload.php',
+        rtrim($_SERVER['DOCUMENT_ROOT'] ?? '', '/\\') . '/vendor/autoload.php',
+        rtrim($_SERVER['DOCUMENT_ROOT'] ?? '', '/\\') . '/../vendor/autoload.php',
+    ];
+
+    foreach ($possibleAutoloads as $autoPath) {
+        if (!empty($autoPath) && file_exists($autoPath)) {
+            @require_once $autoPath;
+            if (class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
+                break;
+            }
+        }
     }
-    require_once $autoloadPath;
+
+    $usePhpSpreadsheet = class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet');
 
     // Group rows by Degree Type (MSc, PGD, PhD)
     $degreeSheets = [
@@ -489,89 +504,134 @@ if ($format === 'excel' || $format === 'xlsx') {
     $xlsHeaders[] = 'Status';
     $xlsHeaders[] = 'Submitted At';
 
-    $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.xlsx';
-    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-    $spreadsheet->removeSheetByIndex(0);
+    if ($usePhpSpreadsheet) {
+        $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.xlsx';
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet->removeSheetByIndex(0);
 
-    $sheetIndex = 0;
-    foreach ($degreeSheets as $sheetName => $sheetRows) {
-        $cleanSheetName = preg_replace('/[\\\\\/*?:\[\]]/', '', $sheetName);
-        $cleanSheetName = substr($cleanSheetName ?: 'Sheet', 0, 31);
-        $sheetIndex++;
+        $sheetIndex = 0;
+        foreach ($degreeSheets as $sheetName => $sheetRows) {
+            $cleanSheetName = preg_replace('/[\\\\\/*?:\[\]]/', '', $sheetName);
+            $cleanSheetName = substr($cleanSheetName ?: 'Sheet', 0, 31);
+            $sheetIndex++;
 
-        $worksheet = $spreadsheet->createSheet();
-        $worksheet->setTitle($cleanSheetName);
+            $worksheet = $spreadsheet->createSheet();
+            $worksheet->setTitle($cleanSheetName);
 
-        // Header Row
-        $colIdx = 1;
-        foreach ($xlsHeaders as $header) {
-            $colLetter = getExcelColLetter($colIdx);
-            $worksheet->setCellValue($colLetter . '1', $header);
-            $colIdx++;
-        }
+            // Header Row
+            $colIdx = 1;
+            foreach ($xlsHeaders as $header) {
+                $colLetter = getExcelColLetter($colIdx);
+                $worksheet->setCellValue($colLetter . '1', $header);
+                $colIdx++;
+            }
 
-        $lastColLetter = getExcelColLetter(count($xlsHeaders));
+            $lastColLetter = getExcelColLetter(count($xlsHeaders));
 
-        $rowNum = 2;
-        $sheetSNo = 1;
-        if (empty($sheetRows)) {
-            $worksheet->setCellValue('A2', 'No records found for this degree type.');
-            $worksheet->mergeCells('A2:' . $lastColLetter . '2');
-            $rowNum = 3;
-        } else {
-            foreach ($sheetRows as $r) {
-                $r['S/No'] = $sheetSNo++;
-                $colIdx = 1;
-                foreach ($r as $key => $val) {
-                    $colLetter = getExcelColLetter($colIdx);
-                    if (in_array($key, ['Application Number', 'Phone Number'], true)) {
-                        $worksheet->setCellValueExplicit($colLetter . $rowNum, (string)($val ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-                    } else {
-                        $worksheet->setCellValue($colLetter . $rowNum, $val ?? '');
+            $rowNum = 2;
+            $sheetSNo = 1;
+            if (empty($sheetRows)) {
+                $worksheet->setCellValue('A2', 'No records found for this degree type.');
+                $worksheet->mergeCells('A2:' . $lastColLetter . '2');
+                $rowNum = 3;
+            } else {
+                foreach ($sheetRows as $r) {
+                    $r['S/No'] = $sheetSNo++;
+                    $colIdx = 1;
+                    foreach ($r as $key => $val) {
+                        $colLetter = getExcelColLetter($colIdx);
+                        if (in_array($key, ['Application Number', 'Phone Number'], true)) {
+                            $worksheet->setCellValueExplicit($colLetter . $rowNum, (string)($val ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                        } else {
+                            $worksheet->setCellValue($colLetter . $rowNum, $val ?? '');
+                        }
+                        $colIdx++;
                     }
-                    $colIdx++;
+                    $rowNum++;
                 }
-                $rowNum++;
+            }
+
+            $lastDataRow = max(2, $rowNum - 1);
+
+            // Add Official Excel Table
+            try {
+                $table = new \PhpOffice\PhpSpreadsheet\Worksheet\Table();
+                $tableName = 'StudentTable_' . preg_replace('/[^a-zA-Z0-9_]/', '', $cleanSheetName) . '_' . $sheetIndex;
+                $table->setName($tableName);
+                $table->setRange('A1:' . $lastColLetter . $lastDataRow);
+
+                $tableStyle = new \PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle();
+                $tableStyle->setTheme(\PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle::TABLE_STYLE_MEDIUM2);
+                $tableStyle->setShowRowStripes(true);
+
+                $table->setStyle($tableStyle);
+                $worksheet->addTable($table);
+            } catch (Throwable $e) {
+                $worksheet->getStyle('A1:' . $lastColLetter . '1')
+                    ->getFont()->setBold(true)
+                    ->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_WHITE));
+                $worksheet->getStyle('A1:' . $lastColLetter . '1')
+                    ->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                    ->getStartColor()->setARGB('FF1F497D');
+            }
+
+            for ($i = 1; $i <= count($xlsHeaders); $i++) {
+                $worksheet->getColumnDimension(getExcelColLetter($i))->setAutoSize(true);
             }
         }
 
-        $lastDataRow = max(2, $rowNum - 1);
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment;filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        header('Pragma: public');
 
-        // Add Official Excel Table
-        try {
-            $table = new \PhpOffice\PhpSpreadsheet\Worksheet\Table();
-            $tableName = 'StudentTable_' . preg_replace('/[^a-zA-Z0-9_]/', '', $cleanSheetName) . '_' . $sheetIndex;
-            $table->setName($tableName);
-            $table->setRange('A1:' . $lastColLetter . $lastDataRow);
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit();
+    } else {
+        /* Fallback: Multi-sheet XML .xls (always works without Composer) */
+        $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.xls';
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
 
-            $tableStyle = new \PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle();
-            $tableStyle->setTheme(\PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle::TABLE_STYLE_MEDIUM2);
-            $tableStyle->setShowRowStripes(true);
+        echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
+        echo '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' . "\n";
+        echo ' xmlns:o="urn:schemas-microsoft-com:office:office"' . "\n";
+        echo ' xmlns:x="urn:schemas-microsoft-com:office:excel"' . "\n";
+        echo ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' . "\n";
+        echo '<Styles><Style ss:ID="H"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1F497D" ss:Pattern="Solid"/></Style></Styles>' . "\n";
 
-            $table->setStyle($tableStyle);
-            $worksheet->addTable($table);
-        } catch (Throwable $e) {
-            $worksheet->getStyle('A1:' . $lastColLetter . '1')
-                ->getFont()->setBold(true)
-                ->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_WHITE));
-            $worksheet->getStyle('A1:' . $lastColLetter . '1')
-                ->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                ->getStartColor()->setARGB('FF1F497D');
+        foreach ($degreeSheets as $sheetName => $sheetRows) {
+            $cleanSheetName = htmlspecialchars(preg_replace('/[\\\\\/*?:\[\]]/', '', $sheetName) ?: 'Sheet');
+            echo '<Worksheet ss:Name="' . $cleanSheetName . '"><Table>' . "\n";
+            echo '<Row ss:StyleID="H">';
+            foreach ($xlsHeaders as $h) {
+                echo '<Cell><Data ss:Type="String">' . htmlspecialchars($h) . '</Data></Cell>';
+            }
+            echo '</Row>' . "\n";
+            if (empty($sheetRows)) {
+                echo '<Row><Cell ss:MergeAcross="' . (count($xlsHeaders) - 1) . '"><Data ss:Type="String">No records found for this degree type.</Data></Cell></Row>' . "\n";
+            } else {
+                $sheetSNo = 1;
+                foreach ($sheetRows as $row) {
+                    $row['S/No'] = $sheetSNo++;
+                    echo '<Row>';
+                    foreach ($row as $v) {
+                        echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string)($v ?? '')) . '</Data></Cell>';
+                    }
+                    echo '</Row>' . "\n";
+                }
+            }
+
+            echo '</Table></Worksheet>' . "\n";
         }
-
-        for ($i = 1; $i <= count($xlsHeaders); $i++) {
-            $worksheet->getColumnDimension(getExcelColLetter($i))->setAutoSize(true);
-        }
+        echo '</Workbook>';
+        exit();
     }
-
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment;filename="' . $filename . '"');
-    header('Cache-Control: max-age=0');
-    header('Pragma: public');
-
-    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-    $writer->save('php://output');
-    exit();
 }
 
 if ($format === 'csv') {

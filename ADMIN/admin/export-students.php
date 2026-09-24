@@ -276,77 +276,126 @@ if ($typeParam === 'summary') {
 
     $filename = 'students_' . $label . '_' . date('Y-m-d') . '.xlsx';
 
-    $autoloadPath = __DIR__ . '/../../vendor/autoload.php';
-    if (file_exists($autoloadPath)) {
-        require_once $autoloadPath;
-        if (class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
-            if (!function_exists('getExcelColLetterAdmin')) {
-                function getExcelColLetterAdmin($colIndex) {
-                    $letter = '';
-                    while ($colIndex > 0) {
-                        $modulo = ($colIndex - 1) % 26;
-                        $letter = chr(65 + $modulo) . $letter;
-                        $colIndex = intval(($colIndex - $modulo) / 26);
-                    }
-                    return $letter;
-                }
+    $possibleAutoloads = [
+        __DIR__ . '/vendor/autoload.php',
+        __DIR__ . '/../vendor/autoload.php',
+        __DIR__ . '/../../vendor/autoload.php',
+        __DIR__ . '/../../../vendor/autoload.php',
+        dirname(__DIR__) . '/vendor/autoload.php',
+        dirname(dirname(__DIR__)) . '/vendor/autoload.php',
+        rtrim($_SERVER['DOCUMENT_ROOT'] ?? '', '/\\') . '/vendor/autoload.php',
+        rtrim($_SERVER['DOCUMENT_ROOT'] ?? '', '/\\') . '/../vendor/autoload.php',
+    ];
+
+    foreach ($possibleAutoloads as $autoPath) {
+        if (!empty($autoPath) && file_exists($autoPath)) {
+            @require_once $autoPath;
+            if (class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
+                break;
             }
+        }
+    }
 
-            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-            $worksheet = $spreadsheet->getActiveSheet();
-            $worksheet->setTitle('Students Record');
+    if (class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
+        $filename = 'students_' . $label . '_' . date('Y-m-d') . '.xlsx';
 
+        if (!function_exists('getExcelColLetterAdmin')) {
+            function getExcelColLetterAdmin($colIndex) {
+                $letter = '';
+                while ($colIndex > 0) {
+                    $modulo = ($colIndex - 1) % 26;
+                    $letter = chr(65 + $modulo) . $letter;
+                    $colIndex = intval(($colIndex - $modulo) / 26);
+                }
+                return $letter;
+            }
+        }
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $worksheet = $spreadsheet->getActiveSheet();
+        $worksheet->setTitle('Students Record');
+
+        $colIdx = 1;
+        foreach ($headers as $h) {
+            $worksheet->setCellValue(getExcelColLetterAdmin($colIdx) . '1', $h);
+            $colIdx++;
+        }
+
+        $lastColLetter = getExcelColLetterAdmin(count($headers));
+
+        $rowNum = 2;
+        foreach ($rows as $r) {
             $colIdx = 1;
-            foreach ($headers as $h) {
-                $worksheet->setCellValue(getExcelColLetterAdmin($colIdx) . '1', $h);
+            foreach ($r as $key => $val) {
+                $colLetter = getExcelColLetterAdmin($colIdx);
+                if (in_array($key, ['Application Number', 'Phone Number'], true)) {
+                    $worksheet->setCellValueExplicit($colLetter . $rowNum, (string)($val ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                } else {
+                    $worksheet->setCellValue($colLetter . $rowNum, $val ?? '');
+                }
                 $colIdx++;
             }
-
-            $lastColLetter = getExcelColLetterAdmin(count($headers));
-
-            $rowNum = 2;
-            foreach ($rows as $r) {
-                $colIdx = 1;
-                foreach ($r as $key => $val) {
-                    $colLetter = getExcelColLetterAdmin($colIdx);
-                    if (in_array($key, ['Application Number', 'Phone Number'], true)) {
-                        $worksheet->setCellValueExplicit($colLetter . $rowNum, (string)($val ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-                    } else {
-                        $worksheet->setCellValue($colLetter . $rowNum, $val ?? '');
-                    }
-                    $colIdx++;
-                }
-                $rowNum++;
-            }
-
-            $lastDataRow = max(2, $rowNum - 1);
-
-            try {
-                $table = new \PhpOffice\PhpSpreadsheet\Worksheet\Table();
-                $table->setName('AdminStudentTable');
-                $table->setRange('A1:' . $lastColLetter . $lastDataRow);
-
-                $tableStyle = new \PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle();
-                $tableStyle->setTheme(\PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle::TABLE_STYLE_MEDIUM2);
-                $tableStyle->setShowRowStripes(true);
-
-                $table->setStyle($tableStyle);
-                $worksheet->addTable($table);
-            } catch (Throwable $e) {}
-
-            for ($i = 1; $i <= count($headers); $i++) {
-                $worksheet->getColumnDimension(getExcelColLetterAdmin($i))->setAutoSize(true);
-            }
-
-            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-            header('Content-Disposition: attachment; filename="' . $filename . '"');
-            header('Cache-Control: max-age=0');
-            header('Pragma: public');
-
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            $writer->save('php://output');
-            exit();
+            $rowNum++;
         }
+
+        $lastDataRow = max(2, $rowNum - 1);
+
+        try {
+            $table = new \PhpOffice\PhpSpreadsheet\Worksheet\Table();
+            $table->setName('AdminStudentTable');
+            $table->setRange('A1:' . $lastColLetter . $lastDataRow);
+
+            $tableStyle = new \PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle();
+            $tableStyle->setTheme(\PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle::TABLE_STYLE_MEDIUM2);
+            $tableStyle->setShowRowStripes(true);
+
+            $table->setStyle($tableStyle);
+            $worksheet->addTable($table);
+        } catch (Throwable $e) {}
+
+        for ($i = 1; $i <= count($headers); $i++) {
+            $worksheet->getColumnDimension(getExcelColLetterAdmin($i))->setAutoSize(true);
+        }
+
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        header('Pragma: public');
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit();
+    } else {
+        /* Fallback: Multi-sheet XML .xls (always works without Composer) */
+        $filename = 'students_' . $label . '_' . date('Y-m-d') . '.xls';
+        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
+        echo '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' . "\n";
+        echo ' xmlns:o="urn:schemas-microsoft-com:office:office"' . "\n";
+        echo ' xmlns:x="urn:schemas-microsoft-com:office:excel"' . "\n";
+        echo ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' . "\n";
+        echo '<Styles><Style ss:ID="H"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1F497D" ss:Pattern="Solid"/></Style></Styles>' . "\n";
+        echo '<Worksheet ss:Name="Students"><Table>' . "\n";
+        echo '<Row ss:StyleID="H">';
+        foreach ($headers as $h) {
+            echo '<Cell><Data ss:Type="String">' . htmlspecialchars($h) . '</Data></Cell>';
+        }
+        echo '</Row>' . "\n";
+        foreach ($rows as $row) {
+            echo '<Row>';
+            foreach ($row as $v) {
+                echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string)($v ?? '')) . '</Data></Cell>';
+            }
+            echo '</Row>' . "\n";
+        }
+        echo '</Table></Worksheet></Workbook>';
+        exit();
     }
 }
 
