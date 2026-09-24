@@ -399,7 +399,8 @@ foreach ($rows as &$row) {
         'Email' => (string)($row['Email'] ?? 'N/A'),
         'O-Level Summary' => $olevelSummary,
         'Status' => (string)($row['Status'] ?? 'N/A'),
-        'Submitted At' => (string)($row['Submitted_At'] ?? 'N/A')
+        'Submitted At' => (string)($row['Submitted_At'] ?? 'N/A'),
+        '_Degree_Type' => (string)($row['Degree_Type'] ?? '')
     ];
 
     $row = $formattedRow;
@@ -440,7 +441,7 @@ if ($format === 'excel' || $format === 'xlsx') {
     ];
 
     foreach ($rows as $row) {
-        $deg = trim((string)($row['Degree_Type'] ?? $row['Degree Type'] ?? ''));
+        $deg = trim((string)($row['Degree_Type'] ?? $row['Degree Type'] ?? $row['_Degree_Type'] ?? ''));
         $normalizedKey = 'Other';
         if (stripos($deg, 'msc') !== false || stripos($deg, 'master') !== false) {
             $normalizedKey = 'MSc';
@@ -733,7 +734,7 @@ if ($format === 'pdf') {
                             $emailVal = $row['Email'] ?? '';
                             $phoneVal = $row['Phone Number'] ?? $row['Phone'] ?? '';
                             $progVal = $row['Dept'] ?? $row['Programme'] ?? '';
-                            $degVal = $row['Degree Type'] ?? $row['Degree_Type'] ?? '';
+                            $degVal = $row['Degree Type'] ?? $row['Degree_Type'] ?? $row['_Degree_Type'] ?? '';
                             $statusVal = $row['Status'] ?? 'Unknown';
                             $submittedVal = $row['Submitted At'] ?? $row['Submitted_At'] ?? null;
                             ?>
@@ -896,7 +897,7 @@ require_once 'includes/dev_topbar.php';
                             $genderVal = $row['Sex'] ?? $row['Gender'] ?? '';
                             $dobVal = $row['Date of Birth'] ?? $row['Date_of_Birth'] ?? null;
                             $progVal = $row['Dept'] ?? $row['Programme'] ?? '';
-                            $degVal = $row['Degree Type'] ?? $row['Degree_Type'] ?? '';
+                            $degVal = $row['Degree Type'] ?? $row['Degree_Type'] ?? $row['_Degree_Type'] ?? '';
                             $statusVal = $row['Status'] ?? 'Unknown';
                             $submittedVal = $row['Submitted At'] ?? $row['Submitted_At'] ?? null;
 
