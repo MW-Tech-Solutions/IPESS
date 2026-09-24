@@ -234,23 +234,20 @@ if ($typeParam === 'summary') {
             'Phone Number' => (string)($row['Phone'] ?? 'N/A'),
             'Email' => (string)($row['Email'] ?? 'N/A'),
             'O-Level Summary' => $olevelSummary,
-            'O-Level Sittings' => $numSittings,
-            'Sitting 1 Exam Type' => $sitting1Type,
+            'Status' => (string)($row['Status'] ?? 'N/A'),
+            'Submitted At' => (string)($row['Submitted_At'] ?? 'N/A'),
+
+            'Application_Number' => (string)($row['Application_Number'] ?? ''),
+            'Surname' => $row['Surname'] ?? '',
+            'First_Name' => $row['First_Name'] ?? '',
+            'Other_Names' => $row['Other_Names'] ?? '',
+            'Gender' => (string)($row['Gender'] ?? 'N/A'),
+            'Date_of_Birth' => (string)($row['Date_of_Birth'] ?? 'N/A'),
+            'Phone' => (string)($row['Phone'] ?? 'N/A'),
+            'Programme' => (string)($row['Dept'] ?? 'N/A'),
+            'Degree_Type' => (string)($row['Degree_Type'] ?? 'N/A'),
+            'Submitted_At' => (string)($row['Submitted_At'] ?? 'N/A'),
         ];
-
-        for ($i = 1; $i <= 9; $i++) {
-            $formattedRow["Sitting 1 Subject {$i}"] = $sitting1Subs[($i - 1) * 2];
-            $formattedRow["Sitting 1 Subject {$i} Grade"] = $sitting1Subs[($i - 1) * 2 + 1];
-        }
-        $formattedRow['Sitting 2 Exam Type'] = $sitting2Type;
-        for ($i = 1; $i <= 9; $i++) {
-            $formattedRow["Sitting 2 Subject {$i}"] = $sitting2Subs[($i - 1) * 2];
-            $formattedRow["Sitting 2 Subject {$i} Grade"] = $sitting2Subs[($i - 1) * 2 + 1];
-        }
-
-        $formattedRow['Degree Type'] = (string)($row['Degree_Type'] ?? 'N/A');
-        $formattedRow['Status'] = (string)($row['Status'] ?? 'N/A');
-        $formattedRow['Submitted At'] = (string)($row['Submitted_At'] ?? 'N/A');
 
         $row = $formattedRow;
     }
@@ -259,20 +256,8 @@ if ($typeParam === 'summary') {
     $headers = [
         'S/No', 'Application Number', 'Names', 'Sex', 'Date of Birth',
         'State', 'Dept', 'Qualifications', 'Phone Number', 'Email',
-        'O-Level Summary', 'O-Level Sittings', 'Sitting 1 Exam Type'
+        'O-Level Summary', 'Status', 'Submitted At'
     ];
-    for ($i = 1; $i <= 9; $i++) {
-        $headers[] = "Sitting 1 Subject {$i}";
-        $headers[] = "Sitting 1 Subject {$i} Grade";
-    }
-    $headers[] = 'Sitting 2 Exam Type';
-    for ($i = 1; $i <= 9; $i++) {
-        $headers[] = "Sitting 2 Subject {$i}";
-        $headers[] = "Sitting 2 Subject {$i} Grade";
-    }
-    $headers[] = 'Degree Type';
-    $headers[] = 'Status';
-    $headers[] = 'Submitted At';
 
     $filename = 'students_' . $label . '_' . date('Y-m-d') . '.xlsx';
 

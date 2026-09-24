@@ -385,7 +385,7 @@ foreach ($rows as &$row) {
     $olevelSummary = !empty($olevelSummaryParts) ? implode(' | ', $olevelSummaryParts) : 'N/A';
 
     // Construct array in exact pattern requested:
-    // S/No -> Application number -> names -> Sex -> Date of birth -> State -> Dept -> Qualifications -> phone number -> email -> O level results
+    // S/No -> Application Number -> Names -> Sex -> Date of Birth -> State -> Dept -> Qualifications -> Phone Number -> Email -> O-Level Summary -> Status -> Submitted At
     $formattedRow = [
         'S/No' => $globalSNo++,
         'Application Number' => (string)($row['Application_Number'] ?? ''),
@@ -398,23 +398,21 @@ foreach ($rows as &$row) {
         'Phone Number' => (string)($row['Phone'] ?? 'N/A'),
         'Email' => (string)($row['Email'] ?? 'N/A'),
         'O-Level Summary' => $olevelSummary,
-        'O-Level Sittings' => $numSittings,
-        'Sitting 1 Exam Type' => $sitting1Type,
+        'Status' => (string)($row['Status'] ?? 'N/A'),
+        'Submitted At' => (string)($row['Submitted_At'] ?? 'N/A'),
+
+        // Retain original raw fields for preview templates
+        'Application_Number' => (string)($row['Application_Number'] ?? ''),
+        'Surname' => $row['Surname'] ?? '',
+        'First_Name' => $row['First_Name'] ?? '',
+        'Other_Names' => $row['Other_Names'] ?? '',
+        'Gender' => (string)($row['Gender'] ?? 'N/A'),
+        'Date_of_Birth' => (string)($row['Date_of_Birth'] ?? 'N/A'),
+        'Phone' => (string)($row['Phone'] ?? 'N/A'),
+        'Programme' => (string)($row['Dept'] ?? 'N/A'),
+        'Degree_Type' => (string)($row['Degree_Type'] ?? 'N/A'),
+        'Submitted_At' => (string)($row['Submitted_At'] ?? 'N/A'),
     ];
-
-    for ($i = 1; $i <= 9; $i++) {
-        $formattedRow["Sitting 1 Subject {$i}"] = $sitting1Subs[($i - 1) * 2];
-        $formattedRow["Sitting 1 Subject {$i} Grade"] = $sitting1Subs[($i - 1) * 2 + 1];
-    }
-    $formattedRow['Sitting 2 Exam Type'] = $sitting2Type;
-    for ($i = 1; $i <= 9; $i++) {
-        $formattedRow["Sitting 2 Subject {$i}"] = $sitting2Subs[($i - 1) * 2];
-        $formattedRow["Sitting 2 Subject {$i} Grade"] = $sitting2Subs[($i - 1) * 2 + 1];
-    }
-
-    $formattedRow['Degree Type'] = (string)($row['Degree_Type'] ?? 'N/A');
-    $formattedRow['Status'] = (string)($row['Status'] ?? 'N/A');
-    $formattedRow['Submitted At'] = (string)($row['Submitted_At'] ?? 'N/A');
 
     $row = $formattedRow;
 }
@@ -454,7 +452,7 @@ if ($format === 'excel' || $format === 'xlsx') {
     ];
 
     foreach ($rows as $row) {
-        $deg = trim((string)($row['Degree Type'] ?? ''));
+        $deg = trim((string)($row['Degree_Type'] ?? $row['Degree Type'] ?? ''));
         $normalizedKey = 'Other';
         if (stripos($deg, 'msc') !== false || stripos($deg, 'master') !== false) {
             $normalizedKey = 'MSc';
@@ -489,20 +487,8 @@ if ($format === 'excel' || $format === 'xlsx') {
     $xlsHeaders = [
         'S/No', 'Application Number', 'Names', 'Sex', 'Date of Birth',
         'State', 'Dept', 'Qualifications', 'Phone Number', 'Email',
-        'O-Level Summary', 'O-Level Sittings', 'Sitting 1 Exam Type'
+        'O-Level Summary', 'Status', 'Submitted At'
     ];
-    for ($i = 1; $i <= 9; $i++) {
-        $xlsHeaders[] = "Sitting 1 Subject {$i}";
-        $xlsHeaders[] = "Sitting 1 Subject {$i} Grade";
-    }
-    $xlsHeaders[] = 'Sitting 2 Exam Type';
-    for ($i = 1; $i <= 9; $i++) {
-        $xlsHeaders[] = "Sitting 2 Subject {$i}";
-        $xlsHeaders[] = "Sitting 2 Subject {$i} Grade";
-    }
-    $xlsHeaders[] = 'Degree Type';
-    $xlsHeaders[] = 'Status';
-    $xlsHeaders[] = 'Submitted At';
 
     if ($usePhpSpreadsheet) {
         $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.xlsx';
