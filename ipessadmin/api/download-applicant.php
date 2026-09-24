@@ -405,7 +405,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'init_bulk') {
         exit;
     }
 
-    $sessionId = 'ipess_bulk_' . uniqid('', true);
+    $sessionId = 'ipess_bulk_' . str_replace('.', '_', uniqid('', true));
     $sessionDir = sys_get_temp_dir() . '/' . $sessionId;
     if (!is_dir($sessionDir)) {
         @mkdir($sessionDir, 0777, true);
@@ -434,7 +434,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'init_bulk') {
 if (isset($_GET['action']) && $_GET['action'] === 'process_item') {
     header('Content-Type: application/json; charset=utf-8');
 
-    $sessionId = preg_replace('/[^A-Za-z0-9_\-]/', '', $_GET['session_id'] ?? '');
+    $sessionId = preg_replace('/[^A-Za-z0-9_\.\-]/', '', $_GET['session_id'] ?? '');
     $appId     = (int)($_GET['app_id'] ?? 0);
 
     if (!$sessionId || !$appId) {
@@ -468,7 +468,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'process_item') {
 
 // --- 3. Finalize and Stream ZIP Download ---
 if (isset($_GET['action']) && $_GET['action'] === 'finalize_bulk') {
-    $sessionId = preg_replace('/[^A-Za-z0-9_\-]/', '', $_GET['session_id'] ?? '');
+    $sessionId = preg_replace('/[^A-Za-z0-9_\.\-]/', '', $_GET['session_id'] ?? '');
     if (!$sessionId) {
         http_response_code(400);
         die('Invalid session ID.');

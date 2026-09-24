@@ -224,15 +224,12 @@ if (!is_writable($reportsDir)) {
 }
 
 $format = strtoupper(trim($_POST['format'] ?? 'PDF'));
-if ($format === 'EXCEL') {
-    $format = 'CSV';
-}
 $reportType = trim($_POST['report_type'] ?? 'Admissions Summary');
-$allowedFormats = ['PDF', 'CSV', 'DOSSIERS_ZIP'];
+$allowedFormats = ['PDF', 'CSV', 'EXCEL', 'DOSSIERS_ZIP'];
 $format = in_array($format, $allowedFormats, true) ? $format : 'PDF';
 
 $baseName = 'report_' . date('Ymd_His') . '_' . str_replace('.', '', uniqid('', true));
-$ext = ($format === 'PDF') ? '.pdf' : (($format === 'DOSSIERS_ZIP') ? '.zip' : '.csv');
+$ext = ($format === 'PDF') ? '.pdf' : (($format === 'DOSSIERS_ZIP') ? '.zip' : (($format === 'EXCEL') ? '.xlsx' : '.csv'));
 $relativePath = 'reports/' . $baseName . $ext;
 $fullPath = __DIR__ . '/../' . $relativePath;
 
@@ -315,7 +312,87 @@ if ($format === 'DOSSIERS_ZIP') {
     $reportData = buildSuperAdminReportData($pdo, $reportType, $_POST);
     $lines = buildReportLines($reportData);
 
-    if ($format === 'CSV') {
+    if ($format === 'EXCEL') {
+        $autoloadPath = __DIR__ . '/../../vendor/autoload.php';
+        if (!file_exists($autoloadPath)) {
+            $autoloadPath = __DIR__ . '/../../../vendor/autoload.php';
+        }
+        require_once $autoloadPath;
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet->removeSheetByIndex(0);
+
+        if (!function_exists('getExcelColLetterRep')) {
+            function getExcelColLetterRep($colIndex) {
+                $letter = '';
+                while ($colIndex > 0) {
+                    $modulo = ($colIndex - 1) % 26;
+                    $letter = chr(65 + $modulo) . $letter;
+                    $colIndex = intval(($colIndex - $modulo) / 26);
+                }
+                return $letter;
+            }
+        }
+
+        $secIndex = 0;
+        foreach ($reportData['sections'] as $section) {
+            $secIndex++;
+            $cleanTitle = preg_replace('/[\\\\\/*?:\[\]]/', '', $section['title'] ?? 'Report');
+            $sheetTitle = substr($cleanTitle ?: ('Sheet' . $secIndex), 0, 31);
+
+            $worksheet = $spreadsheet->createSheet();
+            $worksheet->setTitle($sheetTitle);
+
+            $headers = $section['headers'] ?? [];
+            $rows = $section['rows'] ?? [];
+
+            $colIdx = 1;
+            foreach ($headers as $header) {
+                $worksheet->setCellValue(getExcelColLetterRep($colIdx) . '1', $header);
+                $colIdx++;
+            }
+
+            $lastColLetter = getExcelColLetterRep(max(1, count($headers)));
+
+            $rowNum = 2;
+            foreach ($rows as $row) {
+                $colIdx = 1;
+                foreach ($row as $key => $val) {
+                    $colLetter = getExcelColLetterRep($colIdx);
+                    if (in_array((string)$key, ['Application Number', 'Phone Number'], true) || (is_string($val) && preg_match('/^\d{10,}$/', $val))) {
+                        $worksheet->setCellValueExplicit($colLetter . $rowNum, (string)($val ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    } else {
+                        $worksheet->setCellValue($colLetter . $rowNum, $val ?? '');
+                    }
+                    $colIdx++;
+                }
+                $rowNum++;
+            }
+
+            $lastDataRow = max(2, $rowNum - 1);
+
+            try {
+                $table = new \PhpOffice\PhpSpreadsheet\Worksheet\Table();
+                $tableName = 'ReportTable_' . $secIndex;
+                $table->setName($tableName);
+                $table->setRange('A1:' . $lastColLetter . $lastDataRow);
+
+                $tableStyle = new \PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle();
+                $tableStyle->setTheme(\PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle::TABLE_STYLE_MEDIUM2);
+                $tableStyle->setShowRowStripes(true);
+
+                $table->setStyle($tableStyle);
+                $worksheet->addTable($table);
+            } catch (Throwable $e) {}
+
+            for ($i = 1; $i <= count($headers); $i++) {
+                $worksheet->getColumnDimension(getExcelColLetterRep($i))->setAutoSize(true);
+            }
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save($fullPath);
+    } elseif ($format === 'CSV') {
         $handle = fopen($fullPath, 'w');
         if (!$handle) {
             json_error('Unable to write report file.');

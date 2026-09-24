@@ -56,7 +56,6 @@ if ($typeParam === 'summary') {
     $label = 'all';
 
     if ($statusParam === 'Submitted') {
-        // "Pending" in the UI = Submitted in DB
         $where = "AND a.status = 'Submitted'";
         $label = 'pending';
     } elseif (in_array($statusParam, $allowedStatuses, true)) {
@@ -70,31 +69,35 @@ if ($typeParam === 'summary') {
             a.application_number                    AS Application_Number,
             p.surname                               AS Surname,
             p.first_name                            AS First_Name,
-            p.other_names                           AS Other_Names,
-            p.gender                                AS Gender,
-            p.date_of_birth                         AS Date_of_Birth,
+            COALESCE(p.other_names, p.other_name)  AS Other_Names,
+            COALESCE(p.gender, p.sex)               AS Gender,
+            COALESCE(p.date_of_birth, p.dob)        AS Date_of_Birth,
+            p.state_origin                          AS State_of_Origin,
             p.phone                                 AS Phone,
             u.email                                 AS Email,
-            pc.course                               AS Programme,
-            pc.department                           AS Department,
-            pc.faculty                              AS Faculty,
-            pc.degree_type                          AS Degree_Type,
+            COALESCE(c.course_title, pc.course)     AS Programme,
+            COALESCE(d.dept_name, pc.department)    AS Dept,
+            COALESCE(dt.degree_name, pc.degree_type) AS Degree_Type,
             a.status                                AS Status,
             a.current_status                        AS Workflow_Status,
             a.submitted_at                          AS Submitted_At
         FROM applications a
         LEFT JOIN users            u  ON a.user_id        = u.user_id
         LEFT JOIN personal_details p  ON a.application_id = p.application_id
-        LEFT JOIN programme_choices pc ON a.application_id = pc.application_id AND pc.faculty > 0
+        LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
+        LEFT JOIN departments      d  ON d.dept_id        = COALESCE(pc.department, a.department_id)
+        LEFT JOIN courses          c  ON c.course_id      = pc.course
+        LEFT JOIN degree_types     dt ON dt.degree_id     = pc.degree_type
         WHERE a.submitted_at IS NOT NULL
         $where
         ORDER BY a.submitted_at DESC
     ";
     $rows    = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
-    // O-Level Pre-fetching & Mapping
+    // O-Level & Qualifications Pre-fetching & Mapping
     $examsByApp = [];
     $resultsByExam = [];
+    $educationByApp = [];
     if (!empty($rows)) {
         $appIds = array_column($rows, 'application_id');
         $placeholders = implode(',', array_fill(0, count($appIds), '?'));
@@ -118,10 +121,44 @@ if ($typeParam === 'summary') {
                 $resultsByExam[$res['exam_id']][] = $res;
             }
         }
+
+        try {
+            $stmtEdu = $pdo->prepare("SELECT * FROM higher_education WHERE application_id IN ($placeholders) ORDER BY application_id ASC, id ASC");
+            $stmtEdu->execute($appIds);
+            $allEdu = $stmtEdu->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($allEdu as $edu) {
+                $educationByApp[$edu['application_id']][] = $edu;
+            }
+        } catch (Throwable $e) {}
     }
 
+    $globalSNo = 1;
     foreach ($rows as &$row) {
         $appId = $row['application_id'];
+
+        $candidateName = trim(($row['Surname'] ?? '') . ' ' . ($row['First_Name'] ?? '') . ' ' . ($row['Other_Names'] ?? ''));
+        if ($candidateName === '') {
+            $candidateName = 'N/A';
+        }
+
+        $edus = $educationByApp[$appId] ?? [];
+        $qualParts = [];
+        foreach ($edus as $edu) {
+            $qStr = trim(($edu['highest_qualification'] ?? '') . ' ' . ($edu['course_study'] ?? ''));
+            if (!empty($edu['institution'])) {
+                $qStr .= ' (' . $edu['institution'] . (!empty($edu['grad_year']) ? ', ' . $edu['grad_year'] : '') . ')';
+            }
+            $grade = $edu['class_of_degree'] ?? $edu['cgpa'] ?? '';
+            if (!empty($grade)) {
+                $qStr .= ' - ' . $grade;
+            }
+            if (!empty($qStr)) {
+                $qualParts[] = $qStr;
+            }
+        }
+        $qualificationsText = !empty($qualParts) ? implode('; ', $qualParts) : 'N/A';
+
         $exams = $examsByApp[$appId] ?? [];
         $numSittings = count($exams);
 
@@ -149,54 +186,81 @@ if ($typeParam === 'summary') {
             $exam2 = $exams[0];
         }
 
+        $olevelSummaryParts = [];
+
         if ($exam1) {
             $sitting1Type = $exam1['exam_type'];
             $res1 = $resultsByExam[$exam1['id']] ?? [];
+            $subStrList = [];
             for ($i = 0; $i < 9; $i++) {
                 if (isset($res1[$i])) {
                     $sitting1Subs[$i * 2] = $res1[$i]['subject_name'];
                     $sitting1Subs[$i * 2 + 1] = $res1[$i]['grade'];
+                    $subStrList[] = $res1[$i]['subject_name'] . ': ' . $res1[$i]['grade'];
                 }
+            }
+            if (!empty($subStrList)) {
+                $olevelSummaryParts[] = 'Sitting 1 (' . $sitting1Type . '): ' . implode(', ', $subStrList);
             }
         }
 
         if ($exam2) {
             $sitting2Type = $exam2['exam_type'];
             $res2 = $resultsByExam[$exam2['id']] ?? [];
+            $subStrList = [];
             for ($i = 0; $i < 9; $i++) {
                 if (isset($res2[$i])) {
                     $sitting2Subs[$i * 2] = $res2[$i]['subject_name'];
                     $sitting2Subs[$i * 2 + 1] = $res2[$i]['grade'];
+                    $subStrList[] = $res2[$i]['subject_name'] . ': ' . $res2[$i]['grade'];
                 }
+            }
+            if (!empty($subStrList)) {
+                $olevelSummaryParts[] = 'Sitting 2 (' . $sitting2Type . '): ' . implode(', ', $subStrList);
             }
         }
 
-        // Unset application_id so it is not exported
-        unset($row['application_id']);
+        $olevelSummary = !empty($olevelSummaryParts) ? implode(' | ', $olevelSummaryParts) : 'N/A';
 
-        $row['O-Level Sittings'] = $numSittings;
-        $row['Sitting 1 Exam Type'] = $sitting1Type;
+        $formattedRow = [
+            'S/No' => $globalSNo++,
+            'Application Number' => (string)($row['Application_Number'] ?? ''),
+            'Names' => $candidateName,
+            'Sex' => (string)($row['Gender'] ?? 'N/A'),
+            'Date of Birth' => (string)($row['Date_of_Birth'] ?? 'N/A'),
+            'State' => (string)($row['State_of_Origin'] ?? 'N/A'),
+            'Dept' => (string)($row['Dept'] ?? 'N/A'),
+            'Qualifications' => $qualificationsText,
+            'Phone Number' => (string)($row['Phone'] ?? 'N/A'),
+            'Email' => (string)($row['Email'] ?? 'N/A'),
+            'O-Level Summary' => $olevelSummary,
+            'O-Level Sittings' => $numSittings,
+            'Sitting 1 Exam Type' => $sitting1Type,
+        ];
+
         for ($i = 1; $i <= 9; $i++) {
-            $row["Sitting 1 Subject {$i}"] = $sitting1Subs[($i - 1) * 2];
-            $row["Sitting 1 Subject {$i} Grade"] = $sitting1Subs[($i - 1) * 2 + 1];
+            $formattedRow["Sitting 1 Subject {$i}"] = $sitting1Subs[($i - 1) * 2];
+            $formattedRow["Sitting 1 Subject {$i} Grade"] = $sitting1Subs[($i - 1) * 2 + 1];
         }
-        $row['Sitting 2 Exam Type'] = $sitting2Type;
+        $formattedRow['Sitting 2 Exam Type'] = $sitting2Type;
         for ($i = 1; $i <= 9; $i++) {
-            $row["Sitting 2 Subject {$i}"] = $sitting2Subs[($i - 1) * 2];
-            $row["Sitting 2 Subject {$i} Grade"] = $sitting2Subs[($i - 1) * 2 + 1];
+            $formattedRow["Sitting 2 Subject {$i}"] = $sitting2Subs[($i - 1) * 2];
+            $formattedRow["Sitting 2 Subject {$i} Grade"] = $sitting2Subs[($i - 1) * 2 + 1];
         }
+
+        $formattedRow['Degree Type'] = (string)($row['Degree_Type'] ?? 'N/A');
+        $formattedRow['Status'] = (string)($row['Status'] ?? 'N/A');
+        $formattedRow['Submitted At'] = (string)($row['Submitted_At'] ?? 'N/A');
+
+        $row = $formattedRow;
     }
     unset($row);
 
     $headers = [
-        'Application Number', 'Surname', 'First Name', 'Other Names',
-        'Gender', 'Date of Birth', 'Phone', 'Email',
-        'Programme', 'Department', 'Faculty', 'Degree Type',
-        'Status', 'Workflow Status', 'Submitted At'
+        'S/No', 'Application Number', 'Names', 'Sex', 'Date of Birth',
+        'State', 'Dept', 'Qualifications', 'Phone Number', 'Email',
+        'O-Level Summary', 'O-Level Sittings', 'Sitting 1 Exam Type'
     ];
-
-    $headers[] = 'O-Level Sittings';
-    $headers[] = 'Sitting 1 Exam Type';
     for ($i = 1; $i <= 9; $i++) {
         $headers[] = "Sitting 1 Subject {$i}";
         $headers[] = "Sitting 1 Subject {$i} Grade";
@@ -206,26 +270,101 @@ if ($typeParam === 'summary') {
         $headers[] = "Sitting 2 Subject {$i}";
         $headers[] = "Sitting 2 Subject {$i} Grade";
     }
+    $headers[] = 'Degree Type';
+    $headers[] = 'Status';
+    $headers[] = 'Submitted At';
 
-    $filename = 'students_' . $label . '_' . date('Y-m-d') . '.csv';
+    $filename = 'students_' . $label . '_' . date('Y-m-d') . '.xlsx';
+
+    $autoloadPath = __DIR__ . '/../../vendor/autoload.php';
+    if (file_exists($autoloadPath)) {
+        require_once $autoloadPath;
+        if (class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet')) {
+            if (!function_exists('getExcelColLetterAdmin')) {
+                function getExcelColLetterAdmin($colIndex) {
+                    $letter = '';
+                    while ($colIndex > 0) {
+                        $modulo = ($colIndex - 1) % 26;
+                        $letter = chr(65 + $modulo) . $letter;
+                        $colIndex = intval(($colIndex - $modulo) / 26);
+                    }
+                    return $letter;
+                }
+            }
+
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $worksheet = $spreadsheet->getActiveSheet();
+            $worksheet->setTitle('Students Record');
+
+            $colIdx = 1;
+            foreach ($headers as $h) {
+                $worksheet->setCellValue(getExcelColLetterAdmin($colIdx) . '1', $h);
+                $colIdx++;
+            }
+
+            $lastColLetter = getExcelColLetterAdmin(count($headers));
+
+            $rowNum = 2;
+            foreach ($rows as $r) {
+                $colIdx = 1;
+                foreach ($r as $key => $val) {
+                    $colLetter = getExcelColLetterAdmin($colIdx);
+                    if (in_array($key, ['Application Number', 'Phone Number'], true)) {
+                        $worksheet->setCellValueExplicit($colLetter . $rowNum, (string)($val ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    } else {
+                        $worksheet->setCellValue($colLetter . $rowNum, $val ?? '');
+                    }
+                    $colIdx++;
+                }
+                $rowNum++;
+            }
+
+            $lastDataRow = max(2, $rowNum - 1);
+
+            try {
+                $table = new \PhpOffice\PhpSpreadsheet\Worksheet\Table();
+                $table->setName('AdminStudentTable');
+                $table->setRange('A1:' . $lastColLetter . $lastDataRow);
+
+                $tableStyle = new \PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle();
+                $tableStyle->setTheme(\PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle::TABLE_STYLE_MEDIUM2);
+                $tableStyle->setShowRowStripes(true);
+
+                $table->setStyle($tableStyle);
+                $worksheet->addTable($table);
+            } catch (Throwable $e) {}
+
+            for ($i = 1; $i <= count($headers); $i++) {
+                $worksheet->getColumnDimension(getExcelColLetterAdmin($i))->setAutoSize(true);
+            }
+
+            header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Cache-Control: max-age=0');
+            header('Pragma: public');
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            $writer->save('php://output');
+            exit();
+        }
+    }
 }
 
-/* ── Stream CSV ────────────────────────────────────────────── */
+/* ── Fallback Stream CSV ───────────────────────────────────── */
 header('Content-Type: text/csv; charset=UTF-8');
-header('Content-Disposition: attachment; filename="' . $filename . '"');
+header('Content-Disposition: attachment; filename="' . str_replace('.xlsx', '.csv', $filename) . '"');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
 $out = fopen('php://output', 'w');
-
-// UTF-8 BOM so Excel opens it correctly
 fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
-
 fputcsv($out, $headers);
 foreach ($rows as $row) {
     fputcsv($out, array_values($row));
 }
+fclose($out);
+exit();
 
 fclose($out);
 exit();

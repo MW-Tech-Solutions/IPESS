@@ -229,11 +229,11 @@ $sql = "
         p.other_name                            AS Other_Names,
         p.sex                                   AS Gender,
         p.dob                                   AS Date_of_Birth,
+        p.state_origin                          AS State_of_Origin,
         p.phone                                 AS Phone,
         u.email                                 AS Email,
         c.course_title                          AS Programme,
-        d.dept_name                             AS Department,
-        f.faculty_name                          AS Faculty,
+        d.dept_name                             AS Dept,
         dt.degree_name                          AS Degree_Type,
         a.status                                AS Status,
         a.submitted_at                          AS Submitted_At
@@ -241,7 +241,6 @@ $sql = "
     LEFT JOIN users            u  ON a.user_id        = u.user_id
     LEFT JOIN personal_details p  ON a.application_id = p.application_id
     LEFT JOIN programme_choices pc ON a.application_id = pc.application_id
-    LEFT JOIN faculties        f  ON f.faculty_id     = pc.faculty
     LEFT JOIN departments      d  ON d.dept_id        = COALESCE(pc.department, a.department_id)
     LEFT JOIN courses          c  ON c.course_id      = pc.course
     LEFT JOIN degree_types     dt ON dt.degree_id     = pc.degree_type
@@ -252,13 +251,16 @@ $sql = "
 
 $rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 
-// O-Level Pre-fetching & Mapping
+// O-Level & Qualifications Pre-fetching & Mapping
 $examsByApp = [];
 $resultsByExam = [];
+$educationByApp = [];
+
 if (!empty($rows)) {
     $appIds = array_column($rows, 'application_id');
     $placeholders = implode(',', array_fill(0, count($appIds), '?'));
     
+    // Fetch O-Level Exams
     $stmtExams = $pdo->prepare("SELECT * FROM olevel_exams WHERE application_id IN ($placeholders) ORDER BY application_id ASC, sitting_number ASC");
     $stmtExams->execute($appIds);
     $allExams = $stmtExams->fetchAll(PDO::FETCH_ASSOC);
@@ -278,10 +280,48 @@ if (!empty($rows)) {
             $resultsByExam[$res['exam_id']][] = $res;
         }
     }
+
+    // Fetch Higher Education Qualifications
+    try {
+        $stmtEdu = $pdo->prepare("SELECT * FROM higher_education WHERE application_id IN ($placeholders) ORDER BY application_id ASC, id ASC");
+        $stmtEdu->execute($appIds);
+        $allEdu = $stmtEdu->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($allEdu as $edu) {
+            $educationByApp[$edu['application_id']][] = $edu;
+        }
+    } catch (Throwable $e) {}
 }
 
+$globalSNo = 1;
 foreach ($rows as &$row) {
     $appId = $row['application_id'];
+
+    // Full Name
+    $candidateName = trim(($row['Surname'] ?? '') . ' ' . ($row['First_Name'] ?? '') . ' ' . ($row['Other_Names'] ?? ''));
+    if ($candidateName === '') {
+        $candidateName = 'N/A';
+    }
+
+    // Qualifications string
+    $edus = $educationByApp[$appId] ?? [];
+    $qualParts = [];
+    foreach ($edus as $edu) {
+        $qStr = trim(($edu['highest_qualification'] ?? '') . ' ' . ($edu['course_study'] ?? ''));
+        if (!empty($edu['institution'])) {
+            $qStr .= ' (' . $edu['institution'] . (!empty($edu['grad_year']) ? ', ' . $edu['grad_year'] : '') . ')';
+        }
+        $grade = $edu['class_of_degree'] ?? $edu['cgpa'] ?? '';
+        if (!empty($grade)) {
+            $qStr .= ' - ' . $grade;
+        }
+        if (!empty($qStr)) {
+            $qualParts[] = $qStr;
+        }
+    }
+    $qualificationsText = !empty($qualParts) ? implode('; ', $qualParts) : 'N/A';
+
+    // O-Level data
     $exams = $examsByApp[$appId] ?? [];
     $numSittings = count($exams);
 
@@ -299,7 +339,6 @@ foreach ($rows as &$row) {
             $exam2 = $ex;
         }
     }
-    
     if (!$exam1 && isset($exams[0]) && (int)$exams[0]['sitting_number'] !== 2) {
         $exam1 = $exams[0];
     }
@@ -309,68 +348,98 @@ foreach ($rows as &$row) {
         $exam2 = $exams[0];
     }
 
+    $olevelSummaryParts = [];
+
     if ($exam1) {
         $sitting1Type = $exam1['exam_type'];
         $res1 = $resultsByExam[$exam1['id']] ?? [];
+        $subStrList = [];
         for ($i = 0; $i < 9; $i++) {
             if (isset($res1[$i])) {
                 $sitting1Subs[$i * 2] = $res1[$i]['subject_name'];
                 $sitting1Subs[$i * 2 + 1] = $res1[$i]['grade'];
+                $subStrList[] = $res1[$i]['subject_name'] . ': ' . $res1[$i]['grade'];
             }
+        }
+        if (!empty($subStrList)) {
+            $olevelSummaryParts[] = 'Sitting 1 (' . $sitting1Type . '): ' . implode(', ', $subStrList);
         }
     }
 
     if ($exam2) {
         $sitting2Type = $exam2['exam_type'];
         $res2 = $resultsByExam[$exam2['id']] ?? [];
+        $subStrList = [];
         for ($i = 0; $i < 9; $i++) {
             if (isset($res2[$i])) {
                 $sitting2Subs[$i * 2] = $res2[$i]['subject_name'];
                 $sitting2Subs[$i * 2 + 1] = $res2[$i]['grade'];
+                $subStrList[] = $res2[$i]['subject_name'] . ': ' . $res2[$i]['grade'];
             }
+        }
+        if (!empty($subStrList)) {
+            $olevelSummaryParts[] = 'Sitting 2 (' . $sitting2Type . '): ' . implode(', ', $subStrList);
         }
     }
 
-    // Remove application_id so it is not exported
-    unset($row['application_id']);
+    $olevelSummary = !empty($olevelSummaryParts) ? implode(' | ', $olevelSummaryParts) : 'N/A';
 
-    $row['O-Level Sittings'] = $numSittings;
-    $row['Sitting 1 Exam Type'] = $sitting1Type;
+    // Construct array in exact pattern requested:
+    // S/No -> Application number -> names -> Sex -> Date of birth -> State -> Dept -> Qualifications -> phone number -> email -> O level results
+    $formattedRow = [
+        'S/No' => $globalSNo++,
+        'Application Number' => (string)($row['Application_Number'] ?? ''),
+        'Names' => $candidateName,
+        'Sex' => (string)($row['Gender'] ?? 'N/A'),
+        'Date of Birth' => (string)($row['Date_of_Birth'] ?? 'N/A'),
+        'State' => (string)($row['State_of_Origin'] ?? 'N/A'),
+        'Dept' => (string)($row['Dept'] ?? 'N/A'),
+        'Qualifications' => $qualificationsText,
+        'Phone Number' => (string)($row['Phone'] ?? 'N/A'),
+        'Email' => (string)($row['Email'] ?? 'N/A'),
+        'O-Level Summary' => $olevelSummary,
+        'O-Level Sittings' => $numSittings,
+        'Sitting 1 Exam Type' => $sitting1Type,
+    ];
+
     for ($i = 1; $i <= 9; $i++) {
-        $row["Sitting 1 Subject {$i}"] = $sitting1Subs[($i - 1) * 2];
-        $row["Sitting 1 Subject {$i} Grade"] = $sitting1Subs[($i - 1) * 2 + 1];
+        $formattedRow["Sitting 1 Subject {$i}"] = $sitting1Subs[($i - 1) * 2];
+        $formattedRow["Sitting 1 Subject {$i} Grade"] = $sitting1Subs[($i - 1) * 2 + 1];
     }
-    $row['Sitting 2 Exam Type'] = $sitting2Type;
+    $formattedRow['Sitting 2 Exam Type'] = $sitting2Type;
     for ($i = 1; $i <= 9; $i++) {
-        $row["Sitting 2 Subject {$i}"] = $sitting2Subs[($i - 1) * 2];
-        $row["Sitting 2 Subject {$i} Grade"] = $sitting2Subs[($i - 1) * 2 + 1];
+        $formattedRow["Sitting 2 Subject {$i}"] = $sitting2Subs[($i - 1) * 2];
+        $formattedRow["Sitting 2 Subject {$i} Grade"] = $sitting2Subs[($i - 1) * 2 + 1];
     }
+
+    $formattedRow['Degree Type'] = (string)($row['Degree_Type'] ?? 'N/A');
+    $formattedRow['Status'] = (string)($row['Status'] ?? 'N/A');
+    $formattedRow['Submitted At'] = (string)($row['Submitted_At'] ?? 'N/A');
+
+    $row = $formattedRow;
 }
 unset($row);
 
-
-
 /* ────────────────────────────────────────────────────────────
-   MODE 1: STREAM CSV / EXCEL
+   MODE 1: STREAM XLSX EXCEL (OFFICIAL EXCEL TABLE) / CSV
    ──────────────────────────────────────────────────────────── */
-if ($format === 'excel') {
-    // Try to load PhpSpreadsheet if available (modern .xlsx)
+if ($format === 'excel' || $format === 'xlsx') {
     $autoloadPath = __DIR__ . '/../vendor/autoload.php';
-    $usePhpSpreadsheet = false;
-    if (file_exists($autoloadPath)) {
-        require_once $autoloadPath;
-        $usePhpSpreadsheet = class_exists('\PhpOffice\PhpSpreadsheet\Spreadsheet');
+    if (!file_exists($autoloadPath)) {
+        $autoloadPath = __DIR__ . '/../../vendor/autoload.php';
     }
+    require_once $autoloadPath;
 
     // Group rows by Degree Type (MSc, PGD, PhD)
     $degreeSheets = [
         'MSc' => [],
         'PGD' => [],
-        'PhD' => []
+        'PhD' => [],
+        'Other' => []
     ];
 
     foreach ($rows as $row) {
-        $deg = trim((string)($row['Degree_Type'] ?? ''));
+        $deg = trim((string)($row['Degree Type'] ?? ''));
         $normalizedKey = 'Other';
         if (stripos($deg, 'msc') !== false || stripos($deg, 'master') !== false) {
             $normalizedKey = 'MSc';
@@ -383,6 +452,13 @@ if ($format === 'excel') {
         }
         $degreeSheets[$normalizedKey][] = $row;
     }
+
+    foreach ($degreeSheets as $key => $sRows) {
+        if (empty($sRows) && !in_array($key, ['MSc', 'PGD', 'PhD'], true)) {
+            unset($degreeSheets[$key]);
+        }
+    }
+
     if (!function_exists('getExcelColLetter')) {
         function getExcelColLetter($colIndex) {
             $letter = '';
@@ -396,14 +472,10 @@ if ($format === 'excel') {
     }
 
     $xlsHeaders = [
-        'Application Number', 'Surname', 'First Name', 'Other Names',
-        'Gender', 'Date of Birth', 'Phone', 'Email',
-        'Programme', 'Department', 'Faculty', 'Degree Type',
-        'Status', 'Submitted At'
+        'S/No', 'Application Number', 'Names', 'Sex', 'Date of Birth',
+        'State', 'Dept', 'Qualifications', 'Phone Number', 'Email',
+        'O-Level Summary', 'O-Level Sittings', 'Sitting 1 Exam Type'
     ];
-
-    $xlsHeaders[] = 'O-Level Sittings';
-    $xlsHeaders[] = 'Sitting 1 Exam Type';
     for ($i = 1; $i <= 9; $i++) {
         $xlsHeaders[] = "Sitting 1 Subject {$i}";
         $xlsHeaders[] = "Sitting 1 Subject {$i} Grade";
@@ -413,108 +485,93 @@ if ($format === 'excel') {
         $xlsHeaders[] = "Sitting 2 Subject {$i}";
         $xlsHeaders[] = "Sitting 2 Subject {$i} Grade";
     }
+    $xlsHeaders[] = 'Degree Type';
+    $xlsHeaders[] = 'Status';
+    $xlsHeaders[] = 'Submitted At';
 
-    if ($usePhpSpreadsheet) {
-        /* ── Modern XLSX via PhpSpreadsheet ── */
-        $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.xlsx';
+    $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.xlsx';
+    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+    $spreadsheet->removeSheetByIndex(0);
 
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-        $spreadsheet->removeSheetByIndex(0);
+    $sheetIndex = 0;
+    foreach ($degreeSheets as $sheetName => $sheetRows) {
+        $cleanSheetName = preg_replace('/[\\\\\/*?:\[\]]/', '', $sheetName);
+        $cleanSheetName = substr($cleanSheetName ?: 'Sheet', 0, 31);
+        $sheetIndex++;
 
-        foreach ($degreeSheets as $sheetName => $sheetRows) {
-            $cleanSheetName = preg_replace('/[\\\\\/*?:\[\]]/', '', $sheetName);
-            $cleanSheetName = substr($cleanSheetName ?: 'Sheet', 0, 31);
+        $worksheet = $spreadsheet->createSheet();
+        $worksheet->setTitle($cleanSheetName);
 
-            $worksheet = $spreadsheet->createSheet();
-            $worksheet->setTitle($cleanSheetName);
+        // Header Row
+        $colIdx = 1;
+        foreach ($xlsHeaders as $header) {
+            $colLetter = getExcelColLetter($colIdx);
+            $worksheet->setCellValue($colLetter . '1', $header);
+            $colIdx++;
+        }
 
-            $colChar = 'A';
-            foreach ($xlsHeaders as $header) {
-                $worksheet->setCellValue($colChar . '1', $header);
-                $colChar++;
+        $lastColLetter = getExcelColLetter(count($xlsHeaders));
+
+        $rowNum = 2;
+        $sheetSNo = 1;
+        if (empty($sheetRows)) {
+            $worksheet->setCellValue('A2', 'No records found for this degree type.');
+            $worksheet->mergeCells('A2:' . $lastColLetter . '2');
+            $rowNum = 3;
+        } else {
+            foreach ($sheetRows as $r) {
+                $r['S/No'] = $sheetSNo++;
+                $colIdx = 1;
+                foreach ($r as $key => $val) {
+                    $colLetter = getExcelColLetter($colIdx);
+                    if (in_array($key, ['Application Number', 'Phone Number'], true)) {
+                        $worksheet->setCellValueExplicit($colLetter . $rowNum, (string)($val ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                    } else {
+                        $worksheet->setCellValue($colLetter . $rowNum, $val ?? '');
+                    }
+                    $colIdx++;
+                }
+                $rowNum++;
             }
+        }
 
-            $lastColChar = getExcelColLetter(count($xlsHeaders));
-            $worksheet->getStyle('A1:' . $lastColChar . '1')
+        $lastDataRow = max(2, $rowNum - 1);
+
+        // Add Official Excel Table
+        try {
+            $table = new \PhpOffice\PhpSpreadsheet\Worksheet\Table();
+            $tableName = 'StudentTable_' . preg_replace('/[^a-zA-Z0-9_]/', '', $cleanSheetName) . '_' . $sheetIndex;
+            $table->setName($tableName);
+            $table->setRange('A1:' . $lastColLetter . $lastDataRow);
+
+            $tableStyle = new \PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle();
+            $tableStyle->setTheme(\PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle::TABLE_STYLE_MEDIUM2);
+            $tableStyle->setShowRowStripes(true);
+
+            $table->setStyle($tableStyle);
+            $worksheet->addTable($table);
+        } catch (Throwable $e) {
+            $worksheet->getStyle('A1:' . $lastColLetter . '1')
                 ->getFont()->setBold(true)
                 ->setColor(new \PhpOffice\PhpSpreadsheet\Style\Color(\PhpOffice\PhpSpreadsheet\Style\Color::COLOR_WHITE));
-            $worksheet->getStyle('A1:' . $lastColChar . '1')
+            $worksheet->getStyle('A1:' . $lastColLetter . '1')
                 ->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                ->getStartColor()->setARGB('FF782D32');
-
-            $rowNum = 2;
-            if (empty($sheetRows)) {
-                $worksheet->setCellValue('A2', 'No records found for this degree type.');
-                $worksheet->mergeCells('A2:' . $lastColChar . '2');
-            } else {
-                foreach ($sheetRows as $row) {
-                    $colChar = 'A';
-                    foreach ($row as $val) {
-                        $worksheet->setCellValue($colChar . $rowNum, $val ?? '');
-                        $colChar++;
-                    }
-                    $rowNum++;
-                }
-            }
-
-            $colChar = 'A';
-            for ($i = 0; $i < count($xlsHeaders); $i++) {
-                $worksheet->getColumnDimension($colChar)->setAutoSize(true);
-                $colChar++;
-            }
+                ->getStartColor()->setARGB('FF1F497D');
         }
 
-        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        header('Content-Disposition: attachment;filename="' . $filename . '"');
-        header('Cache-Control: max-age=0');
-        header('Pragma: public');
-
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $writer->save('php://output');
-        exit();
-
-    } else {
-        /* ── Fallback: Excel XML multi-sheet (works without Composer) ── */
-        $filename = 'students_export_' . $label . '_' . date('Y-m-d') . '.xls';
-        header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Cache-Control: no-cache, no-store, must-revalidate');
-        header('Pragma: no-cache');
-        header('Expires: 0');
-
-        echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        echo '<?mso-application progid="Excel.Sheet"?>' . "\n";
-        echo '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' . "\n";
-        echo ' xmlns:o="urn:schemas-microsoft-com:office:office"' . "\n";
-        echo ' xmlns:x="urn:schemas-microsoft-com:office:excel"' . "\n";
-        echo ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' . "\n";
-        echo '<Styles><Style ss:ID="H"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#782D32" ss:Pattern="Solid"/></Style></Styles>' . "\n";
-
-        foreach ($degreeSheets as $sheetName => $sheetRows) {
-            $cleanSheetName = htmlspecialchars(preg_replace('/[\\\\\/*?:\[\]]/', '', $sheetName) ?: 'Sheet');
-            echo '<Worksheet ss:Name="' . $cleanSheetName . '"><Table>' . "\n";
-            echo '<Row ss:StyleID="H">';
-            foreach ($xlsHeaders as $h) {
-                echo '<Cell><Data ss:Type="String">' . htmlspecialchars($h) . '</Data></Cell>';
-            }
-            echo '</Row>' . "\n";
-            if (empty($sheetRows)) {
-                echo '<Row><Cell ss:MergeAcross="' . (count($xlsHeaders) - 1) . '"><Data ss:Type="String">No records found for this degree type.</Data></Cell></Row>' . "\n";
-            } else {
-                foreach ($sheetRows as $row) {
-                    echo '<Row>';
-                    foreach ($row as $v) {
-                        echo '<Cell><Data ss:Type="String">' . htmlspecialchars((string)($v ?? '')) . '</Data></Cell>';
-                    }
-                    echo '</Row>' . "\n";
-                }
-            }
-
-            echo '</Table></Worksheet>' . "\n";
+        for ($i = 1; $i <= count($xlsHeaders); $i++) {
+            $worksheet->getColumnDimension(getExcelColLetter($i))->setAutoSize(true);
         }
-        echo '</Workbook>';
-        exit();
     }
+
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment;filename="' . $filename . '"');
+    header('Cache-Control: max-age=0');
+    header('Pragma: public');
+
+    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+    $writer->save('php://output');
+    exit();
 }
 
 if ($format === 'csv') {
